@@ -14,7 +14,7 @@ scan_ldapstring.o scan_ldapsearchfilter.o scan_ldapsearchrequest.o \
 freefilter.o freeava.o scan_ldapava.o fmt_ldapsearchresultentry.o \
 fmt_ldapstring.o freepal.o scan_ldapsearchresultentry.o \
 
-ldif.a: ldif_parse.o
+ldif.a: ldif_parse.o ldap_match.o strduptab.o strstorage.o
 
 DIET=diet -Os
 CC=gcc
@@ -33,7 +33,7 @@ endif
 %: %.c
 	$(DIET) $(CC) $(CFLAGS) -o $@ $^ -lowfat
 
-t1: strduptab.o strstorage.o
+t1:
 t2: ldap.a asn1.a
 bindrequest tinyldap ldapclient: ldap.a asn1.a
 

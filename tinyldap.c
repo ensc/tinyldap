@@ -9,12 +9,14 @@
 int main() {
   char buf[BUFSIZE];
   int len=0;
+  ldif_parse("exp.ldif");
   for (;;) {
     int tmp=read(0,buf+len,BUFSIZE-len);
     int res;
     long messageid,op,Len;
-    if (tmp==0) { write(2,"eof!\n",5); return 0; }
-    if (tmp<1) { write(2,"error!\n",7); return 1; }
+    if (tmp==0)
+      if (!len) { write(2,"eof!\n",5); return 0; }
+    if (tmp<0) { write(2,"error!\n",7); return 1; }
     len+=tmp;
     res=scan_ldapmessage(buf,buf+len,&messageid,&op,&Len);
     if (res>0) {
@@ -30,8 +32,9 @@ int main() {
 	{
 	  long version,method;
 	  struct string name;
-	  res=scan_ldapbindrequest(buf+res,buf+res+len,&version,&name,&method);
-	  if (res>=0) {
+	  int tmp;
+	  tmp=scan_ldapbindrequest(buf+res,buf+res+len,&version,&name,&method);
+	  if (tmp>=0) {
 	    buffer_puts(buffer_2,"bind request: version ");
 	    buffer_putulong(buffer_2,version);
 	    buffer_puts(buffer_2," for name \"");
@@ -49,11 +52,33 @@ int main() {
 	    }
 	  }
 	}
+	break;
+      case SearchRequest:
+	{
+	  struct SearchRequest br;
+	  int tmp;
+	  if ((tmp=scan_ldapsearchrequest(buf+res,buf+res+len,&br))) {
+	    struct ldaprec* r=first;
+	    while (r) {
+	      if (ldap_match(r,&br)) {
+		buffer_puts(buffer_2,"found: ");
+		buffer_puts(buffer_2,r->dn);
+		buffer_putsflush(buffer_2,"\n");
+	      }
+	      r=r->next;
+	    }
+	  }
+	}
+	break;
+      default:
+	exit(1);
       }
+      Len+=res;
       if (Len<len) {
-	byte_copyr(buf,len-Len,buf+len);
+	byte_copy(buf,len-Len,buf+Len);
 	len-=Len;
       }
-    }
+    } else
+      exit(2);
   }
 }

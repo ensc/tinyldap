@@ -17,7 +17,7 @@ struct ldaprec {
 extern const char* dn,* mail,* sn,* cn,* objectClass;
 extern struct ldaprec *first;
 
-int parse_ldif(const char* filename);
+int ldif_parse(const char* filename);
 
 /* return non-zero if the record matches the search request */
 int ldap_match(struct ldaprec* r,struct SearchRequest* sr);
