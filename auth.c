@@ -9,10 +9,15 @@
 #define MD5Update MD5_Update
 #define MD5Final MD5_Final
 #endif
+#define _XOPEN_SOURCE
+#include <unistd.h>
+#include <stdlib.h>
+#include <alloca.h>
 #include "ldap.h"
 #include "auth.h"
 #include "str.h"
 #include "textcode.h"
+#include "byte.h"
 
 int check_password(const char* fromdb,struct string* plaintext) {
   if (str_start(fromdb,"{MD5}")) {
@@ -27,5 +32,13 @@ int check_password(const char* fromdb,struct string* plaintext) {
     if (str_equal(md5,fromdb+5))
       return 1;
   }
+  if (plaintext->l<100 && (str_start(fromdb,"$1$") || strlen(fromdb)==13)) {
+    char* c=alloca(plaintext->l+1);
+    byte_copy(c,plaintext->l,plaintext->s);
+    c[plaintext->l]=0;
+    if (str_equal(crypt(c,fromdb),fromdb)) return 1;
+  }
+  if (plaintext->l == strlen(fromdb) && byte_equal(plaintext->s,plaintext->l,fromdb))
+    return 1;
   return 0;
 }
