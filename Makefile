@@ -1,4 +1,4 @@
-DEBUG=1
+#DEBUG=1
 
 all: t t1 t2 bindrequest tinyldap ldapclient
 
@@ -13,6 +13,7 @@ scan_ldapbindrequest.o scan_ldapbindresponse.o scan_ldapresult.o \
 scan_ldapstring.o scan_ldapsearchfilter.o scan_ldapsearchrequest.o \
 freefilter.o freeava.o scan_ldapava.o fmt_ldapsearchresultentry.o \
 fmt_ldapstring.o freepal.o scan_ldapsearchresultentry.o \
+fmt_ldapresult.o
 
 ldif.a: ldif_parse.o ldap_match.o strduptab.o strstorage.o
 
@@ -33,7 +34,7 @@ endif
 %: %.c
 	$(DIET) $(CC) $(CFLAGS) -o $@ $^ -lowfat
 
-t1:
+t1: ldif.a
 t2: ldap.a asn1.a
 bindrequest tinyldap ldapclient: ldap.a asn1.a
 
