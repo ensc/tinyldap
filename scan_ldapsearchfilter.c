@@ -67,6 +67,7 @@ int scan_ldapsearchfilter(const char* src,const char* max,struct Filter** f) {
   case 2:    /*  not             [2] Filter, */
     if (!(tmp=scan_ldapsearchfilter(src+res,nmax,&(*f)->x))) goto error;
     if (tmp!=len) goto error;
+    res+=tmp;
     break;
   case 3:    /*  equalityMatch   [3] AttributeValueAssertion, */
   case 5:    /*  greaterOrEqual  [5] AttributeValueAssertion, */
