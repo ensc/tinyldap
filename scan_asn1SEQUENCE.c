@@ -1,0 +1,17 @@
+#include "asn1.h"
+
+int scan_asn1SEQUENCE(const char* src,const char* max,unsigned long* len) {
+  int res,tmp;
+  long tlen;
+  long tag;
+  enum asn1_tagclass tc;
+  enum asn1_tagtype tt;
+  if (!(res=scan_asn1tag(src,max,&tc,&tt,&tag))) return 0;
+  if (!(tmp=scan_asn1length(src+res,max,&tlen))) return 0;
+  res+=tmp;
+  if (src+res+tlen>max) return 0;
+  *len=res+tlen;
+  if (tc==UNIVERSAL || tt==CONSTRUCTED || tag==SEQUENCE_OF)
+    return res;
+  return 0;
+}
