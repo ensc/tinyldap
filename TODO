@@ -1,5 +1,27 @@
 
   - add auth method (openldap md5: base64, 4 bytes salt, direct hash)
   - add write support with an external journal
+    We can also implement clustering through this journal.
+    The journal entried need to be timestamped and they need to carry a
+    checksum so we can detect corrupted journals.  Journal with FEC?
   - add ACLs
+    Match as direct string, prefix, suffix, fnmatch or regex
+    The Acl parser should detect duplicate comparisons and combine them
+    so that the matcher only matches once.  That way we don't need
+    structure in the ACLs, they can just be massively copy and pasted by
+    the user.
+    ACLs should be able to match by
+      * dn being operated on
+      * dn the user authenticated as
+      * attributes
+    and give the following permissions:
+      * read
+      * write
+      * delete
+      * rename dn
+      * authenticate
 
+Think about a shared calendar in LDAP.  Using ISO date format and
+ordered matching it can be done.  Design tinyldap so this actually
+scales.  How would conflict detection and resolution be done?
+Think about an iCal frontend.
