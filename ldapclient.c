@@ -135,19 +135,22 @@ nextmessage:
 	    buffer_putsflush(buffer_2,".\n");
 #endif
 
-	    buffer_puts(buffer_1,"objectName \"");
+	    buffer_puts(buffer_1,"dn: ");
 	    buffer_put(buffer_1,sre.objectName.s,sre.objectName.l);
-	    buffer_puts(buffer_1,"\"\n");
+	    buffer_puts(buffer_1,"\n");
 	    while (pal) {
 	      struct AttributeDescriptionList* adl=pal->values;
-	      buffer_puts(buffer_1,"  ");
-	      buffer_put(buffer_1,pal->type.s,pal->type.l);
-	      buffer_puts(buffer_1,":");
-	      while (adl) {
-		buffer_put(buffer_1,adl->a.s,adl->a.l);
-		if (adl->next) buffer_puts(buffer_1,", ");
-		adl=adl->next;
-	      }
+	      do {
+		buffer_puts(buffer_1,"  ");
+		buffer_put(buffer_1,pal->type.s,pal->type.l);
+		buffer_puts(buffer_1,": ");
+		if (adl) {
+		  buffer_put(buffer_1,adl->a.s,adl->a.l);
+		  buffer_puts(buffer_1,"\n");
+		  adl=adl->next;
+		  if (!adl) break;
+		}
+	      } while (adl);
 	      buffer_putsflush(buffer_1,"\n");
 	      pal=pal->next;
 	    }
