@@ -130,7 +130,7 @@ static void fixup(struct Filter* f) {
 	uint32 j=uint32_read(x);
 	if (!matchcasestring(&f->ava.desc,map+j)) {
 	  f->attrofs=j;
-	  uint32_unpack(x+-attribute_count*4,&f->attrflag);
+	  uint32_unpack(x+attribute_count*4,&f->attrflag);
 	  break;
 	}
 	x+=4;
