@@ -20,7 +20,8 @@ fmt_ldapresult.o fmt_ldappal.o fmt_ldapadl.o fmt_ldapava.o \
 fmt_ldapsearchfilter.o fmt_ldapsearchrequest.o matchstring.o \
 matchprefix.o byte_case_diff.o matchcasestring.o matchcaseprefix.o \
 scan_ldapmodifyrequest.o bstrlen.o bstrfirst.o bstrstart.o \
-free_ldapadl.o free_ldappal.o free_ldapsearchfilter.o
+free_ldapadl.o free_ldappal.o free_ldapsearchfilter.o \
+scan_ldapsearchfilterstring.o
 
 ldif.a: ldif_parse.o ldap_match_mapped.o
 

@@ -121,8 +121,8 @@ usage:
 	  buffer_putsflush(buffer_2,"read error.\n");
 	  return 0;
 	}
+	cur=len;
 	len+=tmp;
-	cur=0;
 nextmessage:
 	if ((tmp2=scan_ldapmessage(buf+cur,buf+len,&mid,&op,&slen))) {
 	  max=buf+cur+slen+tmp2;
