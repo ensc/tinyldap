@@ -8,7 +8,7 @@ int scan_asn1length(const char* src,const char* max,unsigned long* length) {
     long l=0;
     while (chars>0) {
       if (++src>=max) return 0;
-      l=l*256+*src;
+      l=l*256+(unsigned char)*src;
       --chars;
     }
     *length=l;

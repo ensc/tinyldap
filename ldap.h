@@ -73,6 +73,7 @@ enum ldapops {
 
 void freefilter(struct Filter* f);
 void freeava(struct AttributeDescriptionList* a);
+void freepal(struct PartialAttributeList* a);
 
 int scan_ldapstring(const char* src,const char* max,struct string* s);
 int scan_ldapmessage(const char* src,const char* max,

@@ -43,6 +43,7 @@ int scan_ldapsearchfilter(const char* src,const char* max,struct Filter** f) {
   res+=tmp;
   if (src+res+len>max) goto error;
   if (!(*f=malloc(sizeof(struct Filter)))) goto error;
+  (*f)->substrings=0;
   nmax=src+res+len;
   switch ((*f)->type=tag) {
   case 0:    /*  and             [0] SET OF Filter, */
@@ -87,7 +88,7 @@ int scan_ldapsearchfilter(const char* src,const char* max,struct Filter** f) {
 	enum asn1_tagtype tt;
 	enum asn1_tagclass tc;
 	if (!s) goto error;
-	if (!(tmp=scan_asn1string(src+res,nmax,&tc,&tt,&x,&s->s.s,&s->s.l))) goto error;
+	if (!(tmp=scan_asn1string(src+res,nmax,&tc,&tt,&x,&s->s.s,&s->s.l))) { free(s); goto error; }
 	if (x>2) goto error;
 	s->substrtype=x;
 	res+=tmp;

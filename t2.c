@@ -4,6 +4,10 @@
 #include "asn1.h"
 #include "ldap.h"
 
+/* this is some sort of protocol analyzer.  You give it a file name with
+ * a network dump of an LDAP correspondence, and it will try to parse it
+ * and display it in human readable form */
+
 void printava(struct AttributeValueAssertion* a,const char* rel) {
   printf("[%.*s %s %.*s]",(int)a->desc.l,a->desc.s,rel,(int)a->value.l,a->value.s);
 }
@@ -78,7 +82,7 @@ int main(int argc,char* argv[]) {
 #if 1
   unsigned long size;
 //  char* ldapsequence=mmap_read("req",&size);
-  char* ldapsequence=mmap_read(argc>1?argv[1]:"capture/127.000.000.001.38433-127.000.000.001.00389",&size);
+  char* ldapsequence=mmap_read(argc>1?argv[1]:"/tmp/ldap/127.000.000.001.00389-127.000.000.001.38433",&size);
   long messageid, op, len;
   int res,done=0;
   while (done<size) {
@@ -95,7 +99,11 @@ int main(int argc,char* argv[]) {
 	printf("scan_ldapbindrequest: %d\n",tmp=scan_ldapbindrequest(ldapsequence+done+res,ldapsequence+done+res+len,&version,&name,&method));
 	printf("version %lu, name \"%.*s\", method %lu\n",version,(int)name.l,name.s,method);
 	if (method==0) {
-	  if (scan_ldapstring(ldapsequence+done+res+tmp,ldapsequence+size,&name))
+	  enum asn1_tagclass tc;
+	  enum asn1_tagtype tt;
+	  long tag;
+	  if (scan_asn1string(ldapsequence+done+res+tmp,ldapsequence+size,&tc,&tt,&tag,&name.s,&name.l) &&
+	      tc==PRIVATE && tt==PRIMITIVE && tag==0)
 	    printf("simple \"%.*s\"\n",(int)name.l,name.s);
 	  else
 	    puts("method 0 but couldn't parse simple");
@@ -103,6 +111,22 @@ int main(int argc,char* argv[]) {
 	  puts("unknown method!");
 	break;
       }
+    case BindResponse:
+      puts("  >> BindResponse <<");
+      {
+	long result;
+	struct string matcheddn,errormessage,referral;
+	int tmp;
+	printf("scan_ldapbindresponse: %d\n",
+	       tmp=scan_ldapbindresponse(ldapsequence+done+res,ldapsequence+done+res+len,
+					 &result,&matcheddn,&errormessage,&referral));
+	printf("result %lu, matcheddn \"%.*s\", errormessage \"%.*s\", referral \"%.*s\"\n",
+	       result,(int)matcheddn.l,matcheddn.s,
+	       (int)errormessage.l,errormessage.s,
+	       (int)referral.l,referral.s);
+	break;
+      }
+      break;
     case SearchRequest:
       puts("  >> SearchRequest <<");
       {
@@ -116,6 +140,33 @@ int main(int argc,char* argv[]) {
 	printal(br.attributes);
 	break;
       }
+    case SearchResultEntry:
+      puts("  >> SearchResultEntry <<");
+      {
+	struct SearchResultEntry sre;
+	int tmp;
+	if ((tmp=scan_ldapsearchresultentry(ldapsequence+done+res,ldapsequence+done+res+len,&sre))) {
+	  struct PartialAttributeList* pal=sre.attributes;
+	  printf("objectName \"%.*s\"\n",(int)sre.objectName.l,sre.objectName.s);
+	  while (pal) {
+	    struct AttributeDescriptionList* adl=pal->values;
+	    printf("  %.*s:",(int)pal->type.l,pal->type.s);
+	    while (adl) {
+	      printf("%.*s",(int)adl->a.l,adl->a.s);
+	      if (adl->next) printf(", ");
+	      adl=adl->next;
+	    }
+	    printf("\n");
+	    pal=pal->next;
+	  }
+	} else
+	  puts("punt!");
+      }
+      break;
+    case SearchResultDone:
+      puts("  >> SearchResultDone <<");
+      puts("to be done");
+      break;
     case UnbindRequest:
       puts("  >> UnbindRequest <<");
       break;

@@ -16,6 +16,7 @@ enum asn1_tag {
   OCTET_STRING=4,
   ENUMERATED=10,
   SEQUENCE_OF=16,
+  SET_OF=17,
 };
 
 /* write int in least amount of bytes, return number of bytes */
@@ -73,8 +74,9 @@ int scan_asn1string(const char* src,const char* max,
 		    enum asn1_tagclass* tc,enum asn1_tagtype* tt,unsigned long* tag,
 		    const char** s,unsigned long* l);
 
-int scan_asn1SEQUENCE(const char* src,const char* max,unsigned long* len);
 int scan_asn1BOOLEAN(const char* src,const char* max,unsigned long* l);
 int scan_asn1INTEGER(const char* src,const char* max,unsigned long* l);
 int scan_asn1ENUMERATED(const char* src,const char* max,unsigned long* l);
 int scan_asn1STRING(const char* src,const char* max,const char** s,unsigned long* l);
+int scan_asn1SEQUENCE(const char* src,const char* max,unsigned long* len);
+int scan_asn1SET(const char* src,const char* max,unsigned long* len);
