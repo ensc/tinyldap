@@ -47,7 +47,7 @@ endif
 	ar cru $@ $^
 
 %: %.c
-	$(DIET) $(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) -lowfat
+	$(DIET) $(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) -lowfat ${LIBS}
 
 t1 parse: ldif.a storage.a
 t2: ldap.a asn1.a
@@ -58,10 +58,10 @@ bindrequest tinyldap tinyldap_standalone tinyldap_debug ldapclient ldapclient_st
 idx2ldif: ldap.a
 
 tinyldap_standalone: tinyldap.c
-	$(DIET) $(CC) $(CFLAGS) -DSTANDALONE -o $@ $^ $(LDFLAGS) -lowfat
+	$(DIET) $(CC) $(CFLAGS) -DSTANDALONE -o $@ $^ $(LDFLAGS) -lowfat ${LIBS}
 
 tinyldap_debug: tinyldap.c
-	$(DIET) $(CC) $(CFLAGS) -DSTANDALONE -DDEBUG -o $@ $^ $(LDFLAGS) -lowfat
+	$(DIET) $(CC) $(CFLAGS) -DSTANDALONE -DDEBUG -o $@ $^ $(LDFLAGS) -lowfat ${LIBS}
 
 .PHONY: clean tar
 clean:

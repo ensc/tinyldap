@@ -1,3 +1,6 @@
+#ifdef __FreeBSD__
+#include <sys/types.h>
+#endif
 #include <md5.h>
 #include "ldap.h"
 #include "auth.h"

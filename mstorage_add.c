@@ -54,9 +54,9 @@ long mstorage_add(mstorage_t* p,const char* s,unsigned long n) {
 	if (!tmp) return -1;
       } else {
 	munmap(p->root,p->used);
-	tmp=mmap(0,need,PROT_READ|PROT_WRITE,MAP_SHARED,fd,0);
+	tmp=mmap(0,need,PROT_READ|PROT_WRITE,MAP_SHARED,p->fd,0);
 	if (tmp==-1) {
-	  tmp=mmap(0,p->used,PROT_READ|PROT_WRITE,MAP_SHARED,fd,0);
+	  tmp=mmap(0,p->used,PROT_READ|PROT_WRITE,MAP_SHARED,p->fd,0);
 	  /* this can never fail, because we mmap exactly as much as we
 	   * had mmapped previously.  We need to munmap before doing the
 	   * new mmap, though, because we may run into the address space
