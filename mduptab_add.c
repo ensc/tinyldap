@@ -1,11 +1,12 @@
 #include <stdlib.h>
+#include <string.h>
 #include "str.h"
 #include "bstr.h"
 #include "mstorage.h"
 #include "mduptab.h"
 #include "uint32.h"
 
-const long mduptab_add(mduptab_t* t,const char* s,unsigned int len) {
+long mduptab_add(mduptab_t* t,const char* s,unsigned int len) {
   unsigned int i;
   unsigned long* l=(unsigned long*)t->table.root;
   static char zero;

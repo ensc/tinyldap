@@ -1,3 +1,4 @@
+#include <string.h>
 #include "asn1.h"
 #include "ldap.h"
 

@@ -7,6 +7,7 @@
 #include <ctype.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <string.h>
 
 extern char* map;
 extern long filelen;

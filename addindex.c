@@ -56,11 +56,11 @@ int main(int argc,char* argv[]) {
     for (i=0; i<attribute_count; ++i) {
       uint32 j;
       uint32_unpack(x,&j);
-      buffer_puts(buffer_1,map+j); buffer_putsflush(buffer_1,"\n");
+//      buffer_puts(buffer_1,map+j); buffer_putsflush(buffer_1,"\n");
       if (!strcasecmp(map+j,"dn")) dn=j;
       if (!strcasecmp(map+j,"objectClass")) objectClass=j;
       if (!strcasecmp(map+j,argv[2])) {
-	buffer_putsflush(buffer_2,"found attribute!\n");
+//	buffer_putsflush(buffer_2,"found attribute!\n");
 	wanted=j; casesensitive=x+attribute_count*4-map;
 	uint32_unpack(map+casesensitive,&j);
 	if (j) {

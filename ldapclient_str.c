@@ -1,5 +1,6 @@
 #include <unistd.h>
 #include <stdio.h>
+#include <string.h>
 #include "byte.h"
 #include "buffer.h"
 #include "asn1.h"

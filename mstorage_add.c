@@ -14,7 +14,7 @@
 
 #define PAGEMASK ((PAGE_SIZE)-1)
 
-const long mstorage_add(mstorage_t* p,const char* s,unsigned long n) {
+long mstorage_add(mstorage_t* p,const char* s,unsigned long n) {
   if (p->mapped-p->used<n) {
     if (!p->root) {
       /* nothing allocated.  mmap /dev/zero */

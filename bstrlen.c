@@ -1,3 +1,4 @@
+#include <string.h>
 #include "bstr.h"
 #include "uint32.h"
 

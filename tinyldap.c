@@ -147,6 +147,7 @@ static void fixup(struct Filter* f) {
   case NOT:
     if (f->x) fixup(f->x);
   default:
+    break;
   }
   if (f->next) fixup(f->next);
 }

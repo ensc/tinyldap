@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include <stdlib.h>
 #include "buffer.h"
 #include "mmap.h"
 #include "uint32.h"

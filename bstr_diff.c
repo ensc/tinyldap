@@ -1,3 +1,4 @@
+#include <string.h>
 #include "str.h"
 #include "uint32.h"
 

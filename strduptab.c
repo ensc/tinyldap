@@ -2,6 +2,7 @@
 #include "str.h"
 #include "strduptab.h"
 #include "strstorage.h"
+#include <string.h>
 
 #define PAGESIZE 4096
 
