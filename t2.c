@@ -145,8 +145,10 @@ int main(int argc,char* argv[]) {
       {
 	struct SearchResultEntry sre;
 	int tmp;
+	int first=1;
 	if ((tmp=scan_ldapsearchresultentry(ldapsequence+done+res,ldapsequence+done+res+len,&sre))) {
 	  struct PartialAttributeList* pal=sre.attributes;
+ausgeben:
 	  printf("objectName \"%.*s\"\n",(int)sre.objectName.l,sre.objectName.s);
 	  while (pal) {
 	    struct AttributeDescriptionList* adl=pal->values;
@@ -159,6 +161,20 @@ int main(int argc,char* argv[]) {
 	    printf("\n");
 	    pal=pal->next;
 	  }
+	  if (!first) exit(0); first=0;
+
+	  {
+	    char *buf=alloca(len+1000);
+	    int mylen;
+	    printf("fmt_ldapsearchresultentry: %d vs %ld\n",
+		   mylen=fmt_ldapsearchresultentry(buf,&sre),len);
+	    memset(&sre,0,sizeof(sre));
+	    if (tmp=scan_ldapsearchresultentry(buf,buf+mylen,&sre)) {
+	      pal=sre.attributes;
+	      goto ausgeben;
+	    }
+	  }
+	  exit(0);
 	} else
 	  puts("punt!");
       }

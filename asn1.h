@@ -63,6 +63,9 @@ int fmt_asn1string(char* dest,enum asn1_tagclass tc,enum asn1_tagtype tt,enum as
 /* write ASN.1 SEQUENCE */
 #define fmt_asn1SEQUENCE(dest,l) fmt_asn1transparent(dest,UNIVERSAL,CONSTRUCTED,SEQUENCE_OF,l);
 
+/* write ASN.1 SET */
+#define fmt_asn1SET(dest,l) fmt_asn1transparent(dest,UNIVERSAL,CONSTRUCTED,SET_OF,l);
+
 int scan_asn1tag(const char* src,const char* max,
 		 enum asn1_tagclass* tc,enum asn1_tagtype* tt, unsigned long* tag);
 int scan_asn1length(const char* src,const char* max,unsigned long* length);
