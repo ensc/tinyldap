@@ -856,14 +856,14 @@ found:
   }
 }
 
-int main() {
+int main(int argc,char* argv[]) {
 #ifdef STANDALONE
   int sock;
 #endif
 
   signal(SIGPIPE,SIG_IGN);
 
-  map=mmap_read("data",&filelen);
+  map=mmap_read(argc>1?argv[1]:"data",&filelen);
   if (!map) {
     buffer_putsflush(buffer_2,"could not open data!\n");
     return 1;
