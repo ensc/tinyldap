@@ -17,11 +17,12 @@ fmt_ldapstring.o freepal.o scan_ldapsearchresultentry.o \
 fmt_ldapresult.o fmt_ldappal.o fmt_ldapadl.o fmt_ldapava.o \
 fmt_ldapsearchfilter.o fmt_ldapsearchrequest.o matchstring.o \
 matchprefix.o byte_case_diff.o matchcasestring.o matchcaseprefix.o \
-scan_ldapmodifyrequest.o
+scan_ldapmodifyrequest.o bstrlen.o bstrfirst.o bstrstart.o \
 
 ldif.a: ldif_parse.o ldap_match.o ldap_match_mapped.o
 
-storage.a: strstorage.o strduptab.o mstorage_add.o mduptab_add.o
+storage.a: strstorage.o strduptab.o mstorage_add.o mduptab_add.o \
+bstr_diff.o mduptab_adds.o bstr_diff2.o
 
 auth.a: auth.o
 
@@ -45,8 +46,9 @@ endif
 t1 parse: ldif.a storage.a
 t2: ldap.a asn1.a
 t3 t4 t5 addindex: storage.a
-tinyldap tinyldap_standalone tinyldap_debug: ldif.a storage.a auth.a
+tinyldap tinyldap_standalone tinyldap_debug: ldif.a auth.a
 bindrequest tinyldap tinyldap_standalone tinyldap_debug ldapclient ldapclient_str: ldap.a asn1.a
+idx2ldif: ldap.a
 
 tinyldap_standalone: tinyldap.c
 	$(DIET) $(CC) $(CFLAGS) -DSTANDALONE -o $@ $^ -lowfat

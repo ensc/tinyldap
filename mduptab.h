@@ -11,4 +11,5 @@ typedef struct mduptable {
   mstorage_t table,strings;
 } mduptab_t;
 
-const long mduptab_add(mduptab_t* t,const char* s);
+const long mduptab_add(mduptab_t* t,const char* s,unsigned int len);
+const long mduptab_adds(mduptab_t* t,const char* s);

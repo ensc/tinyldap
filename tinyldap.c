@@ -9,6 +9,7 @@
 #include "mmap.h"
 #include "uint32.h"
 #include "auth.h"
+#include "bstr.h"
 #ifdef STANDALONE
 #include "socket.h"
 #include "ip6.h"
@@ -443,7 +444,7 @@ static void answerwith(uint32 ofs,struct SearchRequest* sr,long messageid,int ou
   }
 #endif
 
-  sre.objectName.l=strlen(sre.objectName.s=map+uint32_read(map+ofs+8));
+  sre.objectName.l=bstrlen(sre.objectName.s=map+uint32_read(map+ofs+8));
   sre.attributes=0;
   /* now go through list of requested attributes */
   {
@@ -481,8 +482,8 @@ nomem:
 add_attribute:
 	  *a=malloc(sizeof(struct AttributeDescriptionList));
 	  if (!*a) goto nomem;
-	  (*a)->a.s=val;
-	  (*a)->a.l=strlen(val);
+	  (*a)->a.s=bstrfirst(val);
+	  (*a)->a.l=bstrlen(val);
 	  for (;i<j; ++i)
 	    if (!matchstring(&adl->a,map+uint32_read(map+ofs+i*8))) {
 	      val=map+uint32_read(map+ofs+i*8+4);

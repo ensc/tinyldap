@@ -1,6 +1,32 @@
+#include <ctype.h>
 #include "buffer.h"
 #include "mmap.h"
 #include "uint32.h"
+#include "bstr.h"
+#include "textcode.h"
+
+static void dumpbstr(const char* c) {
+  int printable=1;
+  int i,l;
+  const char* d;
+  l=bstrlen(c);
+  d=bstrfirst(c);
+  for (i=0; i<l; ++i)
+    if (!isprint(d[i])) printable=0;
+  if (printable) {
+    buffer_puts(buffer_1," ");
+    if (*c)
+      buffer_puts(buffer_1,c);
+    else
+      buffer_put(buffer_1,bstrfirst(c),bstrlen(c));
+  } else {
+    char* e;
+    i=fmt_base64(0,d,l);
+    e=alloca(i+1);
+    buffer_puts(buffer_1,": ");
+    buffer_put(buffer_1,e,fmt_base64(e,d,l));
+  }
+}
 
 int main() {
   int verbose=1;
@@ -21,21 +47,23 @@ int main() {
       uint32_unpack(x,&j);
 
       x+=8;
-      buffer_puts(buffer_1,"dn: ");
+      buffer_puts(buffer_1,"dn:");
       uint32_unpack(x,&k);
-      buffer_puts(buffer_1,map+k);
-      buffer_puts(buffer_1,"\nobjectClass: ");
+      dumpbstr(map+k);
+      buffer_puts(buffer_1,"\nobjectClass:");
       x+=4;
       uint32_unpack(x,&k);
-      buffer_puts(buffer_1,map+k);
+      dumpbstr(map+k);
+//      buffer_puts(buffer_1,map+k);
       buffer_puts(buffer_1,"\n");
       x+=4;
       for (; j>2; --j) {
 	uint32_unpack(x,&k);
 	buffer_puts(buffer_1,map+k);
-	buffer_puts(buffer_1,": ");
+	buffer_puts(buffer_1,":");
 	uint32_unpack(x+4,&k);
-	buffer_puts(buffer_1,map+k);
+	dumpbstr(map+k);
+//	buffer_puts(buffer_1,map+k);
 	buffer_puts(buffer_1,"\n");
 	x+=8;
       }

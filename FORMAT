@@ -2,7 +2,9 @@ Data format for a read-only LDAP data store.  LDAP defines access to
 records, each of them having n attributes.  Mandatory attributes are
 "dn" and "objectClass".
 
-The string table stores all strings, zero-terminated.
+The string table stores all strings, zero-terminated.  Binary records
+are stored as empty string (single zero byte) followed by a
+(uint32_t length,uint8_t data[]) tuple.
 
 An Index is an array of uint32_t, each an offset inside the file to the
 corresponding string.

@@ -2,7 +2,7 @@
 #include <ldap.h>
 
 /* how many attributes do we allow per record? */
-#define ATTRIBS 8
+#define ATTRIBS 32
 
 struct attribute {
   long name, value;

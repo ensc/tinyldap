@@ -8,6 +8,8 @@
 #include "mstorage.h"
 #include "str.h"
 #include "ldif.h"
+#include "byte.h"
+#include "textcode.h"
 
 mduptab_t attributes,classes;
 mstorage_t stringtable;
@@ -52,19 +54,36 @@ static int normalize_dn(char* dest,const char* src,int len) {
   return dest-orig;
 }
 
+static int unbase64(char* buf) {
+  unsigned int destlen;
+  char temp[8192];
+  long l=scan_base64(buf,temp,&destlen);
+  if (buf[l] && buf[l]!='\n') return 0;
+  byte_copy(buf,destlen,temp);
+  return destlen;
+}
+
 static int parserec(buffer* b, struct ldaprec** l) {
   char buf[8192];
   int n,i,eof=0,ofs=0;
+  int len,base64;
   if (!(*l=malloc(sizeof(struct ldaprec)))) return 2;
   (*l)->dn=-1;
   (*l)->next=0; (*l)->n=0;
   ldifrecords=0;
   do {
     long tmp, val;
+    base64=0;
     n=ofs+buffer_get_token(b,buf+ofs,8192-ofs,":",1);
+    buffer_feed(b);
+    if (*buffer_peek(b)==':') {
+      char dummy;
+      base64=1;
+      buffer_getc(b,&dummy);
+    }
     i=scan_whitenskip(buf,n);
     buf[n]=0;
-    if ((tmp=mduptab_add(&attributes,buf+i))<0) {
+    if ((tmp=mduptab_adds(&attributes,buf+i))<0) {
 nomem:
       buffer_putsflush(buffer_2,"out of memory!\n");
       return 1;
@@ -73,6 +92,7 @@ nomem:
     if (n==0) break;
     i=scan_whitenskip(buf,n);
     buf[n]=0;
+
 lookagain:
     {
       char c;
@@ -83,18 +103,33 @@ lookagain:
       if (c==' ') {	/* continuation */
 //	puts("continuation!");
 	n+=buffer_get_token(b,buf+n,8192-n,"\n",1);
+	buf[n]=0;
 	goto lookagain;
       } else if (c=='\n') {
 	struct ldaprec* m=malloc(sizeof(struct ldaprec));
 	if (!m) return 2;
 
-	if (tmp==objectClass) {
-	  if ((val=mduptab_add(&classes,buf+i))<0) goto nomem;
-	} else if (tmp==dn) {
-	  char* newdn=alloca(n-i+1);
-	  if ((val=mstorage_add(&stringtable,newdn,normalize_dn(newdn,buf+i,n-i+1)))<0) goto nomem;
+	if (base64) {
+	  len=unbase64(buf+i);
+	  buf[i+len]=0; ++len;
 	} else
-	  if ((val=mstorage_add(&stringtable,buf+i,n-i+1))<0) goto nomem;
+	  len=n-i+1;
+
+#if 0
+	buffer_puts(buffer_2,"feld \"");
+	buffer_puts(buffer_2,attributes.strings.root+tmp);
+	buffer_puts(buffer_2,"\", wert \"");
+	buffer_put(buffer_2,buf+i,len);
+	buffer_putsflush(buffer_2,"\".\n");
+#endif
+
+	if (tmp==objectClass) {
+	  if ((val=mduptab_add(&classes,buf+i,len-1))<0) goto nomem;
+	} else if (tmp==dn) {
+	  char* newdn=alloca(len);
+	  if ((val=mstorage_add(&stringtable,newdn,normalize_dn(newdn,buf+i,len)))<0) goto nomem;
+	} else
+	  if ((val=mstorage_add(&stringtable,buf+i,len))<0) goto nomem;
 	addattribute(l,tmp,val);
 
 	(*l)->next=m;
@@ -111,13 +146,27 @@ lookagain:
     }
 //    buf[n]=0;
 #if 1
+
+    if (base64) {
+      len=unbase64(buf+i);
+      buf[len+i]=0; ++len;
+    } else
+      len=n-i+1;
+#if 0
+    buffer_puts(buffer_2,"feld \"");
+    buffer_puts(buffer_2,attributes.strings.root+tmp);
+    buffer_puts(buffer_2,"\", wert \"");
+    buffer_put(buffer_2,buf+i,len);
+    buffer_putsflush(buffer_2,"\".\n");
+#endif
+
     if (tmp==objectClass) {
-      if ((val=mduptab_add(&classes,buf+i))<0) goto nomem;
+      if ((val=mduptab_add(&classes,buf+i,len-1))<0) goto nomem;
     } else if (tmp==dn) {
       char* newdn=alloca(n-i+1);
-      if ((val=mstorage_add(&stringtable,newdn,normalize_dn(newdn,buf+i,n-i+1)))<0) goto nomem;
+      if ((val=mstorage_add(&stringtable,newdn,normalize_dn(newdn,buf+i,len)))<0) goto nomem;
     } else
-      if ((val=mstorage_add(&stringtable,buf+i,n-i+1))<0) goto nomem;
+      if ((val=mstorage_add(&stringtable,buf+i,len))<0) goto nomem;
     addattribute(l,tmp,val);
 #endif
   } while (!eof);
@@ -136,8 +185,8 @@ int ldif_parse(const char* filename) {
   int fd=open_read(filename);
   buffer in=BUFFER_INIT(read,fd,buf,sizeof buf);
   if (fd<0) return 1;
-  dn=mduptab_add(&attributes,"dn");
-  objectClass=mduptab_add(&attributes,"objectClass");
+  dn=mduptab_adds(&attributes,"dn");
+  objectClass=mduptab_adds(&attributes,"objectClass");
   {
     int res=parserec(&in,&first);
     close(fd);
