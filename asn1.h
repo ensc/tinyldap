@@ -11,6 +11,7 @@ enum asn1_tagtype {
 };
 
 enum asn1_tag {
+  BOOLEAN=1,
   INTEGER=2,
   OCTET_STRING=4,
   ENUMERATED=10,
@@ -52,6 +53,9 @@ int fmt_asn1string(char* dest,enum asn1_tagclass tc,enum asn1_tagtype tt,enum as
 /* write ASN.1 INTEGER */
 #define fmt_asn1INTEGER(dest,l) fmt_asn1int(dest,UNIVERSAL,PRIMITIVE,INTEGER,l);
 
+/* write ASN.1 BOOLEAN */
+#define fmt_asn1BOOLEAN(dest,l) fmt_asn1int(dest,UNIVERSAL,PRIMITIVE,BOOLEAN,l);
+
 /* write ASN.1 ENUMERATED */
 #define fmt_asn1ENUMERATED(dest,l) fmt_asn1int(dest,UNIVERSAL,PRIMITIVE,ENUMERATED,l);
 
@@ -69,6 +73,7 @@ int scan_asn1string(const char* src,const char* max,
 		    const char** s,unsigned long* l);
 
 int scan_asn1SEQUENCE(const char* src,const char* max,unsigned long* len);
+int scan_asn1BOOLEAN(const char* src,const char* max,unsigned long* l);
 int scan_asn1INTEGER(const char* src,const char* max,unsigned long* l);
 int scan_asn1ENUMERATED(const char* src,const char* max,unsigned long* l);
 int scan_asn1STRING(const char* src,const char* max,const char** s,unsigned long* l);

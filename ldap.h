@@ -1,30 +1,43 @@
 
-struct attributevalueassertion {
-  unsigned char* desc,* value;
-  long dlen, vlen;
-};
-
-struct attributelist {
-  unsigned char* a;
-  long alen;
-  struct attributelist* next;
-};
-
-struct filter {
-  enum {
-    AND=0, OR=1, NOT=2, EQUAL=3, SUBSTRING=4, GREATEQUAL=5, LESSEQUAL=6, PRESENT=7, APPROX=8, EXTENSIBLE=9
-  } type;
-  struct attributevalueassertion ava;
-  struct attributelist *a;
-  enum {
-    PREFIX=0, ANY=1, SUFFIX=2
-  } substrtype;
-  struct filter* x,*next;
-};
-
 struct string {
   long l;
   const char* s;
+};
+
+struct AttributeValueAssertion {
+  struct string desc, value;
+};
+
+struct AttributeList {
+  struct string a;
+  struct AttributeList *next;
+};
+
+struct Filter {
+  enum {
+    AND=0, OR=1, NOT=2, EQUAL=3, SUBSTRING=4, GREATEQUAL=5, LESSEQUAL=6, PRESENT=7, APPROX=8, EXTENSIBLE=9
+  } type;
+  struct AttributeValueAssertion ava;
+  struct AttributeList *a;
+  enum {
+    PREFIX=0, ANY=1, SUFFIX=2
+  } substrtype;
+  struct Filter* x,*next;
+};
+
+struct SearchRequest {
+  struct string LDAPDN;
+  enum { baseObject=0, singleLevel=1, wholeSubtree=2 } scope;
+  enum {
+    neverDerefAliases=0,
+    derefInSearching=1,
+    derefFindingBaseObj=2,
+    derefAlways=3
+  } derefAliases;
+  unsigned long sizeLimit, timeLimit, typesOnly;
+  struct Filter* filter;
+    /* really an AttributeDescriptionList, but the types are equivalent: */
+  struct AttributeList* attributes;
 };
 
 enum ldapops {
@@ -40,8 +53,9 @@ enum ldapops {
   ExtendedRequest=23 /* das ist doch kein Zufall?! */, ExtendedResponse=24
 };
 
-void freefilter(struct filter* f);
+void freefilter(struct Filter* f);
 
+int scan_ldapstring(const char* src,const char* max,struct string* s);
 int scan_ldapmessage(const char* src,const char* max,
 		     long* messageid,long* op,long* len);
 int scan_ldapbindrequest(const char* src,const char* max,
@@ -49,8 +63,12 @@ int scan_ldapbindrequest(const char* src,const char* max,
 int scan_ldapbindresponse(const char* src,const char* max,
 			  long* result,struct string* matcheddn,
 			  struct string* errormessage,struct string* referral);
+int scan_ldapava(const char* src,const char* max,struct AttributeValueAssertion* a);
+int scan_ldapsearchfilter(const char* src,const char* max,struct Filter** f);
+int scan_ldapsearchrequest(const char* src,const char* max,struct SearchRequest* s);
 
 int fmt_ldapmessage(char* dest,long messageid,long op,long len);
 int fmt_ldapbindrequest(char* dest,long version,char* name,char* simple);
 int fmt_ldapbindresponse(char* dest,long result,char* matcheddn,
 			 char* errormessage,char* referral);
+int fmt_ldapsearchfilter(char* dest,struct Filter* f);
