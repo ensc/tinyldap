@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/fcntl.h>
+#include <string.h>
 #include "buffer.h"
 #include "mmap.h"
 #include "uint32.h"
@@ -12,17 +13,21 @@ char* map;
 
 int compar(const void* a,const void* b) {
   return strcmp(map+*(uint32*)a,map+*(uint32*)b);
-//  return *(uint32*)b - *(uint32*)a;
+}
+
+int compari(const void* a,const void* b) {
+  return strcasecmp(map+*(uint32*)a,map+*(uint32*)b);
 }
 
 int main(int argc,char* argv[]) {
   long filelen;
-  char* filename=argv[1]?argv[1]:"data";
+  char* filename=argv[1];
   uint32 magic,attribute_count,record_count,indices_offset,size_of_string_table;
-  uint32 wanted,dn,objectClass;
+  uint32 wanted,casesensitive,dn,objectClass;
 
   if (argc<3) {
-    buffer_putsflush(buffer_2,"usage: ./addindex filename attribute\n");
+    buffer_putsflush(buffer_2,"usage: ./addindex filename attribute [i]\n"
+		     "if i is present, make index case insensitive.\n");
     return 1;
   }
   map=mmap_read(filename,&filelen);
@@ -45,7 +50,13 @@ int main(int argc,char* argv[]) {
       uint32_unpack(x,&j);
       if (!strcmp(map+j,argv[2])) {
 	buffer_putsflush(buffer_2,"found attribute!\n");
-	wanted=j;
+	wanted=j; casesensitive=x+attribute_count*4-map;
+	uint32_unpack(map+casesensitive,&j);
+	if (j) {
+	  buffer_putsflush(buffer_2,"case sensitivity flag is nonzero?!\n");
+	  return 1;
+	}
+	break;
       } else if (!strcmp(map+j,"dn"))
 	dn=j;
       else if (!strcmp(map+j,"objectClass"))
@@ -87,7 +98,10 @@ int main(int argc,char* argv[]) {
     }
     buffer_putulong(buffer_1,counted);
     buffer_putsflush(buffer_1," entries to be sorted...");
-    qsort(idx.root,counted,4,compar);
+    if (argc>3)
+      qsort(idx.root,counted,4,compari);
+    else
+      qsort(idx.root,counted,4,compar);
     buffer_putsflush(buffer_1," done.\n");
     munmap(map,filelen);
     {
@@ -102,6 +116,7 @@ int main(int argc,char* argv[]) {
 	buffer_putsflush(buffer_2,"could not mmap database file read-write\n");
 	exit(1);
       }
+      uint32_pack(map+casesensitive,argc>3?1:0);
       uint32_pack(map+filelen,0);
       uint32_pack(map+filelen+4,filelen+(counted+3)*4);
       uint32_pack(map+filelen+8,wanted);

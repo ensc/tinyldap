@@ -33,6 +33,8 @@ int main() {
       uint32 j;
       uint32_unpack(x,&j);
       buffer_puts(buffer_1,map+j);
+      uint32_unpack(x+attribute_count*4,&j);
+      if (j&1) buffer_puts(buffer_1," (case insensitive)");
       buffer_putsflush(buffer_1,"\n");
       x+=4;
     }

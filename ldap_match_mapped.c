@@ -3,28 +3,36 @@
 #include "byte.h"
 #include "str.h"
 #include "uint32.h"
+#include "case.h"
 #include <unistd.h>
 #include <stdio.h>
 
 extern char* map;
 extern long filelen;
 extern uint32 magic,attribute_count,record_count,indices_offset,size_of_string_table;
+extern uint32 dn_ofs,objectClass_ofs;
 
-static int substringmatch(struct Substring* x,const char* attr) {
+static int substringmatch(struct Substring* x,const char* attr,int ignorecase) {
+  int (*diff)(const void* a, unsigned int len, const void* b);
+  if (ignorecase)
+    diff=byte_case_diff;
+  else
+    diff=byte_diff;
   while (x) {
     unsigned int i;
     if (x->s.l>strlen(attr)) return 0;
     switch (x->substrtype) {
     case prefix:
-      if (byte_diff(x->s.s,x->s.l,attr)) return 0;
+      if (diff(x->s.s,x->s.l,attr)) return 0;
 found:
       break;
     case any:
+      if (x->s.l<strlen(attr)) return 0;
       for (i=0; i<x->s.l-strlen(attr); ++i)
-	if (byte_equal(x->s.s+i,x->s.l,attr)) goto found;
+	if (!diff(x->s.s+i,x->s.l,attr)) goto found;
       return 0;
     case suffix:
-      if (byte_diff(x->s.s+x->s.l-strlen(attr),x->s.l,attr)) return 0;
+      if (diff(x->s.s+x->s.l-strlen(attr),x->s.l,attr)) return 0;
     }
     x=x->next;
   }
@@ -52,21 +60,35 @@ int ldap_matchfilter_mapped(uint32 ofs,struct Filter* f) {
     return !ldap_matchfilter_mapped(ofs,y);
   case EQUAL:
     {
-      uint32 i=2,j,k;
+      uint32 i,j,k;
       uint32_unpack(map+ofs,&j);
-      if (!matchstring(&f->ava.desc,"dn")) {
+//      if (!matchstring(&f->ava.desc,"dn")) {
+      if (f->attrofs==dn_ofs) {
 	uint32_unpack(map+ofs+8,&k);
-	if (!matchstring(&f->ava.value,map+k)) return 1;
-      } else if (!matchstring(&f->ava.desc,"objectName")) {
+	if (f->attrflag&1) {
+	  if (!matchcasestring(&f->ava.value,map+k)) return 1;
+	} else {
+	  if (!matchstring(&f->ava.value,map+k)) return 1;
+	}
+//      } else if (!matchstring(&f->ava.desc,"objectName")) {
+      } else if (f->attrofs==objectClass_ofs) {
 	uint32_unpack(map+ofs+12,&k);
-	if (!matchstring(&f->ava.value,map+k)) return 1;
+	if (f->attrflag&1) {
+	  if (!matchcasestring(&f->ava.value,map+k)) return 1;
+	} else {
+	  if (!matchstring(&f->ava.value,map+k)) return 1;
+	}
       }
       for (i=2; i<j; ++i) {
 	uint32_unpack(map+ofs+i*8,&k);
-	if (!matchstring(&f->ava.desc,map+k)) {
+//	if (!matchstring(&f->ava.desc,map+k)) {
+	if (f->attrofs==k) {
 	  uint32_unpack(map+ofs+i*8+4,&k);
-	  if (!matchstring(&f->ava.value,map+k))
-	    return 1;
+	  if (f->attrflag&1) {
+	    if (!matchcasestring(&f->ava.value,map+k)) return 1;
+	  } else {
+	    if (!matchstring(&f->ava.value,map+k)) return 1;
+	  }
 	}
       }
       return 0;
@@ -74,20 +96,23 @@ int ldap_matchfilter_mapped(uint32 ofs,struct Filter* f) {
     break;
   case SUBSTRING:
     {
-      uint32 i=2,j,k;
+      uint32 i,j,k;
       uint32_unpack(map+ofs,&j);
-      if (matchstring(&f->ava.desc,"dn")) {
+//      if (matchstring(&f->ava.desc,"dn")) {
+      if (f->attrofs==dn_ofs) {
 	uint32_unpack(map+ofs+8,&k);
-	if (substringmatch(f->substrings,map+k)) return 1;
-      } else if (matchstring(&f->ava.desc,"objectName")) {
+	if (substringmatch(f->substrings,map+k,f->attrflag&1)) return 1;
+//      } else if (matchstring(&f->ava.desc,"objectName")) {
+      } else if (f->attrofs==objectClass_ofs) {
 	uint32_unpack(map+ofs+12,&k);
-	if (substringmatch(f->substrings,map+k)) return 1;
+	if (substringmatch(f->substrings,map+k,f->attrflag&1)) return 1;
       }
       for (i=2; i<j; ++i) {
 	uint32_unpack(map+ofs+i*8,&k);
-	if (!matchstring(&f->ava.desc,map+k)) {
+//	if (!matchstring(&f->ava.desc,map+k)) {
+	if (f->attrofs==k) {
 	  uint32_unpack(map+ofs+i*8+4,&k);
-	  if (substringmatch(f->substrings,map+k))
+	  if (substringmatch(f->substrings,map+k,f->attrflag&1))
 	    return 1;
 	}
       }

@@ -13,7 +13,8 @@
 #include <wait.h>
 #endif
 
-static int verbose=0;
+static const int verbose=0;
+static const int debug=1;
 char* map;
 long filelen;
 uint32 magic,attribute_count,record_count,indices_offset,size_of_string_table;
@@ -21,7 +22,129 @@ uint32 magic,attribute_count,record_count,indices_offset,size_of_string_table;
 /* how many longs are needed to have one bit for each record? */
 uint32 record_set_length;
 
+/* some pre-looked-up attribute offsets to speed up ldap_match_mapped */
+uint32 dn_ofs,objectClass_ofs;
+
 #define BUFSIZE 8192
+
+/* debugging support functions, adapted from t2.c */
+static void printava(struct AttributeValueAssertion* a,const char* rel) {
+  buffer_puts(buffer_2,"[");
+  buffer_put(buffer_2,a->desc.s,a->desc.l);
+  buffer_puts(buffer_2," ");
+  buffer_puts(buffer_2,rel);
+  buffer_puts(buffer_2," ");
+  buffer_put(buffer_2,a->value.s,a->value.l);
+  buffer_puts(buffer_2,"]");
+}
+
+static void printal(struct AttributeDescriptionList* a) {
+  while (a) {
+    buffer_put(buffer_2,a->a.s,a->a.l);
+    a=a->next;
+    if (a) buffer_puts(buffer_2,",");
+  }
+  if (a) buffer_puts(buffer_2,"\n");
+}
+
+static void printfilter(struct Filter* f) {
+  switch (f->type) {
+  case AND:
+    buffer_puts(buffer_2,"&(");
+mergesub:
+    printfilter(f->x);
+    buffer_puts(buffer_2,")\n");
+    break;
+  case OR:
+    buffer_puts(buffer_2,"|(");
+    goto mergesub;
+    break;
+  case NOT:
+    buffer_puts(buffer_2,"!(");
+    goto mergesub;
+  case EQUAL:
+    printava(&f->ava,"==");
+    break;
+  case SUBSTRING:
+    {
+      struct Substring* s=f->substrings;
+      int first=1;
+      buffer_put(buffer_2,f->ava.desc.s,f->ava.desc.l);
+      buffer_puts(buffer_2," has ");
+      while (s) {
+	if (!first) buffer_puts(buffer_2," and "); first=0;
+	switch(s->substrtype) {
+	case prefix: buffer_puts(buffer_2,"prefix \""); break;
+	case any: buffer_puts(buffer_2,"substr \""); break;
+	case suffix: buffer_puts(buffer_2,"suffix \""); break;
+	}
+	buffer_put(buffer_2,s->s.s,s->s.l);
+	buffer_puts(buffer_2,"\"");
+	s=s->next;
+      }
+    }
+    break;
+  case GREATEQUAL:
+    printava(&f->ava,">=");
+    break;
+  case LESSEQUAL:
+    printava(&f->ava,"<=");
+    break;
+  case PRESENT:
+    printava(&f->ava,"\\exist");
+    break;
+  case APPROX:
+    printava(&f->ava,"\\approx");
+    break;
+  case EXTENSIBLE:
+    buffer_puts(buffer_2,"[extensible]");
+    break;
+  }
+  if (f->next) {
+    buffer_puts(buffer_2,",");
+    printfilter(f->next);
+  }
+  buffer_flush(buffer_2);
+}
+
+/* recursively fill in attrofs and attrflag */
+static void fixup(struct Filter* f) {
+  if (!f) return;
+  switch (f->type) {
+  case EQUAL:
+  case SUBSTRING:
+  case GREATEQUAL:
+  case LESSEQUAL:
+  case PRESENT:
+  case APPROX:
+    {
+      char* x=map+5*4+size_of_string_table;
+      unsigned int i;
+      f->attrofs=f->attrflag=0;
+      for (i=0; i<attribute_count; ++i) {
+	uint32 j;
+	uint32_unpack(x,&j);
+	if (!matchstring(&f->ava.desc,map+j)) {
+	  f->attrofs=j;
+	  uint32_unpack(x+-attribute_count*4,&f->attrflag);
+	  break;
+	}
+	x+=4;
+      }
+      if (!f->attrofs) {
+	buffer_puts(buffer_2,"cannot find attribute \"");
+	buffer_put(buffer_2,f->ava.desc.s,f->ava.desc.l);
+	buffer_putsflush(buffer_2,"\"!\n");
+      }
+    }
+  case AND:
+  case OR:
+  case NOT:
+    if (f->x) fixup(f->x);
+  default:
+  }
+  if (f->next) fixup(f->next);
+}
 
 /* find out whether this filter can be accelerated with the indices */
 static int indexable(struct Filter* f) {
@@ -241,7 +364,8 @@ static int useindex(struct Filter* f,unsigned long* bitfield) {
 	uint32_unpack(map+ofs+8,&indexed_attribute);
 	if (index_type==0)
 	  if (!matchstring(&f->ava.desc,map+indexed_attribute)) {
-	    tagmatches((uint32*)(map+ofs+12),(next-ofs-12)/4,&f->substrings->s,bitfield,matchprefix);
+	    tagmatches((uint32*)(map+ofs+12),(next-ofs-12)/4,&f->substrings->s,bitfield,
+		       f->attrflag&1?matchcaseprefix:matchprefix);
 	    return 1;
 	  }
 	ofs=next;
@@ -258,7 +382,8 @@ static int useindex(struct Filter* f,unsigned long* bitfield) {
 	uint32_unpack(map+ofs+8,&indexed_attribute);
 	if (index_type==0)
 	  if (!matchstring(&f->ava.desc,map+indexed_attribute)) {
-	    tagmatches((uint32*)(map+ofs+12),(next-ofs-12)/4,&f->ava.value,bitfield,matchstring);
+	    tagmatches((uint32*)(map+ofs+12),(next-ofs-12)/4,&f->ava.value,bitfield,
+		       f->attrflag&1?matchcasestring:matchstring);
 	    return 1;
 	  }
 	ofs=next;
@@ -275,7 +400,7 @@ static void answerwith(uint32 ofs,struct SearchRequest* sr,long messageid,int ou
   struct SearchResultEntry sre;
   struct PartialAttributeList** pal=&sre.attributes;
 
-  if (0) {
+  if (debug) {
     char* x=map+ofs;
     uint32 j,k;
     uint32_unpack(x,&j);
@@ -443,10 +568,31 @@ int handle(int in,int out) {
 	  }
 #endif
 	  if ((tmp=scan_ldapsearchrequest(buf+res,buf+res+len,&sr))) {
+
+	    if (debug) {
+	      const char* scopes[]={"baseObject","singleLevel","wholeSubtree"};
+	      const char* alias[]={"neverDerefAliases","derefInSearching","derefFindingBaseObj","derefAlways"};
+	      buffer_puts(buffer_2,"search request: baseObject \"");
+	      buffer_put(buffer_2,sr.baseObject.s,sr.baseObject.l);
+	      buffer_puts(buffer_2,"\", scope ");
+	      buffer_puts(buffer_2,scopes[sr.scope]);
+	      buffer_puts(buffer_2,", ");
+	      buffer_puts(buffer_2,alias[sr.derefAliases]);
+	      buffer_puts(buffer_2,"\nsize limit ");
+	      buffer_putulong(buffer_2,sr.sizeLimit);
+	      buffer_puts(buffer_2,", time limit ");
+	      buffer_putulong(buffer_2,sr.timeLimit);
+	      buffer_puts(buffer_2,"\n");
+	      printfilter(sr.filter);
+	      buffer_puts(buffer_2,"attributes: ");
+	      printal(sr.attributes);
+	      buffer_putsflush(buffer_2,"\n\n");
+	    }
+	    fixup(sr.filter);
 	    if (indexable(sr.filter)) {
 	      unsigned long* result;
 	      unsigned long i;
-//	      buffer_putsflush(buffer_2,"query is indexable!\n");
+	      if (debug) buffer_putsflush(buffer_2,"query can be answered with index!\n");
 	      record_set_length=(record_count+sizeof(unsigned long)*8-1) / (sizeof(long)*8);
 	      result=alloca(record_set_length*sizeof(unsigned long));
 	      /* Use the index to find matching data.  Put the offsets
@@ -524,11 +670,15 @@ int handle(int in,int out) {
 	    exit(1);
 	  }
 	}
+      case AbandonRequest:
+	/* do nothing */
+	break;
       default:
 	buffer_puts(buffer_2,"unknown request type ");
 	buffer_putulong(buffer_2,op);
 	buffer_putsflush(buffer_2,"\n");
-	exit(1);
+	return 0;
+//	exit(1);
       }
       Len+=res;
 #if 0
@@ -562,6 +712,26 @@ int main() {
   uint32_unpack(map+2*4,&record_count);
   uint32_unpack(map+3*4,&indices_offset);
   uint32_unpack(map+4*4,&size_of_string_table);
+
+  /* look up "dn" and "objectClass" */
+  {
+    char* x=map+5*4+size_of_string_table;
+    unsigned int i;
+    dn_ofs=objectClass_ofs=0;
+    for (i=0; i<attribute_count; ++i) {
+      uint32 j;
+      uint32_unpack(x,&j);
+      if (!strcmp("dn",map+j))
+	dn_ofs=j;
+      else if (!strcmp("objectClass",map+j))
+	objectClass_ofs=j;
+      x+=4;
+    }
+    if (!dn_ofs || !objectClass_ofs) {
+      buffer_putsflush(buffer_2,"can't happen error: dn or objectClass not there?!\n");
+      return 0;
+    }
+  }
 
 #if 0
   ldif_parse("exp.ldif");
@@ -602,7 +772,6 @@ again:
     }
 #ifdef DEBUG
     handle(asock,asock);
-    close(asock);
     goto again;
 //    exit(0);
 #else

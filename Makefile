@@ -16,7 +16,8 @@ freefilter.o freeava.o scan_ldapava.o fmt_ldapsearchresultentry.o \
 fmt_ldapstring.o freepal.o scan_ldapsearchresultentry.o \
 fmt_ldapresult.o fmt_ldappal.o fmt_ldapadl.o fmt_ldapava.o \
 fmt_ldapsearchfilter.o fmt_ldapsearchrequest.o matchstring.o \
-matchprefix.o scan_ldapmodifyrequest.o
+matchprefix.o byte_case_diff.o matchcasestring.o matchcaseprefix.o \
+scan_ldapmodifyrequest.o
 
 ldif.a: ldif_parse.o ldap_match.o ldap_match_mapped.o
 
@@ -42,9 +43,8 @@ endif
 t1 parse: ldif.a storage.a
 t2: ldap.a asn1.a
 t3 t4 t5 addindex: storage.a
-bindrequest tinyldap tinyldap_standalone tinyldap_debug ldapclient ldapclient_str: ldap.a asn1.a
-
 tinyldap tinyldap_standalone tinyldap_debug: ldif.a storage.a
+bindrequest tinyldap tinyldap_standalone tinyldap_debug ldapclient ldapclient_str: ldap.a asn1.a
 
 tinyldap_standalone: tinyldap.c
 	$(DIET) $(CC) $(CFLAGS) -DSTANDALONE -o $@ $^ -lowfat

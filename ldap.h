@@ -1,13 +1,17 @@
 #ifndef _LDAP_H
 #define _LDAP_H
 
+#include "uint32.h"
+
 struct string {
   unsigned long l;
   const char* s;
 };
 
 int matchstring(struct string* s,const char* c);
+int matchcasestring(struct string* s,const char* c);
 int matchprefix(struct string* s,const char* c);
+int matchcaseprefix(struct string* s,const char* c);
 
 struct AttributeValueAssertion {
   struct string desc, value;
@@ -35,9 +39,13 @@ struct Filter {
     AND=0, OR=1, NOT=2, EQUAL=3, SUBSTRING=4, GREATEQUAL=5, LESSEQUAL=6, PRESENT=7, APPROX=8, EXTENSIBLE=9
   } type;
   struct AttributeValueAssertion ava;
+  uint32 attrofs; /* offset of attribute name in index */
+  uint32 attrflag; /* "case sensitivity" flag from index */
   struct Substring* substrings;
   struct AttributeDescriptionList *a;
   struct Filter* x,*next;
+    /* x is the subject of this filter (AND, OR and NOT) */
+    /* next is used to form a linked list of subjects */
 };
 
 struct SearchRequest {
