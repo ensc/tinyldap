@@ -533,7 +533,7 @@ error:
   return 0;
 }
 
-int main() {
+int main(int argc,char* argv[]) {
   char buf[8192];
   char* max;
   int l,fd,res;

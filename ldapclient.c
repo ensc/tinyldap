@@ -1,5 +1,6 @@
 #include <unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "byte.h"
 #include "buffer.h"
 #include "asn1.h"
@@ -37,9 +38,9 @@ int main(int argc,char* argv[]) {
   char buf[BUFSIZE];
   int len=0;
 
-  if (argc<3) {
+  if (argc<5) {
 usage:
-    buffer_putsflush(buffer_2,"usage: ldapclient ip baseObject foo=bar [baz...]\n");
+    buffer_putsflush(buffer_2,"usage: ldapclient ip baseObject foo=bar baz [buzz...]\n");
     return 0;
   }
   sock=socket_tcp4();
@@ -54,15 +55,28 @@ usage:
   if (ldapbind(sock)) {
     struct Filter f;
     struct AttributeDescriptionList adl;
+    struct AttributeDescriptionList *next;
     struct SearchRequest sr;
+    int i;
     f.x=f.next=0;
     f.type=EQUAL;
     f.ava.desc.s=argv[3]; f.ava.desc.l=str_chr(argv[3],'=');
     if (argv[3][f.ava.desc.l] != '=') goto usage;
-    f.ava.value.s=argv[3]+f.ava.desc.l+1; f.ava.value.l=str_len(f.ava.value.s);
-    f.a=&adl;
-    adl.a.s="mail"; adl.a.l=4;
-    adl.next=0;
+    f.ava.value.s=argv[3]+f.ava.desc.l+1; f.ava.value.l=strlen(f.ava.value.s);
+    f.a=0;
+    i=4; /* This should be the first index to an attribute argument in argv[] */
+    adl.a.s=argv[i];
+    adl.a.l=strlen(argv[i]);
+    next=&adl;
+    while (i<argc) {
+      struct AttributeDescriptionList *n;
+      n=malloc(sizeof(struct AttributeDescriptionList));
+      n->a.s=argv[i]; n->a.l=strlen(argv[i]);
+      n->next=0;
+      next->next=n;
+      next=n;
+      i++;
+    }
     sr.baseObject.s=argv[2]; sr.baseObject.l=strlen(sr.baseObject.s);
     sr.scope=wholeSubtree; sr.derefAliases=neverDerefAliases;
     sr.sizeLimit=sr.timeLimit=sr.typesOnly=0;
