@@ -16,6 +16,7 @@
 #include "ip6.h"
 #include <wait.h>
 #endif
+#include "case.h"
 #include <signal.h>
 
 #ifdef DEBUG

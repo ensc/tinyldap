@@ -202,14 +202,21 @@ int ldif_parse(const char* filename) {
   char buf[4096];
   int fd;
   buffer in;
-  if (str_equal(filename,"-")) fd=0; else fd=open_read(filename);
-  if (fd<0) return 1;
-  buffer_init(&in,read,fd,buf,sizeof buf);
+  buffer* tmp;
+  if (filename[0]=='-' && !filename[1]) {
+    tmp=buffer_0;
+    fd=-1;
+  } else {
+    fd=open_read(filename);
+    if (fd<0) return 1;
+    buffer_init(&in,read,fd,buf,sizeof buf);
+    tmp=&in;
+  }
   dn=mduptab_adds(&attributes,"dn");
   objectClass=mduptab_adds(&attributes,"objectClass");
   {
-    int res=parserec(&in,&first);
-    close(fd);
+    int res=parserec(tmp,&first);
+    if (fd!=-1) close(fd);
     return res;
   }
 }
