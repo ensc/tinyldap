@@ -224,44 +224,26 @@ static int indexable(struct Filter* f) {
  * table to find the record with the attribute.  This does not work for
  * objectClass, because the classes are stored in a different string
  * table to remove duplicates. */
+
+/* this kludge is only necessary for index type 0.  Index type 1 also
+ * saves the record number. */
 /* find record given a data pointer */
 static long findrec(uint32 dat) {
   uint32* records=(uint32*)(map+indices_offset);
   uint32 bottom=0;
   uint32 top=record_count-1;
-#ifdef DEBUG
-  buffer_puts(buffer_2,"findrec(");
-  buffer_putulong(buffer_2,dat);
-  buffer_putsflush(buffer_2,")... ");
-#endif
+
   while ((top>=bottom)) {
     uint32 mid=(top+bottom)/2;
     uint32 l;
 
     l=uint32_read(map+uint32_read((char*)(&records[mid]))+8);
-#if 0
-    buffer_puts(buffer_2,"findrec match[");
-    buffer_putulong(buffer_2,bottom);
-    buffer_puts(buffer_2,"..");
-    buffer_putulong(buffer_2,top);
-    buffer_puts(buffer_2,"]: ");
-    buffer_putulong(buffer_2,l);
-    buffer_puts(buffer_2," <-> ");
-    buffer_putulong(buffer_2,dat);
-    buffer_putsflush(buffer_2,": ");
-#endif
     if (l<=dat) {
       if (mid>=record_count-1)
 	l=uint32_read(map+uint32_read((char*)(&records[0]))+12);
       else
 	l=uint32_read(map+uint32_read((char*)(&records[mid+1]))+8);
       if (l>dat) {
-#if 0
-	buffer_putsflush(buffer_2,"found!\n");
-#endif
-#ifdef DEBUG
-	buffer_putsflush(buffer_2,"done!\n");
-#endif
 	return mid;	/* found! */
       }
       bottom=mid+1;
@@ -270,9 +252,6 @@ static long findrec(uint32 dat) {
 	top=mid-1;
       else
 	break;
-#if 0
-    buffer_putsflush(buffer_2,"nope :-(\n");
-#endif
   }
   buffer_putsflush(buffer_2,"findrec failed!\n");
   return -1;
@@ -314,7 +293,7 @@ static void tagmatches(uint32* index,unsigned int elements,struct string* s,
     uint32 k;
     int l;
 
-    k=uint32_read((char*)(&index[mid<<index_type]));
+    k=uint32_read((char*)(&index[mid]));
 #ifdef DEBUG
     buffer_puts(buffer_2,"match[");
     buffer_putulong(buffer_2,bottom);
@@ -336,7 +315,7 @@ static void tagmatches(uint32* index,unsigned int elements,struct string* s,
       if (index_type==0)
 	rec=findrec(k);
       else if (index_type==1)
-	rec=uint32_read((char*)(&index[(mid<<index_type)+1]));
+	rec=uint32_read((char*)(&index[mid+elements]));
       else {
 	buffer_puts(buffer_2,"unsupported index type ");
 	buffer_putulong(buffer_2,index_type);
@@ -348,23 +327,23 @@ static void tagmatches(uint32* index,unsigned int elements,struct string* s,
       /* there may be multiple matches.
 	* Look before and after mid, too */
       for (k=mid-1; k>0; --k) {
-	m=uint32_read((char*)(&index[k<<index_type]));
+	m=uint32_read((char*)(&index[k]));
 	if ((l=match(s,map+m))==0) {
 	  if (index_type==0)
 	    rec=findrec(m);
 	  else if (index_type==1)
-	    rec=uint32_read((char*)(&index[(k<<index_type)+1]));
+	    rec=uint32_read((char*)(&index[k+elements]));
 	  if (rec>=0)
 	    setbit(bitfield,rec);
 	} else break;
       }
       for (k=mid+1; k<elements; ++k) {
-	m=uint32_read((char*)(&index[k<<index_type]));
+	m=uint32_read((char*)(&index[k]));
 	if ((l=match(s,map+m))==0) {
 	  if (index_type==0)
 	    rec=findrec(m);
 	  else if (index_type==1)
-	    rec=uint32_read((char*)(&index[(k<<index_type)+1]));
+	    rec=uint32_read((char*)(&index[k+elements]));
 	  if (rec>=0)
 	    setbit(bitfield,rec);
 	} else break;

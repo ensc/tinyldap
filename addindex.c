@@ -149,18 +149,23 @@ int main(int argc,char* argv[]) {
       }
       uint32_pack(map+casesensitive,ignorecase);
       uint32_pack(map+filelen,fastindex);
-      uint32_pack(map+filelen+4,filelen+(counted+3)*4*(fastindex+1));
+      uint32_pack(map+filelen+4,filelen+3*4+(counted)*4*(fastindex+1));
       uint32_pack(map+filelen+8,wanted);
       {
 	char* x=map+filelen+12;
 	unsigned long i;
 	for (i=0; i<counted; ++i) {
-	  if (fastindex) {
-	    uint32_pack(x,((uint32*)idx.root)[i*2]);
-	    uint32_pack(x+4,((uint32*)idx.root)[i*2+1]);
-	    x+=8;
-	  } else {
-	    uint32_pack(x,((uint32*)idx.root)[i]);
+	  uint32_pack(x,((uint32*)idx.root)[i<<fastindex]);
+	  x+=4;
+	}
+	if (fastindex) {
+	  /* index type 1 also saves the record number for each table
+	   * entry.  Since normal searches will bsearch over the offsets
+	   * and only then ask for the record number, we try to be cache
+	   * friendly and save one table with the offsets and one table
+	   * with the record numbers, instead of one table with tuples. */
+	  for (i=0; i<counted; ++i) {
+	    uint32_pack(x,((uint32*)idx.root)[i*2+1]);
 	    x+=4;
 	  }
 	}
