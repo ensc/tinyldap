@@ -1,0 +1,57 @@
+To compile tinyldap, you first need to get libowfat from
+
+  http://www.fefe.de/libowfat/
+
+(and if you use Linux, getting the diet libc from
+http://www.fefe.de/dietlibc/ is also recommended).
+
+When you compiled tinyldap OK, you can create some LDIF data which you
+want tinyldap to serve.  Here is an example:
+
+  dn: o=fefe,c=de
+  objectClass: top
+
+  dn: cn=Felix von Leitner,o=fefe,c=de
+  objectClass: inetOrgPerson
+  cn: Felix von Leitner
+  sn: von Leitner
+  mail: felix-tinyldap@fefe.de
+
+  dn: cn=Second User,o=fefe,c=de
+  objectClass: inetOrgPerson
+  cn: Second User
+  sn: User
+  mail: seconduser@fefe.de
+
+Save this file as "exp.ldif".  Now you need to convert this into a
+binary database file so tinyldap can search it without parsing the whole
+text file for each request.  Run:
+
+  $ ./parse
+
+This will read exp.ldif and create a file called "data".  This file
+contains all the data and should be about the same size as exp.ldif.
+It does not contain any indexes yet.  tinyldap needs those to search
+efficiently.  Without an index, tinyldap will have to read the whole
+database for each request.  Say we want to be able to search for sn (sn
+is the surname, cn is the common name, and mail is the e-mail address,
+in case you haven't guessed this yourself yet).  Run:
+
+  $ ./addindex data sn i
+
+The i means that we want tinyldap to compare this attribute case
+insensitively (i.e. "FoO" is the same as "foo").  If you don't want case
+insensitive matching, leave the i away on the command line.
+
+Now we have an index.  Let's create another one for the common name:
+
+  $ ./addindex data cn i
+
+Now we have the two indices.  In case you forgot which indices you have,
+you can run dumpidx:
+
+  $ ./dumpidx
+
+This will list some statistics, the attributes and the indices.  If you
+are curious, the file format of data is described in the file called
+"FORMAT" in the tinyldap distribution.
