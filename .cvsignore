@@ -7,3 +7,8 @@ tinyldap
 exp.ldif
 ldapclient_str
 tinyldap_standalone
+addindex
+data
+dumpidx
+parse
+tinyldap_debug
