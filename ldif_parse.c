@@ -3,26 +3,47 @@
 #include <open.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include "strduptab.h"
-#include "strstorage.h"
+#include "mduptab.h"
+#include "mstorage.h"
 #include "str.h"
 #include "ldif.h"
 
-static struct stringduptable tags;
-static struct stringduptable classes;
+mduptab_t attributes,classes;
+mstorage_t stringtable;
 
-const char* dn,* mail,* sn,* cn,* objectClass;
+long dn, mail, sn, cn, objectClass;
+
+unsigned long ldifrecords;
+
+static void addattribute(struct ldaprec** l,long name,long val) {
+  if (name==dn) (*l)->dn=val; else
+  if (name==mail) (*l)->mail=val; else
+  if (name==sn) (*l)->sn=val; else
+  if (name==cn) (*l)->cn=val; else {
+    if ((*l)->n<ATTRIBS) {
+      (*l)->a[(*l)->n].name=name;
+      (*l)->a[(*l)->n].value=val;
+      ++(*l)->n;
+    } else {
+      buffer_putsflush(buffer_2,"LDIF parse error: too many attributes!\n");
+      exit(1);
+    }
+  }
+}
 
 static int parserec(buffer* b, struct ldaprec** l) {
   char buf[8192];
   int n,i,eof=0,ofs=0;
   if (!(*l=malloc(sizeof(struct ldaprec)))) return 2;
+  (*l)->dn=(*l)->mail=(*l)->sn=(*l)->cn=-1;
+  (*l)->next=0; (*l)->n=0;
+  ldifrecords=0;
   do {
-    const char* tmp,* val;
+    long tmp, val;
     n=ofs+buffer_get_token(b,buf+ofs,8192-ofs,":",1);
     i=scan_whitenskip(buf,n);
     buf[n]=0;
-    if (!(tmp=strduptab_add(&tags,buf+i))) {
+    if ((tmp=mduptab_add(&attributes,buf+i))<0) {
 nomem:
       buffer_putsflush(buffer_2,"out of memory!\n");
       return 1;
@@ -30,6 +51,7 @@ nomem:
     n=buffer_get_token(b,buf,8192,"\n",1);
     if (n==0) break;
     i=scan_whitenskip(buf,n);
+    buf[n]=0;
 lookagain:
     {
       char c;
@@ -42,43 +64,37 @@ lookagain:
 	n+=buffer_get_token(b,buf+n,8192-n,"\n",1);
 	goto lookagain;
       } else if (c=='\n') {
-#if 1
 	struct ldaprec* m=malloc(sizeof(struct ldaprec));
 	if (!m) return 2;
+
+	if (tmp==objectClass) {
+	  if ((val=mduptab_add(&classes,buf+i))<0) goto nomem;
+	} else
+	  if ((val=mstorage_add(&stringtable,buf+i,n-i+1))<0) goto nomem;
+	addattribute(l,tmp,val);
+
 	(*l)->next=m;
-	m->n=0; m->dn=m->mail=m->sn=m->cn=0; m->next=0;
+	m->n=0; m->dn=m->mail=m->sn=m->cn=-1; m->next=0;
 	ofs=0;
+//	dumprec(*l);
 	l=&((*l)->next);
-#else
-	struct ldaprec* m=malloc(sizeof(struct ldaprec));
-	if (!m) return 2;
-	m->next=*l;
-	*l=m;
-	m->n=0; m->dn=m->mail=m->sn=m->cn=0;
-	ofs=0;
-#endif
+	++ldifrecords;
+	continue;
       } else {
 	ofs=1;
 	buf[0]=c;
       }
     }
-    buf[n]=0;
+//    buf[n]=0;
+#if 1
     if (tmp==objectClass) {
-      if (!(val=strduptab_add(&classes,buf+i))) goto nomem;
+      if ((val=mduptab_add(&classes,buf+i))<0) goto nomem;
     } else
-      if (!(val=strstorage_add(buf+i,n-i+1))) goto nomem;
-    if (tmp==dn) (*l)->dn=val; else
-    if (tmp==mail) (*l)->mail=val; else
-    if (tmp==sn) (*l)->sn=val; else
-    if (tmp==cn) (*l)->cn=val; else {
-      if ((*l)->n<ATTRIBS) {
-	(*l)->a[(*l)->n].name=tmp;
-	(*l)->a[(*l)->n].value=val;
-	++(*l)->n;
-      }
-    }
+      if ((val=mstorage_add(&stringtable,buf+i,n-i+1))<0) goto nomem;
+    addattribute(l,tmp,val);
+#endif
   } while (!eof);
-  if (!(*l)->dn) {
+  if ((*l)->dn<0) {
     struct ldaprec* m=(*l)->next;
     free((*l));
     (*l)=m;
@@ -93,11 +109,11 @@ int ldif_parse(const char* filename) {
   int fd=open_read(filename);
   buffer in=BUFFER_INIT(read,fd,buf,sizeof buf);
   if (fd<0) return 1;
-  dn=strduptab_add(&tags,"dn");
-  mail=strduptab_add(&tags,"mail");
-  sn=strduptab_add(&tags,"sn");
-  cn=strduptab_add(&tags,"cn");
-  objectClass=strduptab_add(&tags,"objectClass");
+  dn=mduptab_add(&attributes,"dn");
+  mail=mduptab_add(&attributes,"mail");
+  sn=mduptab_add(&attributes,"sn");
+  cn=mduptab_add(&attributes,"cn");
+  objectClass=mduptab_add(&attributes,"objectClass");
   {
     int res=parserec(&in,&first);
     close(fd);

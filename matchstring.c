@@ -3,7 +3,7 @@
 
 /* behave like strcmp */
 int matchstring(struct string* s,const char* c) {
-  int l,l1,i;
+  unsigned int l,l1,i;
   if (!c) return -1;
   l1=l=strlen(c);
   if (s->l<l1) l1=s->l;

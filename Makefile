@@ -1,6 +1,6 @@
-DEBUG=1
+#DEBUG=1
 
-all: t1 t2 bindrequest tinyldap tinyldap_standalone ldapclient ldapclient_str # t
+all: t1 t2 parse dumpidx addindex bindrequest tinyldap tinyldap_standalone tinyldap_debug ldapclient ldapclient_str # t
 
 asn1.a: fmt_asn1intpayload.o fmt_asn1length.o fmt_asn1tag.o \
 fmt_asn1int.o fmt_asn1string.o fmt_asn1transparent.o scan_asn1tag.o \
@@ -17,13 +17,15 @@ fmt_ldapstring.o freepal.o scan_ldapsearchresultentry.o \
 fmt_ldapresult.o fmt_ldappal.o fmt_ldapadl.o fmt_ldapava.o \
 fmt_ldapsearchfilter.o fmt_ldapsearchrequest.o matchstring.o
 
-ldif.a: ldif_parse.o ldap_match.o strduptab.o strstorage.o
+ldif.a: ldif_parse.o ldap_match.o ldif_index.o ldap_match_mapped.o
+
+storage.a: strstorage.o strduptab.o mstorage_add.o mduptab_add.o
 
 DIET=diet -Os
 CC=gcc
 CFLAGS=-pipe -I. -Wall -W
 ifneq ($(DEBUG),)
-DIET=diet
+DIET=/opt/diet/bin/diet
 CFLAGS=-pipe -I. -Wall -W -g
 endif
 
@@ -36,18 +38,22 @@ endif
 %: %.c
 	$(DIET) $(CC) $(CFLAGS) -o $@ $^ -lowfat
 
-t1: ldif.a
+t1 parse: ldif.a storage.a
 t2: ldap.a asn1.a
-bindrequest tinyldap tinyldap_standalone ldapclient ldapclient_str: ldap.a asn1.a
+t3 t4 t5 addindex: storage.a
+bindrequest tinyldap tinyldap_standalone tinyldap_debug ldapclient ldapclient_str: ldap.a asn1.a
 
-tinyldap tinyldap_standalone: ldif.a
+tinyldap tinyldap_standalone tinyldap_debug: ldif.a storage.a
 
 tinyldap_standalone: tinyldap.c
 	$(DIET) $(CC) $(CFLAGS) -DSTANDALONE -o $@ $^ -lowfat
 
+tinyldap_debug: tinyldap.c
+	$(DIET) $(CC) $(CFLAGS) -DSTANDALONE -DDEBUG -o $@ $^ -lowfat
+
 .PHONY: clean tar
 clean:
-	rm -f t t1 t2 *.[ao] bindrequest tinyldap ldapclient
+	rm -f t t1 t2 *.[ao] bindrequest tinyldap ldapclient *.dat
 
 tar: clean
 	cd ..; tar cvvf ldap.tar.bz2 ldap --use=bzip2 --exclude CVS --exclude exp.ldif --exclude polyp* --exclude rfc*

@@ -3,21 +3,10 @@ Please read ldap.h and asn1.h for an overview of the API.
 Example code using the high level API is in tinyldap and ldapclient.
 This will be encapsulated some more eventually.
 
-Tinyldap now not only parses incoming search requests, it also performs
-a search on the data structure we parsed from the flat LDIF file!  When
-I plug in fmt_ldapsearchresultentry and fmt_ldapsearchresultdone, we
-have a minimal LDAP server!
-
-The next steps are:
-
-  - write fmt_ldapsearchrequest and scan_ldapsearchresponse
-
 ldapclient is the client test application.  It connects to localhost,
 makes a BindRequest and dumps the BindResponse in human readable form.
 
-tinyldap is the server test application.  It reads LDAPMessages from
-stdin, looks whether it is a BindRequest and if so, answers it with an
-affirmative BindResponse.  If it is a SearchRequest, it will be parsed
-and dumped to stdout in human readable form.  That will obviously change
-next.
+tinyldap is the server test application.  It can understand BindRequest,
+some simple forms of SearchRequest, and it can even answer simple
+queries.
 

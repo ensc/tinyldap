@@ -2,7 +2,7 @@
 #define _LDAP_H
 
 struct string {
-  long l;
+  unsigned long l;
   const char* s;
 };
 

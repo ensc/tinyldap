@@ -37,12 +37,37 @@ int ldap_matchfilter(struct ldaprec* s,struct Filter* f) {
     }
     return 0;
   case NOT:
-    return !ldap_matchfilter(s,f->x);
+    return !ldap_matchfilter(s,y);
   case EQUAL:
 //    printf("  -> \"%s\" vs. \"%.*s\"\n",findattr(s,&f->ava.desc),f->ava.value.l,f->ava.value.s);
     if (matchstring(&f->ava.value,findattr(s,&f->ava.desc))) return 0;
 //    puts("yes!!!");
     break;
+  case SUBSTRING:
+    {
+      struct Substring* x=f->substrings;
+      const char* attr=findattr(s,&f->ava.desc);
+      if (!attr) return 0;
+      while (x) {
+	unsigned int i;
+	if (x->s.l>strlen(attr)) return 0;
+	switch (x->substrtype) {
+	case prefix:
+	  if (byte_diff(x->s.s,x->s.l,attr)) return 0;
+found:
+	  break;
+	case any:
+	  for (i=0; i<x->s.l-strlen(attr); ++i)
+	    if (byte_equal(x->s.s+i,x->s.l,attr)) goto found;
+	  return 0;
+	case suffix:
+	  if (byte_diff(x->s.s+x->s.l-strlen(attr),x->s.l,attr)) return 0;
+	}
+	x=x->next;
+      }
+      return 1;
+    }
+    if (f->substrings->substrtype!=prefix) return 0;
   default:
     write(2,"foo\n",4);
     return 0;
@@ -52,8 +77,8 @@ int ldap_matchfilter(struct ldaprec* s,struct Filter* f) {
 
 /* return non-zero if the record matches the search request */
 int ldap_match(struct ldaprec* r,struct SearchRequest* sr) {
-  int l=strlen(r->dn);
-  int i;
+  unsigned int l=strlen(r->dn);
+  unsigned int i;
 //  printf("comparing \"%s\" and \"%.*s\"\n",r->dn,(int)sr->baseObject.l,sr->baseObject.s);
   /* first see if baseObject is a suffix of dn */
   if (sr->baseObject.l>l) {
