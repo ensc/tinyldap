@@ -12,7 +12,7 @@ int mstorage_init_persistent(mstorage_t* p,int fd) {
   p->mapped=p->used=o;
   if (p->mapped==0) {
     p->mapped=4096;
-    if (lseek(fd,4095,SEEK_SET)==-1 || write(fd,"",1)!=1) return -1;
+    if (ftruncate(fd,4096)==-1) return -1;
   }
   p->root=mmap(0,p->mapped,PROT_READ|PROT_WRITE,MAP_SHARED,fd,0);
   if (p->root==(char*)-1) return -1;
