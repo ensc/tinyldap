@@ -1,2 +1,4 @@
 
+  - add auth method (openldap md5: base64, 4 bytes salt, direct hash)
   - add write support with an external journal
+  - add ACLs
