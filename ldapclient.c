@@ -8,14 +8,11 @@
 #include "ip4.h"
 #include "str.h"
 
-#define INCLUDE
-#include "t2.c"
-
 #define BUFSIZE 8192
 
 static long messageid=1;
 
-int ldapbind(int sock) {
+static int ldapbind(int sock) {
   char outbuf[1024];
   int s=100;
   int len=fmt_ldapbindrequest(outbuf+s,3,"","");
@@ -100,20 +97,24 @@ usage:
       }
       if ((tmp=scan_ldapsearchresultentry(buf+tmp2,max,&sre))) {
 	struct PartialAttributeList* pal=sre.attributes;
-	printf("objectName \"%.*s\"\n",(int)sre.objectName.l,sre.objectName.s);
+	buffer_puts(buffer_1,"objectName \"");
+	buffer_put(buffer_1,sre.objectName.s,sre.objectName.l);
+	buffer_puts(buffer_1,"\"\n");
 	while (pal) {
 	  struct AttributeDescriptionList* adl=pal->values;
-	  printf("  %.*s:",(int)pal->type.l,pal->type.s);
+	  buffer_puts(buffer_1,"  ");
+	  buffer_put(buffer_1,pal->type.s,pal->type.l);
+	  buffer_puts(buffer_1,":");
 	  while (adl) {
-	    printf("%.*s",(int)adl->a.l,adl->a.s);
-	    if (adl->next) printf(", ");
+	    buffer_put(buffer_1,adl->a.s,adl->a.l);
+	    if (adl->next) buffer_puts(buffer_1,", ");
 	    adl=adl->next;
 	  }
-	  printf("\n");
+	  buffer_putsflush(buffer_1,"\n");
 	  pal=pal->next;
 	}
       } else
-	puts("punt!");
+	buffer_putsflush(buffer_1,"punt!\n");
     }
   } else {
     buffer_putsflush(buffer_2,"ldapbind failed\n");
