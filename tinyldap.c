@@ -5,18 +5,19 @@
 #include "ldap.h"
 #include "ldif.h"
 #include "open.h"
+#include "socket.h"
+#include "ip6.h"
+#ifdef STANDALONE
+#include <wait.h>
+#endif
 
 #define BUFSIZE 8192
 
-int main() {
+int handle(int in,int out) {
+  int len;
   char buf[BUFSIZE];
-  int len=0;
-  ldif_parse("exp.ldif");
-  if (!first) {
-    buffer_putsflush(buffer_2,"keine Datenbasis?!");
-  }
-  for (;;) {
-    int tmp=read(0,buf+len,BUFSIZE-len);
+  for (len=0;;) {
+    int tmp=read(in,buf+len,BUFSIZE-len);
     int res;
     long messageid,op,Len;
     if (tmp==0)
@@ -53,7 +54,7 @@ int main() {
 	      int len=fmt_ldapbindresponse(outbuf+s,0,"","go ahead","");
 	      int hlen=fmt_ldapmessage(0,messageid,BindResponse,len);
 	      fmt_ldapmessage(outbuf+s-hlen,messageid,BindResponse,len);
-	      write(1,outbuf+s-hlen,len+hlen);
+	      write(out,outbuf+s-hlen,len+hlen);
 	    }
 	  }
 	}
@@ -149,7 +150,7 @@ nomem:
 		  buffer_putsflush(buffer_2,".\n");
 		  tmp=fmt_ldapmessage(buf,messageid,SearchResultEntry,l);
 		  fmt_ldapsearchresultentry(buf+tmp,&sre);
-		  write(1,buf,l+tmp);
+		  write(out,buf,l+tmp);
 		}
 		buffer_puts(buffer_2,"found: ");
 		buffer_puts(buffer_2,r->dn);
@@ -166,7 +167,7 @@ nomem:
 	    long l=fmt_ldapsearchresultdone(buf+100,0,"","","");
 	    int hlen=fmt_ldapmessage(0,messageid,SearchResultDone,l);
 	    fmt_ldapmessage(buf+100-hlen,messageid,SearchResultDone,l);
-	    write(1,buf+100-hlen,l+hlen);
+	    write(out,buf+100-hlen,l+hlen);
 	  }
 	}
 	break;
@@ -188,4 +189,55 @@ nomem:
     } else
       exit(2);
   }
+}
+
+int main() {
+#ifdef STANDALONE
+  int sock;
+#endif
+  ldif_parse("exp.ldif");
+  if (!first) {
+    buffer_putsflush(buffer_2,"keine Datenbasis?!");
+  }
+
+#ifdef STANDALONE
+  if ((sock=socket_tcp6())==-1) {
+    buffer_putsflush(buffer_2,"socket failed!\n");
+    exit(1);
+  }
+  if (socket_bind6_reuse(sock,V6any,389,0)) {
+    buffer_putsflush(buffer_2,"bind failed!\n");
+    exit(1);
+  }
+  if (socket_listen(sock,32)) {
+    buffer_putsflush(buffer_2,"listen failed!\n");
+    exit(1);
+  }
+  for (;;) {
+    char ip[16];
+    uint16 port;
+    uint32 scope_id;
+    int asock;
+    {
+      int status;
+      while ((status=waitpid(-1,0,WNOHANG))!=0 && status!=(pid_t)-1); /* reap zombies */
+    }
+    asock=socket_accept6(sock,ip,&port,&scope_id);
+    if (asock==-1) {
+      buffer_putsflush(buffer_2,"accept failed!\n");
+      exit(1);
+    }
+    switch (fork()) {
+    case -1: buffer_putsflush(buffer_2,"fork failed!\n"); exit(1);
+    case 0: /* child */
+      handle(asock,asock);
+      exit(0); /* not reached */
+    default:
+      close(asock);
+    }
+  }
+#else
+  handle(0,1);
+#endif
+  return 0;
 }

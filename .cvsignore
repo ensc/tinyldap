@@ -6,3 +6,4 @@ t2
 tinyldap
 exp.ldif
 ldapclient_str
+tinyldap_standalone

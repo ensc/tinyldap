@@ -1,6 +1,6 @@
-#DEBUG=1
+DEBUG=1
 
-all: t1 t2 bindrequest tinyldap ldapclient ldapclient_str # t
+all: t1 t2 bindrequest tinyldap tinyldap_standalone ldapclient ldapclient_str # t
 
 asn1.a: fmt_asn1intpayload.o fmt_asn1length.o fmt_asn1tag.o \
 fmt_asn1int.o fmt_asn1string.o fmt_asn1transparent.o scan_asn1tag.o \
@@ -38,9 +38,12 @@ endif
 
 t1: ldif.a
 t2: ldap.a asn1.a
-bindrequest tinyldap ldapclient ldapclient_str: ldap.a asn1.a
+bindrequest tinyldap tinyldap_standalone ldapclient ldapclient_str: ldap.a asn1.a
 
-tinyldap: ldif.a
+tinyldap tinyldap_standalone: ldif.a
+
+tinyldap_standalone: tinyldap.c
+	$(DIET) $(CC) $(CFLAGS) -DSTANDALONE -o $@ $^ -lowfat
 
 .PHONY: clean tar
 clean:
