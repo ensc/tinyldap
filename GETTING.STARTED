@@ -55,3 +55,15 @@ you can run dumpidx:
 This will list some statistics, the attributes and the indices.  If you
 are curious, the file format of data is described in the file called
 "FORMAT" in the tinyldap distribution.
+
+Now we can start the server.  I currently have three versions of the
+server: tinyldap, tinyldap_standalone and tinyldap_debug.  tinyldap is
+run from tcpserver, tinyldap_standalone can be run just like that (it
+will bind to port 389, which it only can if you run it as root).  Once
+it runs, you can use ldapclient to query a specific record:
+
+  $ ./ldapclient 127.0.0.1 "o=fefe,c=de" sn="von Leitner" mail
+  objectName "cn=Felix von Leitner,o=fefe,c=de"
+    mail:felix-tinyldap@fefe.de
+
+
