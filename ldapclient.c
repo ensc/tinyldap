@@ -29,15 +29,20 @@ int ldapbind(int sock) {
   return 1;
 }
 
-int main() {
+int main(int argc,char* argv[]) {
   int sock;
   char buf[BUFSIZE];
   int len=0;
 
+  if (argc<3) {
+usage:
+    buffer_putsflush(buffer_2,"usage: ldapclient ip baseObject foo=bar [baz...]\n");
+    return 0;
+  }
   sock=socket_tcp4();
   {
     char ip[4];
-    scan_ip4(ip,"127.0.0.1");
+    if (argv[1][scan_ip4(argv[1],ip)]) goto usage;
     if (socket_connect4(sock,ip,389)) {
       buffer_putsflush(buffer_2,"could not connect to ldap server!\n");
       return 1;
@@ -49,12 +54,13 @@ int main() {
     struct SearchRequest sr;
     f.x=f.next=0;
     f.type=EQUAL;
-    f.ava.desc.s="sn"; f.ava.desc.l=2;
-    f.ava.value.s="boeke"; f.ava.value.l=5;
+    f.ava.desc.s=argv[3]; f.ava.desc.l=str_chr(argv[3],'=');
+    if (argv[3][f.ava.desc.l] != '=') goto usage;
+    f.ava.value.s=argv[3]+f.ava.desc.l+1; f.ava.value.l=5;
     f.a=&adl;
     adl.a.s="mail"; adl.a.l=4;
     adl.next=0;
-    sr.baseObject.s="o=Bundestag, c=de"; sr.baseObject.l=strlen(sr.baseObject.s);
+    sr.baseObject.s=argv[2]; sr.baseObject.l=strlen(sr.baseObject.s);
     sr.scope=wholeSubtree; sr.derefAliases=neverDerefAliases;
     sr.sizeLimit=sr.timeLimit=sr.typesOnly=0;
     sr.filter=&f;
