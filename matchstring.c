@@ -11,10 +11,11 @@ int matchstring(struct string* s,const char* c) {
   c=bstrfirst(c);
   i=byte_diff(s->s,l1,c);
   if (i) return i;
-  /* one is a prefix of the other */
+  /* same length? */
   if (l==s->l) return 0;
-  if (c[l1]) /* is c the longer string? */
+  /* one is a prefix of the other */
+  if (l1<l)	/* we cut off c */
     return c[l1];
-  return -(int)(s->s[l1]);
+  return (int)(s->s[l1]);
 }
 

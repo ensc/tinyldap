@@ -11,8 +11,10 @@ long mstorage_add_bin(mstorage_t* p,const char* s,unsigned long n) {
   static char zero;
   long x;
   char intbuf[4];
+  if (n==0) goto encodebinary;
   for (i=0; i<n-1; ++i)
     if (!s[i]) {
+encodebinary:
       x=mstorage_add(p,&zero,1);
       uint32_pack(intbuf,n);
       mstorage_add(p,intbuf,4);
@@ -20,6 +22,7 @@ long mstorage_add_bin(mstorage_t* p,const char* s,unsigned long n) {
       return x;
     }
   x=mstorage_add(p,s,n);
-  mstorage_add(p,&zero,1);
+  if (s[n-1])
+    mstorage_add(p,&zero,1);
   return x;
 }

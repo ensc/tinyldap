@@ -39,6 +39,9 @@ ifneq ($(DEBUG),)
 DIET=/opt/diet/bin/diet
 CFLAGS=-pipe -I. -Wall -W -g
 endif
+ifneq ($(DIET),)
+LIBS+=-llatin1
+endif
 
 %.o: %.c
 	$(DIET) $(CC) $(CFLAGS) -c $<

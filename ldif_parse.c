@@ -37,7 +37,7 @@ static void addattribute(struct ldaprec** l,long name,long val) {
       ++(*l)->n;
     } else {
       buffer_puts(buffer_2,"LDIF parse error: too many attributes!:\n  ");
-      buffer_puts(buffer_2,attributes.strings.root+name);
+      buffer_puts(buffer_2,attributes.Strings->root+name);
       buffer_puts(buffer_2,"\nat dn\n  ");
       buffer_puts(buffer_2,(*l)->dn+stringtable.root);
       buffer_putnlflush(buffer_2);
@@ -153,7 +153,7 @@ lookagain:
 
 #if 0
 	buffer_puts(buffer_2,"feld \"");
-	buffer_puts(buffer_2,attributes.strings.root+tmp);
+	buffer_puts(buffer_2,attributes.Strings->root+tmp);
 	buffer_puts(buffer_2,"\", wert \"");
 	buffer_put(buffer_2,payload.s,len);
 	buffer_putsflush(buffer_2,"\".\n");
@@ -208,7 +208,7 @@ lookagain:
 
 #if 0
 	buffer_puts(buffer_2,"feld \"");
-	buffer_puts(buffer_2,attributes.strings.root+tmp);
+	buffer_puts(buffer_2,attributes.Strings->root+tmp);
 	buffer_puts(buffer_2,"\", wert \"");
 	buffer_put(buffer_2,payload.s,len);
 	buffer_putsflush(buffer_2,"\".\n");

@@ -60,11 +60,23 @@ int main(int argc,char* argv[]) {
       x+=8;
       buffer_puts(buffer_1,"dn:");
       uint32_unpack(x,&k);
+
+      buffer_flush(buffer_1);
+
       dumpbstr(map+k);
+
+      buffer_flush(buffer_1);
+
       buffer_puts(buffer_1,"\nobjectClass:");
+
+      buffer_flush(buffer_1);
+
       x+=4;
       uint32_unpack(x,&k);
       dumpbstr(map+k);
+
+      buffer_flush(buffer_1);
+
 //      buffer_puts(buffer_1,map+k);
       buffer_puts(buffer_1,"\n");
       x+=4;
@@ -79,6 +91,7 @@ int main(int argc,char* argv[]) {
 	x+=8;
       }
       buffer_puts(buffer_1,"\n");
+      buffer_flush(buffer_1);
     }
   }
   buffer_flush(buffer_1);

@@ -288,10 +288,24 @@ static void tagmatches(uint32* index,unsigned int elements,struct string* s,
     int l;
 
     k=uint32_read(&index[mid]);
+#ifdef DEBUG
+    buffer_puts(buffer_2,"match[");
+    buffer_putulong(buffer_2,bottom);
+    buffer_puts(buffer_2,"..");
+    buffer_putulong(buffer_2,top);
+    buffer_puts(buffer_2,"]: ");
+    buffer_put(buffer_2,s->s,s->l);
+    buffer_puts(buffer_2," <-> ");
+    buffer_puts(buffer_2,map+k);
+    buffer_putsflush(buffer_2,": ");
+#endif
     if ((l=match(s,map+k))==0) {
       /* match! */
       long rec;
       uint32 m;
+#ifdef DEBUG
+      buffer_putsflush(buffer_2,"MATCH!\n");
+#endif
       if ((rec=findrec(k))>=0)
 	setbit(bitfield,rec);
       /* there may be multiple matches.
@@ -314,11 +328,17 @@ static void tagmatches(uint32* index,unsigned int elements,struct string* s,
     }
 
     if (l<0) {
+#ifdef DEBUG
+      buffer_putsflush(buffer_2,"smaller!\n");
+#endif
       if (mid)
 	top=mid-1;
       else
 	break;	/* since our offsets are unsigned, we need to avoid the -1 case */
     } else
+#ifdef DEBUG
+      buffer_putsflush(buffer_2,"larger!\n"),
+#endif
       bottom=mid+1;
   }
 }
