@@ -1,3 +1,4 @@
+#include <alloca.h>
 #include <inttypes.h>
 #include <unistd.h>
 #include <sys/fcntl.h>

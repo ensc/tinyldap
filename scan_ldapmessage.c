@@ -2,7 +2,7 @@
 #include "ldap.h"
 
 int scan_ldapmessage(const char* src,const char* max,
-		     long* messageid,long* op,long* len) {
+		     unsigned long* messageid,unsigned long* op,unsigned long* len) {
   int res,tmp;
   if (!(res=scan_asn1SEQUENCE(src,max,len))) goto error;
   if (!(tmp=scan_asn1INTEGER(src+res,max,messageid))) goto error;

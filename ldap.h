@@ -99,11 +99,13 @@ void freepal(struct PartialAttributeList* a);
 
 int scan_ldapstring(const char* src,const char* max,struct string* s);
 int scan_ldapmessage(const char* src,const char* max,
-		     long* messageid,long* op,long* len);
+		     unsigned long* messageid,unsigned long* op,
+		     unsigned long* len);
 int scan_ldapbindrequest(const char* src,const char* max,
-			 long* version,struct string* name,long* method);
+			 unsigned long* version,struct string* name,
+			 unsigned long* method);
 int scan_ldapbindresponse(const char* src,const char* max,
-			  long* result,struct string* matcheddn,
+			  unsigned long* result,struct string* matcheddn,
 			  struct string* errormessage,struct string* referral);
 int scan_ldapava(const char* src,const char* max,struct AttributeValueAssertion* a);
 int scan_ldapsearchfilter(const char* src,const char* max,struct Filter** f);

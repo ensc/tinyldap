@@ -2,7 +2,7 @@
 #include "ldap.h"
 
 int scan_ldapbindresponse(const char* src,const char* max,
-			  long* result,struct string* matcheddn,
+			  unsigned long* result,struct string* matcheddn,
 			  struct string* errormessage,struct string* referral) {
   int res,tmp;
   if (!(res=scan_asn1ENUMERATED(src,max,result))) return 0;
