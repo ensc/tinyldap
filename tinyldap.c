@@ -131,7 +131,7 @@ nomem:
 		  buffer_puts(buffer_2,"sre len ");
 		  buffer_putulong(buffer_2,l);
 		  buffer_putsflush(buffer_2,".\n");
-		  tmp=fmt_ldapmessage(buf,++messageid,SearchResultEntry,l);
+		  tmp=fmt_ldapmessage(buf,messageid,SearchResultEntry,l);
 		  fmt_ldapsearchresultentry(buf+tmp,&sre);
 		  write(1,buf,l+tmp);
 		}
@@ -148,7 +148,7 @@ nomem:
 	  {
 	    char buf[1000];
 	    long l=fmt_ldapsearchresultdone(buf+100,0,"","","");
-	    int hlen=fmt_ldapmessage(0,++messageid,SearchResultDone,l);
+	    int hlen=fmt_ldapmessage(0,messageid,SearchResultDone,l);
 	    fmt_ldapmessage(buf+100-hlen,messageid,SearchResultDone,l);
 	    write(1,buf+100-hlen,l+hlen);
 	  }
