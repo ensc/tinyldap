@@ -5,17 +5,17 @@
 #define ATTRIBS 100
 
 struct attribute {
-  long name, value;
+  uint32 name, value;
 };
 
 struct ldaprec {
-  long dn;
+  uint32 dn;
   int n;	/* number of attributes */
   struct attribute a[ATTRIBS];
   struct ldaprec* next;
 };
 
-extern long dn, mail, sn, cn, objectClass;
+extern uint32 dn, mail, sn, cn, objectClass;
 extern struct ldaprec *first;
 extern unsigned long ldifrecords;
 

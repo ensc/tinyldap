@@ -1,5 +1,6 @@
 /* This is just the main() for "parse".  The actual parser is in
  * ldif_parse.c */
+#define _FILE_OFFSET_BITS 64
 #include <alloca.h>
 #include <inttypes.h>
 #include <unistd.h>
@@ -24,7 +25,7 @@ extern mduptab_t attributes,classes;
   /* we do a minor optimization by saving the strings of names of
    * attributes and objectClass values only once.  mduptab_t is the data
    * structure used for this, see mduptab.h */
-extern mstorage_t stringtable;
+// extern mstorage_t stringtable;
   /* this is a giant string table where all the strings (keys and
    * values) of the data are written to.  This is actually the memory
    * mapped destination file. */
@@ -53,128 +54,119 @@ extern int (*ldif_parse_callback)(struct ldaprec* l);
 
 extern unsigned long mstorage_increment;
 
-/* for debugging and error messages */
-/* ldaprec is the struct used by ldif_parse.c */
-void dumprec(struct ldaprec* l) {
-  int i;
-  if (l->dn>=0) {
-    buffer_puts(buffer_1,"dn: ");
-    buffer_puts(buffer_1,stringtable.root+l->dn);
-    buffer_puts(buffer_1,"\n");
-  } else
-    buffer_puts(buffer_1,"no dn?!\n");
-  for (i=0; i<l->n; ++i) {
-    buffer_puts(buffer_1,attributes.Strings->root+l->a[i].name);
-    buffer_puts(buffer_1,": ");
-    if (l->a[i].name==objectClass)
-      buffer_puts(buffer_1,classes.Strings->root+l->a[i].value);
-    else
-      buffer_puts(buffer_1,stringtable.root+l->a[i].value);
-    buffer_puts(buffer_1,"\n");
-  }
-  buffer_putsflush(buffer_1,"\n");
-}
+static unsigned long outofs;
+static unsigned long recofs;
 
 /* Records are stored with a variable length externally, see FORMAT.
  * We need to store the records and a table of the offsets of the
  * records inside the data file in the data file.  These data structures
  * hold this data: */
-mstorage_t record_offsets;
-mstorage_t records;
+// mstorage_t records;
 unsigned long offset_classes,record_count;
-  /* record_count is just a convenience, the same value is also visible
-   * as record_offsets.used/4 */
+
+buffer outbuf,rbuf;
 
 static void printstats() {
   buffer_puts(buffer_2,"\r");
   buffer_putulong(buffer_2,record_count);
   buffer_puts(buffer_2," records parsed, ");
-  buffer_putulong(buffer_2,stringtable.used/1024);
+  buffer_putulong(buffer_2,outofs/1024);
   buffer_puts(buffer_2,"k strings, ");
-  buffer_putulong(buffer_2,records.used/1024);
-  buffer_puts(buffer_2,"k records, ");
-  buffer_putulong(buffer_2,record_offsets.used/1024);
-  buffer_putsflush(buffer_2,"k record offsets.        ");
+  buffer_putulong(buffer_2,recofs/1024);
+  buffer_putsflush(buffer_2,"k records.        ");
+}
+
+uint32 my_addstring(const char* s,unsigned long len) {
+  uint32 tmp=outofs;
+  if (buffer_put(&outbuf,s,len)) return -1;
+  outofs+=len;
+  return tmp;
 }
 
 int ldif_callback(struct ldaprec* l) {
   char x[8];	/* temp buf for endianness conversion */
   int i;
-  uint32 ofs;
-  uint32 oc;	/* value of the first objectClass */
-  int found;
+//  uint32 ofs;
+  uint32 oc=(uint32)-1;	/* value of the first objectClass */
 
   if (!l->n) return 0;
-  found=0;
   for (i=0; i<l->n; ++i) {
     if (l->a[i].name==objectClass) {
       oc=l->a[i].value;
       l->a[i].value=-1;
-      found=1;
       break;
     }
   }
-  if (!found) {
-    buffer_putsflush(buffer_1,"ignoring record without objectClass...\n");
-    dumprec(l);
+  if (oc==(uint32)-1) {
+    extern long lines;
+    buffer_puts(buffer_1,"ignoring record without objectClass... (line");
+    buffer_putulong(buffer_1,lines);
+    buffer_putsflush(buffer_1,")\n");
     return 0;
   }
 
   uint32_pack(x,l->n+1);
   uint32_pack(x+4,0);
-  if ((ofs=mstorage_add(&records,x,8))==(uint32)-1) return -1;
+
+//  ofs=recofs;
+  if (buffer_put(&rbuf,x,8)) return -1; recofs+=8;
+//  if ((ofs=mstorage_add(&records,x,8))==(uint32)-1) return -1;
+
   uint32_pack(x,l->dn);
   uint32_pack(x+4,oc);
 
-  if (mstorage_add(&records,x,8)==-1) return -1;
+  if (buffer_put(&rbuf,x,8)) return -1; recofs+=8;
+//  if (mstorage_add(&records,x,8)==-1) return -1;
+
   for (i=0; i<l->n; ++i) {
-    if (l->a[i].name==objectClass && l->a[i].value==-1) continue;
+    if (l->a[i].name==objectClass && l->a[i].value==(uint32)-1) continue;
     uint32_pack(x,l->a[i].name);
     uint32_pack(x+4,l->a[i].value);
-    if (mstorage_add(&records,x,8)==-1) return -1;
+    if (buffer_put(&rbuf,x,8)) return -1; recofs+=8;
+//    if (mstorage_add(&records,x,8)==-1) return -1;
   }
-  uint32_pack(x,ofs);
-  if (mstorage_add(&record_offsets,x,4)==-1) return -1;
+//  uint32_pack(x,ofs);
+//  if (mstorage_add(&record_offsets,x,4)==-1) return -1;
   ++record_count;
   if ((record_count%10000)==0)
     printstats();
   return 0;
 }
 
+extern uint32 (*ldif_addstring_callback)(const char* s,unsigned long len);
+
 int main(int argc,char* argv[]) {
+  char buf[64*1024];
+  char recbuf[8*1024];
   int fd,rfd;
   long len;
   char* destname=argc<3?"data":argv[2];
   char* tempname;
   unsigned long size_of_string_table,indices_offset;
   long offset_stringtable;
-  char* map,* dest;
+  char* map;
+  uint32 attrofs,classofs;
 
-  mstorage_increment=1024*1024;		/* always grow mstorages by 1 additional MiB to reduce mmap overhead */
+  ldif_addstring_callback=my_addstring;
 
   tempname=alloca(strlen(destname)+10);
-  mstorage_init(&record_offsets);
+//  mstorage_init(&record_offsets);
 
   rfd=fmt_str(tempname,destname);
   rfd+=fmt_str(tempname+rfd,".rec");
   tempname[rfd]=0;
   if ((rfd=open(tempname,O_RDWR|O_CREAT|O_TRUNC,0600))<0) {
     buffer_puts(buffer_2,"could not create temp file ");
-temperrout:
     buffer_puts(buffer_2,tempname);
     goto derrout2;
   }
-  if (mstorage_init_persistent(&records,rfd)==-1) {
-    buffer_puts(buffer_2,"mstorage_init_persistent: error mmapping ");
-    goto temperrout;
-  }
 
-//  mstorage_init(&records);
+  buffer_init(&rbuf,write,rfd,recbuf,sizeof recbuf);
+
   ldif_parse_callback=ldif_callback;
 
   if ((fd=open(destname,O_RDWR|O_CREAT|O_TRUNC,0600))<0) {
     buffer_puts(buffer_2,"could not create destination data file ");
-derrout:
     buffer_puts(buffer_2,destname);
 derrout2:
     buffer_puts(buffer_2,": ");
@@ -182,49 +174,120 @@ derrout2:
     buffer_putnlflush(buffer_2);
     return 1;
   }
-  if (mstorage_init_persistent(&stringtable,fd)==-1) {
-    buffer_puts(buffer_2,"mstorage_init_persistent: error mmapping ");
-    goto derrout;
-  }
-  mduptab_init_reuse(&attributes,&stringtable);
-  mduptab_init_reuse(&classes,&stringtable);
+
+  buffer_init(&outbuf,write,fd,buf,sizeof buf);
+
+  mduptab_init(&attributes);
+  mduptab_init(&classes);
 
   {
     char dummy[5*4];
-    mstorage_add(&stringtable,dummy,5*4);
+    if (buffer_put(&outbuf,dummy,5*4))
+writeerror:
+      diesys(1,"write error (disk full?)");
+    outofs=5*4;
+    recofs=0;
   }
 
 //  if ((mduptab_adds(&attributes,"*"))<0)
 //    die(1,"out of memory");
 
   ldif_parse(argc<2?"exp.ldif":argv[1]);
-  if (!first) {
-    buffer_putsflush(buffer_2,"usage: parse [src-ldif-filename] [dest-bin-filename]\n");
-    return 1;
-  }
+  if (!first)
+    die(1,"usage: parse [src-ldif-filename] [dest-bin-filename]\n");
 
   printstats();
   buffer_putsflush(buffer_2,"DONE!\n");
 
-  size_of_string_table=stringtable.used-5*4;
+  if (buffer_flush(&rbuf)) goto writeerror;
+
+  /* now we have to add the classes and attributes to the "string table".
+     problem is: we already wrote the offsets within the local tables to
+     the record table, so we need to do some relocation */
+
+  /* first, add the strings */
+  attrofs=outofs;
+  if (buffer_put(&outbuf,attributes.strings.root,attributes.strings.used))
+    goto writeerror;
+  outofs+=attributes.strings.used;
+  classofs=outofs;
+  if (buffer_put(&outbuf,classes.strings.root,classes.strings.used))
+    goto writeerror;
+  outofs+=classes.strings.used;
+
+  if (outofs&3) {	/* round up to 32-bit boundary */
+    if (buffer_put(&outbuf,"\x00\x00\x00",4-(outofs&3))) goto writeerror;
+    outofs+=4-(outofs&3);
+  }
+  buffer_flush(&outbuf);
+
+  size_of_string_table=outofs-5*4;
   size_of_string_table=(size_of_string_table+3)&-4;	/* round up to 32 bits */
   /* first find out how much space we need */
-  len = 5*sizeof(uint32_t);  /* magic plus four counts */
-  len += size_of_string_table;   /* size of string table */
-  len += attributes.table.used/sizeof(long)*8;   /* attribute_names plus attribute_flags */
 
-//  fdprintf(2,"offsets of records: %lu\n",len);
+  {
+    uint32 i,n;
+    char convbuf[4];
+    n=attributes.table.used/sizeof(long);
+    for (i=0; i<n; ++i) {
+      uint32_pack(convbuf,((long*)attributes.table.root)[i]+attrofs);
+      if (buffer_put(&outbuf,convbuf,4)) goto writeerror;
+      outofs+=4;
+    }
+    byte_zero(convbuf,4);
+    for (i=0; i<n; ++i) {
+      if (buffer_put(&outbuf,convbuf,4)) goto writeerror;
+      outofs+=4;
+    }
+  }
 
-  len += records.used;
+  {
+    uint32 i;
+    uint32* offsets=malloc(sizeof(uint32)*record_count);
 
-//  fdprintf(2,"offsets of indices: %lu\n",len);
-  indices_offset=len;
-  len+=record_count*4;
+    if (!offsets) die(1,"out of memory");
+
+    buffer_flush(&rbuf);
+    if (lseek(rfd,0,SEEK_SET)!=0) diesys(1,"lseek failed");
+    buffer_init(&rbuf,read,rfd,recbuf,sizeof recbuf);
+
+    for (i=0; i<record_count; ++i) {
+      char convbuf[8];
+      uint32 j,n;
+      offsets[i]=outofs;
+      if (buffer_getn(&rbuf,convbuf,8)!=8) die(1,"short read");
+      n=uint32_read(convbuf);
+      if (buffer_put(&outbuf,convbuf,8)) diesys(1,"short write (disk full?)");
+      outofs+=8;
+      for (j=1; j<n; ++j) {
+	if (buffer_getn(&rbuf,convbuf,8)!=8) die(1,"short read");
+	if (j==1)
+	  uint32_pack(convbuf+4,uint32_read(convbuf+4)+classofs);
+	else {
+	  uint32 attr;
+	  uint32_pack(convbuf,(attr=uint32_read(convbuf))+attrofs);
+	  if (attr==objectClass)
+	    uint32_pack(convbuf+4,uint32_read(convbuf+4)+classofs);
+	}
+	if (buffer_put(&outbuf,convbuf,8)) diesys(1,"short write (disk full?)");
+	outofs+=8;
+      }
+    }
+    len = outofs;
+
+    indices_offset=len;
+    len+=record_count*4;
+
+    if (buffer_put(&outbuf,(char*)offsets,sizeof(uint32)*record_count)) diesys(1,"short write (disk full?)");
+    free(offsets);
+  }
+
   /* done!  we don't create any indices for now. */
 
-  munmap(stringtable.root,stringtable.mapped);
-  ftruncate(fd,len);
-  if ((map=mmap(0,len,PROT_READ|PROT_WRITE,MAP_SHARED,fd,0))==MAP_FAILED) {
+  if (buffer_flush(&outbuf)) goto writeerror;
+//  munmap(stringtable.root,stringtable.mapped);
+//  ftruncate(fd,len);
+  if ((map=mmap(0,5*4,PROT_READ|PROT_WRITE,MAP_SHARED,fd,0))==MAP_FAILED) {
     buffer_putsflush(buffer_2,"could not mmap destination data file!\n");
     unlink(destname);
     unlink(tempname);
@@ -238,32 +301,9 @@ derrout2:
 
 //  size_of_string_table=stringtable.used+classes.strings.used+attributes.strings.used;
   offset_stringtable=5*4;
-  offset_classes=stringtable.used;
+  offset_classes=outofs;
 
-  dest=map+offset_stringtable+size_of_string_table;
-  {
-    unsigned long i;
-    for (i=0; i<attributes.table.used/sizeof(long); ++i) {
-      uint32_pack(dest+i*4,((long*)attributes.table.root)[i]);
-    }
-    i=attributes.table.used/sizeof(long)*4;
-    dest+=i;
-    byte_zero(dest,i);
-    dest+=i;
-  }
-
-  {
-    char* x;
-    unsigned long i;
-    uint32 addme=dest-map;
-    byte_copy(dest,records.used,records.root);
-    x=record_offsets.root;
-    dest+=records.used;
-    for (i=0; i<record_count; ++i)
-      uint32_pack(dest+4*i,uint32_read(x+4*i)+addme);
-  }
-
-  munmap(map,len);
+  munmap(map,5*4);
   close(fd);
   close(rfd);
   unlink(tempname);

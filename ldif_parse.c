@@ -15,7 +15,8 @@
 
 mduptab_t attributes,classes;
 mstorage_t stringtable;
-long dn, objectClass;
+uint32 dn, objectClass;
+unsigned long lines;
 
 /* this is called after each record.
  * If it returns -1, ldif_parse will exit immediately.
@@ -26,20 +27,21 @@ long dn, objectClass;
  * If the callback is NULL, a callback that always returns 1 is assumed.
  * */
 int (*ldif_parse_callback)(struct ldaprec* l);
+uint32 (*ldif_addstring_callback)(const char* s,unsigned long len);
 
 unsigned long ldifrecords;
 
-static void addattribute(struct ldaprec** l,long name,long val) {
+static void addattribute(struct ldaprec** l,uint32 name,uint32 val) {
   if (name==dn) (*l)->dn=val; else
     if ((*l)->n<ATTRIBS) {
       (*l)->a[(*l)->n].name=name;
       (*l)->a[(*l)->n].value=val;
       ++(*l)->n;
     } else {
-      buffer_puts(buffer_2,"LDIF parse error: too many attributes!:\n  ");
+      buffer_puts(buffer_2,"LDIF parse error: too many attributes!: ");
       buffer_puts(buffer_2,attributes.Strings->root+name);
-      buffer_puts(buffer_2,"\nat dn\n  ");
-      buffer_puts(buffer_2,(*l)->dn+stringtable.root);
+      buffer_puts(buffer_2," in line ");
+      buffer_putulong(buffer_2,lines);
       buffer_putnlflush(buffer_2);
       exit(1);
     }
@@ -78,11 +80,36 @@ static int unbase64(char* buf) {
   return destlen;
 }
 
+uint32 (*ldif_addstring_callback)(const char* s,unsigned long len);
+
+static uint32 addstring(const char* s,unsigned long len) {
+  return mstorage_add(&stringtable,s,len);
+}
+
+static long commit_string_bin(const char* s,unsigned long n) {
+  unsigned int i;
+  static char zero;
+  uint32 x;
+  char intbuf[4];
+  if (n==0 || (n==1 && s[0]==0)) goto encodebinary;
+  for (i=0; i<n-1; ++i)
+    if (!s[i]) {
+encodebinary:
+      uint32_pack(intbuf,n);
+      if ((x=ldif_addstring_callback(&zero,1))==(uint32)-1 || ldif_addstring_callback(intbuf,4)==(uint32)-1 || ldif_addstring_callback(s,n)==(uint32)-1) return -1;
+      return x;
+    }
+  x=ldif_addstring_callback(s,n);
+  if (s[n-1])
+    if (ldif_addstring_callback(&zero,1)==(uint32)-1) return -1;
+  return x;
+}
+
 
 static inline int add_normalized(const char* s,long len) {
   char* newdn=alloca(len+1);
   long val;
-  if ((val=mstorage_add(&stringtable,newdn,normalize_dn(newdn,s,len)))<0) return -1;
+  if ((val=ldif_addstring_callback(newdn,normalize_dn(newdn,s,len)))<0) return -1;
   return val;
 }
 
@@ -102,7 +129,7 @@ nomem:
   (*l)->next=0; (*l)->n=0;
   ldifrecords=0;
   do {
-    long tmp, val;
+    uint32 tmp, val;
     base64=binary=0;
     n=ofs+buffer_get_token(b,buf+ofs,8192-ofs,":",1);
     if (n==0) break;
@@ -112,14 +139,14 @@ nomem:
       buf[i2]=0;
       if (str_equal("binary",buf+i2+1)) binary=1;
     }
-    if ((tmp=mduptab_adds(&attributes,buf+i))<0) goto nomem;
+    if ((tmp=mduptab_adds(&attributes,buf+i))==(uint32)-1) goto nomem;
     if (!stralloc_copys(&payload,"")) goto nomem;
     {
       char dummy;
       int res;
       /* read line, skipping initial whitespace */
       for (n=0; (res=buffer_getc(b,&dummy))==1; ) {
-	if (dummy=='\n') break;
+	if (dummy=='\n') { ++lines; break; }
 	if (!n && dummy==':' && base64==0) { base64=1; continue; }
 	if (!n && (dummy==' ' || dummy=='\t')) continue;
 	if (!stralloc_append(&payload,&dummy)) goto nomem;
@@ -144,6 +171,8 @@ lookagain:
       } else if (c=='\n') {
 	struct ldaprec* m;
 
+	++lines;
+
 	if (payload.len) {
 	  if (!stralloc_0(&payload)) goto nomem;
 	  if (base64) {
@@ -163,11 +192,11 @@ lookagain:
 #endif
 
 	if (tmp==objectClass) {
-	  if ((val=mduptab_add(&classes,payload.s,len-1))<0) goto nomem;
+	  if ((val=mduptab_add(&classes,payload.s,len-1))==(uint32)-1) goto nomem;
 	} else if (tmp==dn) {
-	  if ((val=add_normalized(payload.s,len))==-1) goto nomem;
+	  if ((val=add_normalized(payload.s,len))==(uint32)-1) goto nomem;
 	} else
-	  if ((val=mstorage_add_bin(&stringtable,payload.s,len))<0) goto nomem;
+	  if ((val=commit_string_bin(payload.s,len))==(uint32)-1) goto nomem;
 	addattribute(l,tmp,val);
 
 	m=0;
@@ -221,16 +250,16 @@ lookagain:
 #endif
 
     if (tmp==objectClass) {
-      if ((val=mduptab_add(&classes,payload.s,len-1))<0) goto nomem;
+      if ((val=mduptab_add(&classes,payload.s,len-1))==(uint32)-1) goto nomem;
     } else if (tmp==dn) {
-      if ((val=add_normalized(payload.s,payload.len))==-1) goto nomem;
+      if ((val=add_normalized(payload.s,payload.len))==(uint32)-1) goto nomem;
     } else
-      if ((val=mstorage_add_bin(&stringtable,payload.s,payload.len))<0) goto nomem;
+      if ((val=commit_string_bin(payload.s,len))==(uint32)-1) goto nomem;
     addattribute(l,tmp,val);
 #endif
   } while (!eof);
   if (ldif_parse_callback && ldif_parse_callback(*l)==-1) return -1;
-  if ((*l)->dn<0 && ((*l)->next)) {
+  if ((*l)->dn==(uint32)-1 && ((*l)->next)) {
     struct ldaprec* m=(*l)->next;
     free((*l));
     (*l)=m;
@@ -245,6 +274,7 @@ int ldif_parse(const char* filename) {
   int fd;
   buffer in;
   buffer* tmp;
+  if (ldif_addstring_callback==0) ldif_addstring_callback=addstring;
   if (filename[0]=='-' && !filename[1]) {
     tmp=buffer_0;
     fd=-1;
@@ -256,6 +286,7 @@ int ldif_parse(const char* filename) {
   }
   dn=mduptab_adds(&attributes,"dn");
   objectClass=mduptab_adds(&attributes,"objectClass");
+  lines=0;
   {
     int res=parserec(tmp,&first);
     if (fd!=-1) close(fd);
