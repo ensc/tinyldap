@@ -26,7 +26,7 @@ int main() {
       buffer_putulong(buffer_2,op);
       buffer_putsflush(buffer_2,".\n");
       switch (op) {
-      case 0:
+      case BindRequest:
 	{
 	  long version,method;
 	  struct string name;

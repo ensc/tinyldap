@@ -94,11 +94,12 @@ int scan_ldapresult(const char* src,const char* max,long* result,
 int fmt_ldapstring(char* dest,struct string* s);
 int fmt_ldapmessage(char* dest,long messageid,long op,long len);
 int fmt_ldapbindrequest(char* dest,long version,char* name,char* simple);
-int fmt_ldapbindresponse(char* dest,long result,char* matcheddn,
-			 char* errormessage,char* referral);
 int fmt_ldapsearchfilter(char* dest,struct Filter* f);
 int fmt_ldapsearchrequest(char* dest,struct SearchRequest* s);
 int fmt_ldapsearchresultentry(char* dest,struct SearchResultEntry* sre);
-int fmt_ldapsearchresultdone(char* dest,long result,char* matcheddn,char* errormessage,char* referral);
+int fmt_ldapresult(char* dest,long result,char* matcheddn,char* errormessage,char* referral);
+
+#define fmt_ldapbindresponse(a,b,c,d,e) fmt_ldapresult(a,b,c,d,e)
+#define fmt_ldapsearchresultdone(a,b,c,d,e) fmt_ldapresult(a,b,c,d,e)
 
 #endif
