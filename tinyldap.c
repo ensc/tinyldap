@@ -125,8 +125,7 @@ static void fixup(struct Filter* f) {
       unsigned int i;
       f->attrofs=f->attrflag=0;
       for (i=0; i<attribute_count; ++i) {
-	uint32 j;
-	uint32_unpack(x,&j);
+	uint32 j=uint32_read(x);
 	if (!matchstring(&f->ava.desc,map+j)) {
 	  f->attrofs=j;
 	  uint32_unpack(x+-attribute_count*4,&f->attrflag);
@@ -179,9 +178,9 @@ static int indexable(struct Filter* f) {
       uint32 ofs;
       for (ofs=indices_offset+record_count*4; ofs<(unsigned long)filelen;) {
 	uint32 index_type,next,indexed_attribute;
-	uint32_unpack(map+ofs,&index_type);
-	uint32_unpack(map+ofs+4,&next);
-	uint32_unpack(map+ofs+8,&indexed_attribute);
+	index_type=uint32_read(map+ofs);
+	next=uint32_read(map+ofs+4);
+	indexed_attribute=uint32_read(map+ofs+8);
 	if (index_type==0)
 	  if (!matchstring(&f->ava.desc,map+indexed_attribute))
 	    return 1;
@@ -210,20 +209,16 @@ static int indexable(struct Filter* f) {
 static uint32 findrec(uint32 dat) {
   uint32* records=(uint32*)(map+indices_offset);
   uint32 bottom=0;
-  uint32 top=record_count;
+  uint32 top=record_count-1;
   while ((top>=bottom)) {
     uint32 mid=(top+bottom)/2;
-    uint32 k,l;
-    uint32_unpack(&records[mid],&k);
-    uint32_unpack(map+k+8,&l);
+    uint32 l;
+    l=uint32_read(map+uint32_read(&records[mid])+8);
     if (l<dat) {
-      if (mid<record_count) {
-	uint32_unpack(&records[mid+1],&k);
-	uint32_unpack(map+k+8,&l);
-      } else {
-	uint32_unpack(&records[0],&k);
-	uint32_unpack(map+k+12,&l);
-      }
+      if (mid>=record_count-1)
+	l=uint32_read(map+uint32_read(&records[0])+12);
+      else
+	l=uint32_read(map+uint32_read(&records[mid+1])+8);
       if (l>dat) return mid;	/* found! */
       bottom=mid+1;
     } else
@@ -272,7 +267,7 @@ static void tagmatches(uint32* index,unsigned int elements,struct string* s,
     uint32 k;
     int l;
 
-    uint32_unpack(&index[mid],&k);
+    k=uint32_read(&index[mid]);
     if ((l=match(s,map+k))==0) {
       /* match! */
       uint32 rec;
@@ -282,14 +277,14 @@ static void tagmatches(uint32* index,unsigned int elements,struct string* s,
       /* there may be multiple matches.
 	* Look before and after mid, too */
       for (k=mid-1; k>0; --k) {
-	uint32_unpack(&index[k],&m);
+	m=uint32_read(&index[k]);
 	if ((l=match(s,map+m))==0) {
 	  if ((rec=findrec(m)))
 	    setbit(bitfield,rec);
 	} else break;
       }
       for (k=mid+1; k<elements; ++k) {
-	uint32_unpack(&index[k],&m);
+	m=uint32_read(&index[k]);
 	if ((l=match(s,map+m))==0) {
 	  if ((rec=findrec(m)))
 	    setbit(bitfield,rec);
@@ -362,9 +357,9 @@ static int useindex(struct Filter* f,unsigned long* bitfield) {
       uint32 ofs;
       for (ofs=indices_offset+record_count*4; ofs<(unsigned long)filelen;) {
 	uint32 index_type,next,indexed_attribute;
-	uint32_unpack(map+ofs,&index_type);
-	uint32_unpack(map+ofs+4,&next);
-	uint32_unpack(map+ofs+8,&indexed_attribute);
+	index_type=uint32_read(map+ofs);
+	next=uint32_read(map+ofs+4);
+	indexed_attribute=uint32_read(map+ofs+8);
 	if (index_type==0)
 	  if (!matchstring(&f->ava.desc,map+indexed_attribute)) {
 	    tagmatches((uint32*)(map+ofs+12),(next-ofs-12)/4,&f->substrings->s,bitfield,
@@ -380,9 +375,9 @@ static int useindex(struct Filter* f,unsigned long* bitfield) {
       uint32 ofs;
       for (ofs=indices_offset+record_count*4; ofs<(unsigned long)filelen;) {
 	uint32 index_type,next,indexed_attribute;
-	uint32_unpack(map+ofs,&index_type);
-	uint32_unpack(map+ofs+4,&next);
-	uint32_unpack(map+ofs+8,&indexed_attribute);
+	index_type=uint32_read(map+ofs);
+	next=uint32_read(map+ofs+4);
+	indexed_attribute=uint32_read(map+ofs+8);
 	if (index_type==0)
 	  if (!matchstring(&f->ava.desc,map+indexed_attribute)) {
 	    tagmatches((uint32*)(map+ofs+12),(next-ofs-12)/4,&f->ava.value,bitfield,
@@ -399,34 +394,28 @@ static int useindex(struct Filter* f,unsigned long* bitfield) {
 }
 
 static void answerwith(uint32 ofs,struct SearchRequest* sr,long messageid,int out) {
-  uint32 k;
   struct SearchResultEntry sre;
   struct PartialAttributeList** pal=&sre.attributes;
 
 #if (debug != 0)
   if (debug) {
     char* x=map+ofs;
-    uint32 j,k;
-    uint32_unpack(x,&j);
-    buffer_putulong(buffer_2,j);
+    uint32 j;
+    buffer_putulong(buffer_2,j=uint32_read(x));
     buffer_puts(buffer_2," attributes:\n");
     x+=8;
     buffer_puts(buffer_2,"  dn: ");
-    uint32_unpack(x,&k);
-    buffer_puts(buffer_2,map+k);
+    buffer_puts(buffer_2,map+uint32_read(x));
     buffer_puts(buffer_2,"\n  objectClass: ");
     x+=4;
-    uint32_unpack(x,&k);
-    buffer_puts(buffer_2,map+k);
+    buffer_puts(buffer_2,map+uint32_read(x));
     buffer_puts(buffer_2,"\n");
     x+=4;
     for (; j>2; --j) {
-      uint32_unpack(x,&k);
       buffer_puts(buffer_2,"  ");
-      buffer_puts(buffer_2,map+k);
+      buffer_puts(buffer_2,map+uint32_read(x));
       buffer_puts(buffer_2,": ");
-      uint32_unpack(x+4,&k);
-      buffer_puts(buffer_2,map+k);
+      buffer_puts(buffer_2,map+uint32_read(x+4));
       buffer_puts(buffer_2,"\n");
       x+=8;
     }
@@ -434,8 +423,7 @@ static void answerwith(uint32 ofs,struct SearchRequest* sr,long messageid,int ou
   }
 #endif
 
-  uint32_unpack(map+ofs+8,&k);
-  sre.objectName.s=map+k; sre.objectName.l=strlen(map+k);
+  sre.objectName.l=strlen(sre.objectName.s=map+uint32_read(map+ofs+8));
   sre.attributes=0;
   /* now go through list of requested attributes */
   {
@@ -450,18 +438,14 @@ static void answerwith(uint32 ofs,struct SearchRequest* sr,long messageid,int ou
       buffer_putsflush(buffer_2,"\"\n");
 #endif
       if (!matchstring(&adl->a,"dn")) val=sre.objectName.s; else
-      if (!matchstring(&adl->a,"objectClass")) {
-	uint32_unpack(map+ofs+12,&k);
-	val=map+k;
-      } else {
-	for (; i<j; ++i) {
-	  uint32_unpack(map+ofs+i*8,&k);
-	  if (!matchstring(&adl->a,map+k)) {
-	    uint32_unpack(map+ofs+i*8+4,&k);
-	    val=map+k;
+      if (!matchstring(&adl->a,"objectClass"))
+	val=map+uint32_read(map+ofs+12);
+      else {
+	for (; i<j; ++i)
+	  if (!matchstring(&adl->a,map+uint32_read(map+ofs+i*8))) {
+	    val=map+uint32_read(map+ofs+i*8+4);
 	    break;
 	  }
-	}
       }
       if (val) {
 	*pal=malloc(sizeof(struct PartialAttributeList));
@@ -479,15 +463,12 @@ nomem:
 	    (*a)->a.s=val;
 	    (*a)->a.l=strlen(val);
 	    (*a)->next=0;
-	    for (;i<j; ++i) {
-	      uint32_unpack(map+ofs+i*8,&k);
-	      if (!matchstring(&adl->a,map+k)) {
-		uint32_unpack(map+ofs+i*8+4,&k);
-		val=map+k;
+	    for (;i<j; ++i)
+	      if (!matchstring(&adl->a,map+uint32_read(map+ofs+i*8))) {
+		val=map+uint32_read(map+ofs+i*8+4);
 		++i;
 		break;
 	      }
-	    }
 	  }
 	}
 	(*pal)->next=0;
@@ -729,7 +710,7 @@ int main() {
     dn_ofs=objectClass_ofs=0;
     for (i=0; i<attribute_count; ++i) {
       uint32 j;
-      uint32_unpack(x,&j);
+      j=uint32_read(x);
       if (!strcmp("dn",map+j))
 	dn_ofs=j;
       else if (!strcmp("objectClass",map+j))
