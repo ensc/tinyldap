@@ -7,7 +7,7 @@ int fmt_ldappal(char* dest,struct PartialAttributeList* pal) {
   if (!pal) return 0;
   sum=fmt_ldapstring(0,&pal->type);
   /* look how much space the adl needs */
-  l=fmt_ldapadl(0,pal->values);
+  l=fmt_ldapavl(0,pal->values);
   /* write sequence header */
   l2=fmt_asn1SEQUENCE(dest,l+sum);
   if (dest) {
@@ -16,7 +16,7 @@ int fmt_ldappal(char* dest,struct PartialAttributeList* pal) {
   }
   sum+=l+l2;
   if (dest) {
-    fmt_ldapadl(dest,pal->values);
+    fmt_ldapavl(dest,pal->values);
     dest+=l;
   }
   return sum+fmt_ldappal(dest,pal->next);

@@ -9,6 +9,8 @@
 #include "ip4.h"
 #include "str.h"
 
+#include <fcntl.h>
+
 #define BUFSIZE 8192
 
 static long messageid=1;
@@ -68,12 +70,12 @@ usage:
     adl.a.s=argv[i];
     adl.a.l=strlen(argv[i]);
     next=&adl;
+    ++i;
     while (i<argc) {
       struct AttributeDescriptionList *n;
       n=malloc(sizeof(struct AttributeDescriptionList));
       n->a.s=argv[i]; n->a.l=strlen(argv[i]);
-      n->next=0;
-      next->next=n;
+      n->next=next;
       next=n;
       i++;
     }
@@ -113,6 +115,14 @@ usage:
 	  }
 	}
       }
+
+#if 0
+      {
+	int fd=open("/tmp/searchresultentry",O_WRONLY|O_CREAT,0600);
+	write(fd,buf+tmp2,max-buf+tmp2);
+	close(fd);
+      }
+#endif
       if ((tmp=scan_ldapsearchresultentry(buf+tmp2,max,&sre))) {
 	struct PartialAttributeList* pal=sre.attributes;
 	buffer_puts(buffer_1,"objectName \"");

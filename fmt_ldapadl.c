@@ -1,7 +1,7 @@
 #include "asn1.h"
 #include "ldap.h"
 
-int fmt_ldapadl(char* dest,struct AttributeDescriptionList* adl) {
+static int doit(char* dest,struct AttributeDescriptionList* adl,int seq) {
   struct AttributeDescriptionList* x=adl;
   long sum=0;
   int tmp;
@@ -9,7 +9,10 @@ int fmt_ldapadl(char* dest,struct AttributeDescriptionList* adl) {
     sum+=fmt_asn1OCTETSTRING(0,0,x->a.l);
     x=x->next;
   }
-  tmp=fmt_asn1SEQUENCE(dest,sum);
+  if (seq)
+    tmp=fmt_asn1SEQUENCE(dest,sum);
+  else
+    tmp=fmt_asn1SET(dest,sum);
   sum+=tmp;
   if (dest) {
     dest+=tmp;
@@ -22,3 +25,10 @@ int fmt_ldapadl(char* dest,struct AttributeDescriptionList* adl) {
   return sum;
 }
 
+int fmt_ldapadl(char* dest,struct AttributeDescriptionList* adl) {
+  return doit(dest,adl,1);
+}
+
+int fmt_ldapavl(char* dest,struct AttributeDescriptionList* adl) {
+  return doit(dest,adl,0);
+}

@@ -102,6 +102,7 @@ int fmt_ldapresult(char* dest,long result,char* matcheddn,char* errormessage,cha
 int fmt_ldappal(char* dest,struct PartialAttributeList* pal);
 int fmt_ldapava(char* dest,struct AttributeValueAssertion* a);
 int fmt_ldapadl(char* dest,struct AttributeDescriptionList* adl);
+int fmt_ldapavl(char* dest,struct AttributeDescriptionList* adl);
 
 #define fmt_ldapbindresponse(a,b,c,d,e) fmt_ldapresult(a,b,c,d,e)
 #define fmt_ldapsearchresultdone(a,b,c,d,e) fmt_ldapresult(a,b,c,d,e)

@@ -11,6 +11,8 @@
 #include <wait.h>
 #endif
 
+static int verbose=0;
+
 #define BUFSIZE 8192
 
 int handle(int in,int out) {
@@ -21,18 +23,20 @@ int handle(int in,int out) {
     int res;
     long messageid,op,Len;
     if (tmp==0)
-      if (!len) { write(2,"eof!\n",5); return 0; }
+      if (!len) { return 0; }
     if (tmp<0) { write(2,"error!\n",7); return 1; }
     len+=tmp;
     res=scan_ldapmessage(buf,buf+len,&messageid,&op,&Len);
     if (res>0) {
-      buffer_puts(buffer_2,"got message of length ");
-      buffer_putulong(buffer_2,Len);
-      buffer_puts(buffer_2," with id ");
-      buffer_putulong(buffer_2,messageid);
-      buffer_puts(buffer_2,": op ");
-      buffer_putulong(buffer_2,op);
-      buffer_putsflush(buffer_2,".\n");
+      if (verbose) {
+	buffer_puts(buffer_2,"got message of length ");
+	buffer_putulong(buffer_2,Len);
+	buffer_puts(buffer_2," with id ");
+	buffer_putulong(buffer_2,messageid);
+	buffer_puts(buffer_2,": op ");
+	buffer_putulong(buffer_2,op);
+	buffer_putsflush(buffer_2,".\n");
+      }
       switch (op) {
       case BindRequest:
 	{
@@ -41,13 +45,15 @@ int handle(int in,int out) {
 	  int tmp;
 	  tmp=scan_ldapbindrequest(buf+res,buf+res+len,&version,&name,&method);
 	  if (tmp>=0) {
-	    buffer_puts(buffer_2,"bind request: version ");
-	    buffer_putulong(buffer_2,version);
-	    buffer_puts(buffer_2," for name \"");
-	    buffer_put(buffer_2,name.s,name.l);
-	    buffer_puts(buffer_2,"\" with method ");
-	    buffer_putulong(buffer_2,method);
-	    buffer_putsflush(buffer_2,".\n");
+	    if (verbose) {
+	      buffer_puts(buffer_2,"bind request: version ");
+	      buffer_putulong(buffer_2,version);
+	      buffer_puts(buffer_2," for name \"");
+	      buffer_put(buffer_2,name.s,name.l);
+	      buffer_puts(buffer_2,"\" with method ");
+	      buffer_putulong(buffer_2,method);
+	      buffer_putsflush(buffer_2,".\n");
+	    }
 	    {
 	      char outbuf[1024];
 	      int s=100;
@@ -145,16 +151,20 @@ nomem:
 		  long l=fmt_ldapsearchresultentry(0,&sre);
 		  char *buf=alloca(l+300); /* you never know ;) */
 		  long tmp;
-		  buffer_puts(buffer_2,"sre len ");
-		  buffer_putulong(buffer_2,l);
-		  buffer_putsflush(buffer_2,".\n");
+		  if (verbose) {
+		    buffer_puts(buffer_2,"sre len ");
+		    buffer_putulong(buffer_2,l);
+		    buffer_putsflush(buffer_2,".\n");
+		  }
 		  tmp=fmt_ldapmessage(buf,messageid,SearchResultEntry,l);
 		  fmt_ldapsearchresultentry(buf+tmp,&sre);
 		  write(out,buf,l+tmp);
 		}
-		buffer_puts(buffer_2,"found: ");
-		buffer_puts(buffer_2,r->dn);
-		buffer_putsflush(buffer_2,"\n");
+		if (verbose) {
+		  buffer_puts(buffer_2,"found: ");
+		  buffer_puts(buffer_2,r->dn);
+		  buffer_putsflush(buffer_2,"\n");
+		}
 	      }
 	      r=r->next;
 	    }
@@ -227,6 +237,11 @@ int main() {
       buffer_putsflush(buffer_2,"accept failed!\n");
       exit(1);
     }
+#ifdef DEBUG
+    handle(asock,asock);
+    exit(0);
+#else
+#endif
     switch (fork()) {
     case -1: buffer_putsflush(buffer_2,"fork failed!\n"); exit(1);
     case 0: /* child */
