@@ -22,7 +22,7 @@ matchprefix.o byte_case_diff.o matchcasestring.o matchcaseprefix.o \
 scan_ldapmodifyrequest.o bstrlen.o bstrfirst.o bstrstart.o \
 free_ldapadl.o free_ldappal.o free_ldapsearchfilter.o
 
-ldif.a: ldif_parse.o ldap_match.o ldap_match_mapped.o
+ldif.a: ldif_parse.o ldap_match_mapped.o
 
 storage.a: strstorage.o strduptab.o mstorage_add.o mduptab_add.o \
 bstr_diff.o mduptab_adds.o bstr_diff2.o mstorage_add_bin.o
