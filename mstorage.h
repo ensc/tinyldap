@@ -9,8 +9,6 @@ typedef struct mstorage {
   int fd;
 } mstorage_t;
 
-extern mstorage_t mstorage_root;
-
 void mstorage_init(mstorage_t* p);
 
 int mstorage_init_persistent(mstorage_t* p,int fd);
