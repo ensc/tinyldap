@@ -64,7 +64,7 @@ will bind to port 389, which it only can if you run it as root).  Once
 it runs, you can use ldapclient to query a specific record:
 
   # ./tinyldap_standalone &
-  $ ./ldapclient 127.0.0.1 "o=fefe,c=de" sn="von Leitner" mail
+  $ ./ldapclient 127.0.0.1 "o=fefe,c=de" '(sn=von Leitner)' mail
   objectName "cn=Felix von Leitner,o=fefe,c=de"
     mail:felix-tinyldap@fefe.de
 
