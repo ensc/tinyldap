@@ -1,0 +1,6 @@
+The most important RFCs about LDAP are:
+
+  rfc2251 - LDAPv3
+  rfc2252 - LDAPv3: Attribute Syntax Definitions
+  rfc2253 - LDAPv3: UTF-8 String Representation of Distinguished Names
+  rfc2849 - The LDAP Data Interchange Format (LDIF)
