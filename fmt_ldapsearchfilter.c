@@ -20,7 +20,7 @@
 int fmt_ldapsubstring(char* dest,struct Substring* s) {
   long sum=0,tmp=0;
   while (s) {
-    tmp=fmt_asn1string(dest,PRIVATE,CONSTRUCTED,s->substrtype,s->s.s,s->s.l);
+    tmp=fmt_asn1string(dest,PRIVATE,PRIMITIVE,s->substrtype,s->s.s,s->s.l);
     if (dest) dest+=tmp; sum+=tmp;
     s=s->next;
   }

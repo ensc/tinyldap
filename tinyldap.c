@@ -491,7 +491,13 @@ int handle(int in,int out) {
 	  }
 	}
 	break;
+      case UnbindRequest:
+	close(out); if (in!=out) close(in);
+	return 0;
       default:
+	buffer_puts(buffer_2,"unknown request type ");
+	buffer_putulong(buffer_2,op);
+	buffer_putsflush(buffer_2,"\n");
 	exit(1);
       }
       Len+=res;
