@@ -41,6 +41,8 @@ CFLAGS=-pipe -I. -Wall -W -g
 endif
 ifneq ($(DIET),)
 LIBS+=-llatin1
+else
+LIBS+=-lcrypto
 endif
 
 %.o: %.c

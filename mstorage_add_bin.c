@@ -11,7 +11,7 @@ long mstorage_add_bin(mstorage_t* p,const char* s,unsigned long n) {
   static char zero;
   long x;
   char intbuf[4];
-  if (n==0) goto encodebinary;
+  if (n==0 || (n==1 && s[0]==0)) goto encodebinary;
   for (i=0; i<n-1; ++i)
     if (!s[i]) {
 encodebinary:

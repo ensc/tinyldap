@@ -144,12 +144,15 @@ lookagain:
       } else if (c=='\n') {
 	struct ldaprec* m;
 
-	if (!stralloc_0(&payload)) goto nomem;
-	if (base64) {
-	  len=unbase64(payload.s);
-	  if (!binary) { payload.s[len]=0; ++len; }
+	if (payload.len) {
+	  if (!stralloc_0(&payload)) goto nomem;
+	  if (base64) {
+	    len=unbase64(payload.s);
+	    if (!binary) { payload.s[len]=0; ++len; }
+	  } else
+	    len=n+1;
 	} else
-	  len=n+1;
+	  len=0;
 
 #if 0
 	buffer_puts(buffer_2,"feld \"");
@@ -199,12 +202,15 @@ lookagain:
 //    buf[n]=0;
 #if 1
 
-    if (!stralloc_0(&payload)) goto nomem;
-    if (base64) {
-      len=unbase64(payload.s);
-      if (!binary) { payload.s[len]=0; ++len; }
+    if (payload.len) {
+      if (!stralloc_0(&payload)) goto nomem;
+      if (base64) {
+	len=unbase64(payload.s);
+	if (!binary) { payload.s[len]=0; ++len; }
+      } else
+	len=n+1;
     } else
-      len=n+1;
+      len=0;
 
 #if 0
 	buffer_puts(buffer_2,"feld \"");
