@@ -218,7 +218,7 @@ static int indexable(struct Filter* f) {
  * objectClass, because the classes are stored in a different string
  * table to remove duplicates. */
 /* find record given a data pointer */
-static uint32 findrec(uint32 dat) {
+static long findrec(uint32 dat) {
   uint32* records=(uint32*)(map+indices_offset);
   uint32 bottom=0;
   uint32 top=record_count-1;
@@ -241,7 +241,7 @@ static uint32 findrec(uint32 dat) {
 	break;
   }
   buffer_putsflush(buffer_2,"findrec failed!\n");
-  return 0;
+  return -1;
 }
 
 /* basic bit-set support: set all bits to zero */
@@ -283,23 +283,23 @@ static void tagmatches(uint32* index,unsigned int elements,struct string* s,
     k=uint32_read(&index[mid]);
     if ((l=match(s,map+k))==0) {
       /* match! */
-      uint32 rec;
+      long rec;
       uint32 m;
-      if ((rec=findrec(k)))
+      if ((rec=findrec(k))>=0)
 	setbit(bitfield,rec);
       /* there may be multiple matches.
 	* Look before and after mid, too */
       for (k=mid-1; k>0; --k) {
 	m=uint32_read(&index[k]);
 	if ((l=match(s,map+m))==0) {
-	  if ((rec=findrec(m)))
+	  if ((rec=findrec(m))>=0)
 	    setbit(bitfield,rec);
 	} else break;
       }
       for (k=mid+1; k<elements; ++k) {
 	m=uint32_read(&index[k]);
 	if ((l=match(s,map+m))==0) {
-	  if ((rec=findrec(m)))
+	  if ((rec=findrec(m))>=0)
 	    setbit(bitfield,rec);
 	} else break;
       }
