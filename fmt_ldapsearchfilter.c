@@ -28,7 +28,9 @@ int fmt_ldapsubstring(char* dest,struct Substring* s) {
 }
 
 int fmt_ldapsearchfilter(char* dest,struct Filter* f) {
-  long sum,tmp,tmp2=0;
+  long sum=0,l=0,tmp;
+  if (!f)
+    return 0;
   switch (f->type) {
   case AND: case OR: case NOT:
     sum=fmt_ldapsearchfilter(dest,f->x); break;
@@ -41,22 +43,28 @@ int fmt_ldapsearchfilter(char* dest,struct Filter* f) {
 
       tmp=fmt_ldapsubstring(0,f->substrings);
       l=fmt_ldapstring(nd,&f->ava.desc);
-      l+=fmt_asn1SEQUENCE(nd+l,tmp);
-      l+=fmt_ldapsubstring(nd+l,f->substrings);
-      sum=l;
+      sum+=l; if (nd) nd+=l;
+      l=fmt_asn1SEQUENCE(nd,tmp);
+      sum+=l; if (nd) nd+=l;
+      l=fmt_ldapsubstring(nd,f->substrings);
+      sum+=l;
     }
     break;
   case PRESENT:
-//    sum=fmt_ldapstring(dest,&f->ava.desc);
     return fmt_asn1string(dest,PRIVATE,PRIMITIVE,f->type,f->ava.desc.s,f->ava.desc.l);
     break;
   default: return 0;
   }
+
+  if(f->next) {
+    if (dest) sum+=fmt_ldapsearchfilter(dest+sum,f->next); 
+    else sum+=fmt_ldapsearchfilter(dest,f->next);
+  }	
+
   tmp=fmt_asn1length(0,sum);
   if (!dest) return sum+tmp+1;
   if (dest) byte_copyr(dest+tmp+1,sum,dest);
   fmt_asn1tag(dest,PRIVATE,CONSTRUCTED,f->type);
   fmt_asn1length(dest+1,sum);
-  if (f->next) tmp2=fmt_ldapsearchfilter(dest+sum+tmp+1,f->next);
-  return sum+tmp+tmp2+1;
+  return sum+tmp+1;
 }
