@@ -3,6 +3,7 @@
 #include <sys/mman.h>
 #include <sys/fcntl.h>
 #include <string.h>
+#include <strings.h>
 #include "buffer.h"
 #include "mmap.h"
 #include "uint32.h"

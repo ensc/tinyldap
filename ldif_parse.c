@@ -72,7 +72,11 @@ static int parserec(buffer* b, struct ldaprec** l) {
   int len,base64,binary;
   stralloc payload={0,0,0};
 
-  if (!(*l=malloc(sizeof(struct ldaprec)))) return 2;
+  if (!(*l=malloc(sizeof(struct ldaprec)))) {
+nomem:
+    buffer_putsflush(buffer_2,"out of memory!\n");
+    return 1;
+  }
   (*l)->dn=-1;
   (*l)->next=0; (*l)->n=0;
   ldifrecords=0;
@@ -87,12 +91,8 @@ static int parserec(buffer* b, struct ldaprec** l) {
       buf[i2]=0;
       if (str_equal("binary",buf+i2+1)) binary=1;
     }
-    if ((tmp=mduptab_adds(&attributes,buf+i))<0) {
-nomem:
-      buffer_putsflush(buffer_2,"out of memory!\n");
-      return 1;
-    }
-    if (!stralloc_copys(&payload,"")) return 2;
+    if ((tmp=mduptab_adds(&attributes,buf+i))<0) goto nomem;
+    if (!stralloc_copys(&payload,"")) goto nomem;
     {
       char dummy;
       int res;
@@ -101,7 +101,7 @@ nomem:
 	if (dummy=='\n') break;
 	if (!n && dummy==':' && base64==0) { base64=1; continue; }
 	if (!n && (dummy==' ' || dummy=='\t')) continue;
-	if (!stralloc_append(&payload,&dummy)) return 2;
+	if (!stralloc_append(&payload,&dummy)) goto nomem;
 	++n;
       }
       if (res==-1) return 1;
@@ -118,13 +118,13 @@ lookagain:
 //	puts("continuation!");
 	n=buffer_get_token(b,buf,8192,"\n",1);
 	if (n==-1) return 1;
-	stralloc_catb(&payload,buf,n);
+	if (!stralloc_catb(&payload,buf,n)) goto nomem;
 	goto lookagain;
       } else if (c=='\n') {
 	struct ldaprec* m=malloc(sizeof(struct ldaprec));
 	if (!m) return 2;
 
-	stralloc_0(&payload);
+	if (!stralloc_0(&payload)) goto nomem;
 	if (base64) {
 	  len=unbase64(payload.s);
 	  if (!binary) { payload.s[len]=0; ++len; }
@@ -163,7 +163,7 @@ lookagain:
 //    buf[n]=0;
 #if 1
 
-    stralloc_0(&payload);
+    if (!stralloc_0(&payload)) goto nomem;
     if (base64) {
       len=unbase64(payload.s);
       if (!binary) { payload.s[len]=0; ++len; }

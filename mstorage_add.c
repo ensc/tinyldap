@@ -44,13 +44,33 @@ long mstorage_add(mstorage_t* p,const char* s,unsigned long n) {
       p->used=0;
     } else {
       long need=((p->used+n)|PAGEMASK)+1;
+      char* tmp;
 #ifdef MREMAP_MAYMOVE
-      char* tmp=mremap(p->root,p->mapped,need,MREMAP_MAYMOVE);
+      tmp=mremap(p->root,p->mapped,need,MREMAP_MAYMOVE);
       if (tmp==MAP_FAILED) return -1;
 #else
-      char* tmp=realloc(p->root,need);
-      if (!tmp) return -1;
+      if (p->fd==-1) {
+	tmp=realloc(p->root,need);
+	if (!tmp) return -1;
+      } else {
+	munmap(p->root,p->used);
+	tmp=mmap(0,need,PROT_READ|PROT_WRITE,MAP_SHARED,fd,0);
+	if (tmp==-1) {
+	  tmp=mmap(0,p->used,PROT_READ|PROT_WRITE,MAP_SHARED,fd,0);
+	  /* this can never fail, because we mmap exactly as much as we
+	   * had mmapped previously.  We need to munmap before doing the
+	   * new mmap, though, because we may run into the address space
+	   * limit too early on 32-bit systems with lots of RAM */
+	  return -1;
+	}
+      }
 #endif
+      if (p->fd!=-1) {
+	/* slight complication if the storage is file based: we need to
+	  * make sure the file size is extended. */
+	if (lseek(p->fd,need-1,SEEK_SET)==-1) return -1;
+	if (write(p->fd,"x",1)!=1) return -1;
+      }
       p->mapped=need; p->root=tmp;
     }
   }

@@ -1,14 +1,19 @@
 #ifndef _MSTORAGE_H
 #define _MSTORAGE_H
 
-/* persistant storage. */
+/* (optionally persistent) mmapped storage. */
 
 typedef struct mstorage {
   char* root;
   unsigned long mapped,used;
+  int fd;
 } mstorage_t;
 
 extern mstorage_t mstorage_root;
+
+void mstorage_init(mstorage_t* p);
+
+int mstorage_init_persistent(mstorage_t* p,int fd);
 
 /* Works like strstorage_add, but will return an
  * offset to mstorage_root, which is mmapped and may thus change. */

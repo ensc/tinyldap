@@ -1,8 +1,8 @@
-#DEBUG=1
+DEBUG=1
 
 all: t1 t2 parse dumpidx idx2ldif addindex bindrequest tinyldap \
 tinyldap_standalone tinyldap_debug ldapclient ldapclient_str \
-md5password # t
+md5password t6 # t
 
 asn1.a: fmt_asn1intpayload.o fmt_asn1length.o fmt_asn1tag.o \
 fmt_asn1int.o fmt_asn1string.o fmt_asn1transparent.o scan_asn1tag.o \
@@ -26,7 +26,8 @@ scan_ldapsearchfilterstring.o
 ldif.a: ldif_parse.o ldap_match_mapped.o
 
 storage.a: strstorage.o strduptab.o mstorage_add.o mduptab_add.o \
-bstr_diff.o mduptab_adds.o bstr_diff2.o mstorage_add_bin.o
+bstr_diff.o mduptab_adds.o bstr_diff2.o mstorage_add_bin.o \
+mstorage_init.o mstorage_init_persistent.o mstorage_unmap.o
 
 auth.a: auth.o
 
@@ -50,6 +51,7 @@ endif
 t1 parse: ldif.a storage.a
 t2: ldap.a asn1.a
 t3 t4 t5 addindex: storage.a
+t6: storage.a
 tinyldap tinyldap_standalone tinyldap_debug: ldif.a auth.a
 bindrequest tinyldap tinyldap_standalone tinyldap_debug ldapclient ldapclient_str: ldap.a asn1.a
 idx2ldif: ldap.a
