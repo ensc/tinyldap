@@ -1,6 +1,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include "case.h"
 #include "byte.h"
 #include "buffer.h"
 #include "ldap.h"
@@ -766,6 +767,41 @@ found:
 	buffer_putsflush(buffer_2,"AbandonRequest!\n");
 	/* do nothing */
 	break;
+      case AddRequest:
+        {
+          struct AddRequest ar;
+//          buffer_putsflush(buffer_2,"AddRequest!\n");
+          if ((tmp=scan_ldapaddrequest(buf+res,buf+res+len,&ar))) {
+          } else {
+            buffer_putsflush(buffer_2,"couldn't parse add request!\n");
+            exit(1);
+          }
+
+          buffer_put(buffer_1,ar.entry.s,ar.entry.l);
+          buffer_putsflush(buffer_1,"\n");
+          if (verbose) { /* iterate all attributes */
+            struct Addition * x;
+            struct AttributeDescriptionList * y;
+            for (x = &ar.a;x;x=x->next) {
+              for (y = &x->vals;y;y=y->next) {
+                buffer_put(buffer_1,x->AttributeDescription.s,x->AttributeDescription.l);
+                buffer_puts(buffer_1,": ");
+                buffer_put(buffer_1,y->a.s,y->a.l);
+                buffer_putsflush(buffer_1,"\n");
+              }
+            }
+          }
+
+          {
+              char outbuf[1024];
+              int s=100;
+              int len=fmt_ldapbindresponse(outbuf+s,0,"","","");
+              int hlen=fmt_ldapmessage(0,messageid,AddResponse,len);
+              fmt_ldapmessage(outbuf+s-hlen,messageid,AddResponse,len);
+              write(out,outbuf+s-hlen,len+hlen);
+          }
+        }
+        break;
       default:
 	buffer_puts(buffer_2,"unknown request type ");
 	buffer_putulong(buffer_2,op);
@@ -819,9 +855,9 @@ int main() {
       j=uint32_read(x);
       if (!strcmp("dn",map+j))
 	dn_ofs=j;
-      else if (!strcasecmp("objectClass",map+j))
+      else if (case_equals("objectClass",map+j))
 	objectClass_ofs=j;
-      else if (!strcasecmp("userPassword",map+j))
+      else if (case_equals("userPassword",map+j))
 	userPassword_ofs=j;
       x+=4;
     }

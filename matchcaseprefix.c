@@ -8,7 +8,7 @@ int matchcaseprefix(struct string* s,const char* c) {
   if (!c) return -1;
   l1=l=strlen(c);
   if (s->l<l1) l1=s->l;
-  i=byte_case_diff(s->s,l1,c);
+  i=case_diffb(s->s,l1,c);
   if (i) return i;
   /* one is a prefix of the other */
   if (l==s->l) return 0;

@@ -15,13 +15,13 @@ extern uint32 magic,attribute_count,record_count,indices_offset,size_of_string_t
 extern uint32 dn_ofs,objectClass_ofs;
 
 static int substringmatch(struct Substring* x,const char* attr,int ignorecase) {
-  int (*diff)(const void* a, unsigned int len, const void* b);
+  int (*diff)(const void* a, unsigned long len, const void* b);
   if (ignorecase)
-    diff=byte_case_diff;
+    diff=case_diffb;
   else
     diff=byte_diff;
   while (x) {
-    unsigned int i;
+    unsigned long i;
     if (x->s.l>strlen(attr)) return 0;
     switch (x->substrtype) {
     case prefix:
@@ -29,8 +29,12 @@ static int substringmatch(struct Substring* x,const char* attr,int ignorecase) {
 found:
       break;
     case any:
-      for (i=0; i<x->s.l-strlen(attr); ++i) {
-	if (!diff(x->s.s,x->s.l,attr+i)) goto found;
+      {
+	unsigned long len=strlen(attr);
+	if (len<x->s.l) return 0;
+	for (i=0; i<x->s.l-len; ++i)
+	  if (!diff(x->s.s,x->s.l,attr+i))
+	    goto found;
       }
       return 0;
     case suffix:

@@ -18,9 +18,9 @@ freefilter.o freeava.o scan_ldapava.o fmt_ldapsearchresultentry.o \
 fmt_ldapstring.o freepal.o scan_ldapsearchresultentry.o \
 fmt_ldapresult.o fmt_ldappal.o fmt_ldapadl.o fmt_ldapava.o \
 fmt_ldapsearchfilter.o fmt_ldapsearchrequest.o matchstring.o \
-matchprefix.o byte_case_diff.o matchcasestring.o matchcaseprefix.o \
-scan_ldapmodifyrequest.o bstrlen.o bstrfirst.o bstrstart.o \
-free_ldapadl.o free_ldappal.o free_ldapsearchfilter.o \
+matchprefix.o matchcasestring.o matchcaseprefix.o \
+scan_ldapmodifyrequest.o scan_ldapaddrequest.o bstrlen.o bstrfirst.o \
+bstrstart.o free_ldapadl.o free_ldappal.o free_ldapsearchfilter.o \
 scan_ldapsearchfilterstring.o
 
 ldif.a: ldif_parse.o ldap_match_mapped.o

@@ -74,9 +74,20 @@ struct Modification {
   struct Modification* next;
 };
 
+struct Addition {
+  struct string AttributeDescription;
+  struct AttributeDescriptionList vals;
+  struct Addition* next;
+};
+
 struct ModifyRequest {
   struct string object;
   struct Modification m;
+};
+
+struct AddRequest {
+  struct string entry;
+  struct Addition a;
 };
 
 enum ldapops {
@@ -115,6 +126,7 @@ int scan_ldapresult(const char* src,const char* max,long* result,
 		    struct string* matcheddn,struct string* errormessage,
 		    struct string* referral);
 int scan_ldapmodifyrequest(const char* src,const char* max,struct ModifyRequest* m);
+int scan_ldapaddrequest(const char * src, const char * max, struct AddRequest * a);
 int scan_ldapsearchfilterstring(const char* src,struct Filter** f);
 
 int fmt_ldapstring(char* dest,struct string* s);
@@ -140,6 +152,8 @@ void free_ldapsearchfilter(struct Filter* f);
 void free_ldapsearchrequest(struct SearchRequest* s);
 /* does not free m itself */
 void free_ldapmodifyrequest(struct ModifyRequest* m);
+/* does not free a itself */
+void free_ldapaddrequest(struct AddRequest * a);
 
 
 #endif
