@@ -12,6 +12,7 @@
 #include "mduptab.h"
 #include "uint32.h"
 #include "byte.h"
+#include "fmt.h"
 
 /* these are defined in ldif_parse.c.
  * We extern them here so we can initialize them.
@@ -81,6 +82,18 @@ unsigned long offset_classes,record_count;
   /* record_count is just a convenience, the same value is also visible
    * as record_offsets.used/4 */
 
+static void printstats() {
+  buffer_puts(buffer_2,"\r");
+  buffer_putulong(buffer_2,record_count);
+  buffer_puts(buffer_2," records parsed, ");
+  buffer_putulong(buffer_2,stringtable.used/1024);
+  buffer_puts(buffer_2,"k strings, ");
+  buffer_putulong(buffer_2,records.used/1024);
+  buffer_puts(buffer_2,"k records, ");
+  buffer_putulong(buffer_2,record_offsets.used/1024);
+  buffer_putsflush(buffer_2,"k record offsets.        ");
+}
+
 int ldif_callback(struct ldaprec* l) {
   char x[8];	/* temp buf for endianness conversion */
   int i;
@@ -120,25 +133,45 @@ int ldif_callback(struct ldaprec* l) {
   uint32_pack(x,ofs);
   if (mstorage_add(&record_offsets,x,4)==-1) return -1;
   ++record_count;
+  if ((record_count%10000)==0)
+    printstats();
   return 0;
 }
 
 int main(int argc,char* argv[]) {
-  int fd;
+  int fd,rfd;
   long len;
   char* destname=argc<3?"data":argv[2];
+  char* tempname;
   unsigned long size_of_string_table,indices_offset;
   long offset_stringtable;
   char* map,* dest;
 
+  tempname=alloca(strlen(destname)+10);
   mstorage_init(&record_offsets);
-  mstorage_init(&records);
+
+  rfd=fmt_str(tempname,destname);
+  rfd+=fmt_str(tempname+rfd,".rec");
+  tempname[rfd]=0;
+  if ((rfd=open(tempname,O_RDWR|O_CREAT|O_TRUNC,0600))<0) {
+    buffer_puts(buffer_2,"could not create temp file ");
+temperrout:
+    buffer_puts(buffer_2,tempname);
+    goto derrout2;
+  }
+  if (mstorage_init_persistent(&records,rfd)==-1) {
+    buffer_puts(buffer_2,"mstorage_init_persistent: error mmapping ");
+    goto temperrout;
+  }
+
+//  mstorage_init(&records);
   ldif_parse_callback=ldif_callback;
 
   if ((fd=open(destname,O_RDWR|O_CREAT|O_TRUNC,0600))<0) {
     buffer_puts(buffer_2,"could not create destination data file ");
 derrout:
     buffer_puts(buffer_2,destname);
+derrout2:
     buffer_puts(buffer_2,": ");
     buffer_puterror(buffer_2);
     buffer_putnlflush(buffer_2);
@@ -162,6 +195,9 @@ derrout:
     return 1;
   }
 
+  printstats();
+  buffer_putsflush(buffer_2,"DONE!\n");
+
   size_of_string_table=stringtable.used-5*4;
   size_of_string_table=(size_of_string_table+3)&-4;	/* round up to 32 bits */
   /* first find out how much space we need */
@@ -183,6 +219,7 @@ derrout:
   if ((map=mmap(0,len,PROT_READ|PROT_WRITE,MAP_SHARED,fd,0))==MAP_FAILED) {
     buffer_putsflush(buffer_2,"could not mmap destination data file!\n");
     unlink(destname);
+    unlink(tempname);
     return 1;
   }
   uint32_pack(map    ,0xfefe1da9);		/* magic */
@@ -220,5 +257,7 @@ derrout:
 
   munmap(map,len);
   close(fd);
+  close(rfd);
+  unlink(tempname);
   return 0;
 }
