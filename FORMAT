@@ -41,3 +41,43 @@ All integers are stored LITTLE ENDIAN.
 
 The indices are at the end to make it possible to add more indices.
 The next pointer is there to make extensions possible.
+
+
+
+How do we do ACLs?
+
+The goal is to reduce the number of ACLs that need to be checked.
+We have a 0 dword reserved in each record.  The obvious use would be to
+store a pointer to a list of permissions in each record.  The question is: do
+we store the list of ACLs that is valid if you authenticate as that dn, or do
+we store the list of ACLs that needs to be checked if anyone accesses
+that dn?  I think it's better to store the permissions if anyone logs in
+as that dn; the general user only has very simple access rules, so that
+would keep the ACLs for the common case down.  On the down side we need
+to store the permissions for the anonymous bind somewhere, too.  It also
+means we optimize away the openldap "group member" indirection.
+
+The question is: how do we store the ACLs in the database?  I suggest a
+model where we store the auth ACLs first, then the read ACLs, then the
+write ACLs.  That way you can stop evaluating at the first write ACL
+when you only want to read.  And normally the bulk of the ACLs are for
+writing.
+
+So, for each dn and access type we need to keep a list of
+(dn-pattern,attribute[]) that this dn has access to.
+
+  uint32_t auth_count;
+
+The syntax of the list should be:
+  uint32_t attributes[];  /* offsets of attribute names in stringtab,
+			     terminated by 0.  Empty list means: all */
+
+Typische ACL:
+
+access to dn="ou=(Fraktion-[^,]+),ou=Fraktionen,o=bundestag,c=de" attr=userPassword
+        by self write
+        by anonymous auth
+        by group="cn=Gruppe A,ou=Administration,o=bundestag,c=de" write
+        by group="cn=$1,ou=Administration,o=bundestag,c=de" write
+        by * none
+
