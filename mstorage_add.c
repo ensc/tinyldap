@@ -67,9 +67,9 @@ long mstorage_add(mstorage_t* p,const char* s,unsigned long n) {
 #endif
       if (p->fd!=-1) {
 	/* slight complication if the storage is file based: we need to
-	  * make sure the file size is extended. */
-	if (lseek(p->fd,need-1,SEEK_SET)==-1) return -1;
-	if (write(p->fd,"x",1)!=1) return -1;
+	  * make sure the file size is extended, or the byte_copy will
+	  * yield a bus error. */
+	if (ftruncate(p->fd,need)==-1) return -1;
       }
       p->mapped=need; p->root=tmp;
     }

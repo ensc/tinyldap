@@ -34,6 +34,8 @@ int main(int argc,char* argv[]) {
   uint32 magic,attribute_count,record_count,indices_offset,size_of_string_table;
   uint32 wanted,casesensitive,dn,objectClass;
 
+  mstorage_init(&idx);
+
   if (argc<3) {
     buffer_putsflush(buffer_2,"usage: ./addindex filename attribute [i]\n"
 		     "if i is present, make index case insensitive.\n");

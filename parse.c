@@ -41,15 +41,21 @@ void dumprec(struct ldaprec* l) {
   buffer_putsflush(buffer_1,"\n");
 }
 
+extern mstorage_t stringtable;
+
 int main(int argc,char* argv[]) {
   int fd;
   long len;
+  char* destname=argc<3?"data":argv[2];
   unsigned long size_of_string_table,indices_offset,record_count;
   long offset_stringtable,offset_classes,offset_attributes;
   char* map,* dest;
+
+  mstorage_init(&stringtable);
+
   ldif_parse(argc<2?"exp.ldif":argv[1]);
   if (!first) {
-    buffer_putsflush(buffer_2,"no data?!");
+    buffer_putsflush(buffer_2,"usage: parse [src-ldif-filename] [dest-bin-filename]\n");
     return 1;
   }
 
@@ -97,14 +103,15 @@ int main(int argc,char* argv[]) {
   indices_offset=len;
   len+=record_count*4;
   /* done!  we don't create any indices for now. */
-  if ((fd=open("data",O_RDWR|O_CREAT|O_TRUNC,0600))<0) {
-    buffer_putsflush(buffer_2,"could not create data");
+
+  if ((fd=open(destname,O_RDWR|O_CREAT|O_TRUNC,0600))<0) {
+    buffer_putsflush(buffer_2,"could not create destination data file");
     return 1;
   }
   ftruncate(fd,len);
   if ((map=mmap(0,len,PROT_READ|PROT_WRITE,MAP_SHARED,fd,0))==MAP_FAILED) {
-    buffer_putsflush(buffer_2,"could not mmap data!\n");
-    unlink("data");
+    buffer_putsflush(buffer_2,"could not mmap destination data file!\n");
+    unlink(destname);
     return 1;
   }
   uint32_pack(map    ,0xfefe1da9);		/* magic */
