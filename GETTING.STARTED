@@ -16,6 +16,7 @@ want tinyldap to serve.  Here is an example:
   cn: Felix von Leitner
   sn: von Leitner
   mail: felix-tinyldap@fefe.de
+  mail: felix-ldap@fefe.de
 
   dn: cn=Second User,o=fefe,c=de
   objectClass: inetOrgPerson
