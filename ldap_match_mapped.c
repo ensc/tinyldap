@@ -28,12 +28,13 @@ static int substringmatch(struct Substring* x,const char* attr,int ignorecase) {
 found:
       break;
     case any:
-      if (x->s.l<strlen(attr)) return 0;
-      for (i=0; i<x->s.l-strlen(attr); ++i)
-	if (!diff(x->s.s+i,x->s.l,attr)) goto found;
+      if (x->s.l>strlen(attr)) return 0;
+      for (i=0; i<x->s.l-strlen(attr); ++i) {
+	if (!diff(x->s.s,x->s.l,attr+i)) goto found;
+      }
       return 0;
     case suffix:
-      if (diff(x->s.s+x->s.l-strlen(attr),x->s.l,attr)) return 0;
+      if (diff(x->s.s,x->s.l,attr+strlen(attr)-x->s.l)) return 0;
     }
     x=x->next;
   }

@@ -464,6 +464,7 @@ static void answerwith(uint32 ofs,struct SearchRequest* sr,long messageid,int ou
 	for (; i<j; ++i)
 	  if (!matchstring(&adl->a,map+uint32_read(map+ofs+i*8))) {
 	    val=map+uint32_read(map+ofs+i*8+4);
+	    ++i;
 	    break;
 	  }
       }
@@ -477,19 +478,19 @@ nomem:
 	(*pal)->type=adl->a;
 	{
 	  struct AttributeDescriptionList** a=&(*pal)->values;
-	  while (i<j) {
-	    *a=malloc(sizeof(struct AttributeDescriptionList));
-	    if (!*a) goto nomem;
-	    (*a)->a.s=val;
-	    (*a)->a.l=strlen(val);
-	    (*a)->next=0;
-	    for (;i<j; ++i)
-	      if (!matchstring(&adl->a,map+uint32_read(map+ofs+i*8))) {
-		val=map+uint32_read(map+ofs+i*8+4);
-		++i;
-		break;
-	      }
-	  }
+add_attribute:
+	  *a=malloc(sizeof(struct AttributeDescriptionList));
+	  if (!*a) goto nomem;
+	  (*a)->a.s=val;
+	  (*a)->a.l=strlen(val);
+	  for (;i<j; ++i)
+	    if (!matchstring(&adl->a,map+uint32_read(map+ofs+i*8))) {
+	      val=map+uint32_read(map+ofs+i*8+4);
+	      ++i;
+	      a=&(*a)->next;
+	      goto add_attribute;
+	    }
+	  (*a)->next=0;
 	}
 	(*pal)->next=0;
 	pal=&(*pal)->next;
