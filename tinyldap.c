@@ -18,6 +18,9 @@ char* map;
 long filelen;
 uint32 magic,attribute_count,record_count,indices_offset,size_of_string_table;
 
+/* how many longs are needed to have one bit for each record? */
+uint32 record_set_length;
+
 #define BUFSIZE 8192
 
 static int indexable(struct Filter* f) {
@@ -53,7 +56,7 @@ static int indexable(struct Filter* f) {
 	uint32_unpack(map+ofs+4,&next);
 	uint32_unpack(map+ofs+8,&indexed_attribute);
 	if (index_type==0)
-	  if (matchstring(&f->ava.desc,map+indexed_attribute))
+	  if (!matchstring(&f->ava.desc,map+indexed_attribute))
 	    return 1;
 	ofs=next;
       }
@@ -63,10 +66,6 @@ static int indexable(struct Filter* f) {
     return 0;
   }
 }
-
-#define MAXINDEXMATCHES 100
-static uint32 matches[MAXINDEXMATCHES];
-static uint32 matchcounter;
 
 /* find record given a data pointer */
 static uint32 findrec(uint32 dat) {
@@ -78,15 +77,181 @@ static uint32 findrec(uint32 dat) {
     uint32 k,l;
     uint32_unpack(&records[mid],&k);
     uint32_unpack(map+k+8,&l);
+
+#if 0
+    buffer_puts(buffer_2,"findrec: look for ");
+    buffer_putulong(buffer_2,dat);
+    buffer_puts(buffer_2," in record ");
+    buffer_putulong(buffer_2,mid);
+    buffer_puts(buffer_2," @");
+    buffer_putulong(buffer_2,l);
+    buffer_putsflush(buffer_2,".\n");
+#endif
+
     if (l<dat) {
-      uint32_unpack(map+k,&l);
-      uint32_unpack(map+k+l*8+4,&l);
-      if (l>dat) return k;	/* found! */
+      if (mid<record_count) {
+	uint32_unpack(&records[mid+1],&k);
+	uint32_unpack(map+k+8,&l);
+      } else {
+	uint32_unpack(&records[0],&k);
+	uint32_unpack(map+k+12,&l);
+      }
+      if (l>dat) return mid;	/* found! */
       bottom=mid+1;
     } else
-      top=mid-1;
+      if (mid)
+	top=mid-1;
+      else
+	break;
   }
+  buffer_putsflush(buffer_2,"findrec failed!\n");
   return 0;
+}
+
+static inline void emptyset(unsigned long* r) {
+  unsigned long i;
+  for (i=0; i<record_set_length; ++i) r[i]=0;
+}
+
+static inline void setbit(unsigned long* r,unsigned long bit) {
+  r[bit/(8*sizeof(long))] |= (1<<(bit&(8*sizeof(long)-1)));
+}
+
+static inline int isset(unsigned long* r,unsigned long bit) {
+  return r[bit/(8*sizeof(long))] & (1<<(bit&(8*sizeof(long)-1)));
+}
+
+/* find record given a data pointer */
+static void tagmatches(uint32* index,unsigned int elements,struct string* s,unsigned long* bitfield) {
+  uint32 bottom=0;
+  uint32 top=elements;
+  emptyset(bitfield);
+
+#if 0
+  {
+    long i,l;
+    for (i=0; i<elements; ++i) {
+      uint32 k;
+      uint32_unpack(&index[i],&k);
+      if ((l=matchstring(s,map+k))==0) {
+	buffer_puts(buffer_2,"found ");
+	buffer_puts(buffer_2,map+k);
+	buffer_putsflush(buffer_2,"\n");
+      }
+      if (i+1<elements) {
+	uint32 m;
+	uint32_unpack(&index[i+1],&m);
+	if (strcmp(map+k,map+m)>0)
+	  buffer_putsflush(buffer_2,"not properly sorted!\n");
+      }
+    }
+  }
+#endif
+
+  while ((top>=bottom)) {
+    uint32 mid=(top+bottom)/2;
+    uint32 k;
+    int l;
+
+#if 0
+    buffer_puts(buffer_2,"bottom=");
+    buffer_putulong(buffer_2,bottom);
+    buffer_puts(buffer_2,", mid=");
+    buffer_putulong(buffer_2,mid);
+    buffer_puts(buffer_2,", top=");
+    buffer_putulong(buffer_2,top);
+    buffer_puts(buffer_2,", elements=");
+    buffer_putulong(buffer_2,elements);
+    buffer_putsflush(buffer_2,".\n");
+#endif
+
+    uint32_unpack(&index[mid],&k);
+    if ((l=matchstring(s,map+k))==0) {
+      /* match! */
+      uint32 rec;
+      uint32 oldk=k;
+      if ((rec=findrec(k)))
+	setbit(bitfield,rec);
+      /* there may be multiple matches.
+	* Look before and after mid, too */
+      for (oldk=k; k>0; ) {
+	k-=4;
+	if ((l=matchstring(s,map+k))==0)
+	  if ((rec=findrec(k)))
+	    setbit(bitfield,rec);
+      }
+      for (k=oldk; k<elements; ++k) {
+	k+=4;
+	if ((l=matchstring(s,map+k))==0)
+	  if ((rec=findrec(k)))
+	    setbit(bitfield,rec);
+      }
+      return;
+    }
+#if 0
+    buffer_puts(buffer_2,"  \"");
+    buffer_put(buffer_2,s->s,s->l);
+    buffer_puts(buffer_2,"\" vs. \"");
+    buffer_puts(buffer_2,map+k);
+    buffer_puts(buffer_2," -> ");
+    buffer_putlong(buffer_2,l);
+    buffer_putsflush(buffer_2,"\n");
+#endif
+
+    if (l<0) {
+      if (mid)
+	top=mid-1;
+      else
+	break;
+    } else
+      bottom=mid+1;
+  }
+}
+
+static int useindex(struct Filter* f,unsigned long* bitfield) {
+  struct Filter* y=f->x;
+  if (!f) return 1;
+  switch (f->type) {
+  case AND:
+    while (y) {
+      if (!indexable(y)) return 0;
+      y=y->next;
+    }
+    return 1;
+  case OR:
+    while (y) {
+      if (!indexable(y)) return 0;
+      y=y->next;
+    }
+    return 1;
+#if 0
+  /* doesn't make much sense to try to speed up negated queries */
+  case NOT:
+    return indexable(y);
+#endif
+  case SUBSTRING:
+    if (f->substrings->substrtype!=prefix) return 0;
+    /* fall through */
+  case EQUAL:
+    {
+      uint32 ofs;
+      for (ofs=indices_offset+record_count*4; ofs<(unsigned long)filelen;) {
+	uint32 index_type,next,indexed_attribute;
+	uint32_unpack(map+ofs,&index_type);
+	uint32_unpack(map+ofs+4,&next);
+	uint32_unpack(map+ofs+8,&indexed_attribute);
+	if (index_type==0)
+	  if (!matchstring(&f->ava.desc,map+indexed_attribute)) {
+	    tagmatches((uint32*)(map+ofs+12),(next-ofs-12)/4,&f->ava.value,bitfield);
+	    return 1;
+	  }
+	ofs=next;
+      }
+    }
+    /* fall through */
+  default:
+    return 0;
+  }
 }
 
 static void answerwith(uint32 ofs,struct SearchRequest* sr,long messageid,int out) {
@@ -263,11 +428,36 @@ int handle(int in,int out) {
 #endif
 	  if ((tmp=scan_ldapsearchrequest(buf+res,buf+res+len,&sr))) {
 	    if (indexable(sr.filter)) {
-	      buffer_putsflush(buffer_2,"query is indexable!\n");
+	      unsigned long* result;
+	      unsigned long i;
+//	      buffer_putsflush(buffer_2,"query is indexable!\n");
+	      record_set_length=(record_count+sizeof(unsigned long)*8-1) / (sizeof(long)*8);
+	      result=alloca(record_set_length*sizeof(unsigned long));
 	      /* Use the index to find matching data.  Put the offsets
 	       * of the matches in a table.  Use findrec to locate
 	       * the records that point to the data. */
-	    } /* else */ {
+	      useindex(sr.filter,result);
+	      for (i=0; i<record_count; ++i)
+		if (isset(result,i)) {
+		  uint32 j;
+		  uint32_unpack(map+indices_offset+4*i,&j);
+
+#if 0
+		  buffer_puts(buffer_2,"potential match: ");
+		  buffer_putulong(buffer_2,i);
+		  buffer_puts(buffer_2," -> ");
+		  {
+		    uint32 l;
+		    uint32_unpack(map+j+8,&l);
+		    buffer_puts(buffer_2,map+l);
+		  }
+		  buffer_putsflush(buffer_2,"\n");
+#endif
+
+		  if (ldap_match_mapped(j,&sr))
+		    answerwith(j,&sr,messageid,out);
+		}
+	    } else {
 	      char* x=map+5*4+size_of_string_table+attribute_count*8;
 	      unsigned long i;
 	      for (i=0; i<record_count; ++i) {
@@ -356,6 +546,9 @@ int main() {
       int status;
       while ((status=waitpid(-1,0,WNOHANG))!=0 && status!=(pid_t)-1); /* reap zombies */
     }
+#ifdef DEBUG
+again:
+#endif
     asock=socket_accept6(sock,ip,&port,&scope_id);
     if (asock==-1) {
       buffer_putsflush(buffer_2,"accept failed!\n");
@@ -363,7 +556,13 @@ int main() {
     }
 #ifdef DEBUG
     handle(asock,asock);
-    exit(0);
+    close(asock);
+    {
+      static int count=0;
+      if (++count==500) return 0;
+    }
+    goto again;
+//    exit(0);
 #else
 #endif
     switch (fork()) {

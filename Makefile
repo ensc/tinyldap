@@ -21,7 +21,7 @@ ldif.a: ldif_parse.o ldap_match.o ldap_match_mapped.o
 
 storage.a: strstorage.o strduptab.o mstorage_add.o mduptab_add.o
 
-DIET=diet -Os
+DIET=/opt/diet/bin/diet -Os
 CC=gcc
 CFLAGS=-pipe -I. -Wall -W
 ifneq ($(DEBUG),)

@@ -8,15 +8,16 @@
 #include "mstorage.h"
 
 mstorage_t idx;
+char* map;
 
 int compar(const void* a,const void* b) {
-  return *(uint32*)b - *(uint32*)a;
+  return strcmp(map+*(uint32*)a,map+*(uint32*)b);
+//  return *(uint32*)b - *(uint32*)a;
 }
 
 int main(int argc,char* argv[]) {
   long filelen;
   char* filename=argv[1]?argv[1]:"data";
-  char* map;
   uint32 magic,attribute_count,record_count,indices_offset,size_of_string_table;
   uint32 wanted,dn,objectClass;
 
