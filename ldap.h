@@ -87,6 +87,9 @@ int scan_ldapava(const char* src,const char* max,struct AttributeValueAssertion*
 int scan_ldapsearchfilter(const char* src,const char* max,struct Filter** f);
 int scan_ldapsearchrequest(const char* src,const char* max,struct SearchRequest* s);
 int scan_ldapsearchresultentry(const char* src,const char* max,struct SearchResultEntry* sre);
+int scan_ldapresult(const char* src,const char* max,long* result,
+		    struct string* matcheddn,struct string* errormessage,
+		    struct string* referral);
 
 int fmt_ldapstring(char* dest,struct string* s);
 int fmt_ldapmessage(char* dest,long messageid,long op,long len);

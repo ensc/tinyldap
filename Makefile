@@ -12,7 +12,8 @@ ldap.a: scan_ldapmessage.o fmt_ldapmessage.o fmt_ldapbindrequest.o \
 scan_ldapbindrequest.o fmt_ldapbindresponse.o scan_ldapbindresponse.o \
 scan_ldapstring.o scan_ldapsearchfilter.o scan_ldapsearchrequest.o \
 freefilter.o freeava.o scan_ldapava.o fmt_ldapsearchresultentry.o \
-fmt_ldapstring.o freepal.o scan_ldapsearchresultentry.o
+fmt_ldapstring.o freepal.o scan_ldapsearchresultentry.o \
+scan_ldapresult.o
 
 ldif.a: ldif_parse.o
 

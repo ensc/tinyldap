@@ -145,10 +145,8 @@ int main(int argc,char* argv[]) {
       {
 	struct SearchResultEntry sre;
 	int tmp;
-	int first=1;
 	if ((tmp=scan_ldapsearchresultentry(ldapsequence+done+res,ldapsequence+done+res+len,&sre))) {
 	  struct PartialAttributeList* pal=sre.attributes;
-ausgeben:
 	  printf("objectName \"%.*s\"\n",(int)sre.objectName.l,sre.objectName.s);
 	  while (pal) {
 	    struct AttributeDescriptionList* adl=pal->values;
@@ -161,28 +159,25 @@ ausgeben:
 	    printf("\n");
 	    pal=pal->next;
 	  }
-	  if (!first) exit(0); first=0;
-
-	  {
-	    char *buf=alloca(len+1000);
-	    int mylen;
-	    printf("fmt_ldapsearchresultentry: %d vs %ld\n",
-		   mylen=fmt_ldapsearchresultentry(buf,&sre),len);
-	    memset(&sre,0,sizeof(sre));
-	    if (tmp=scan_ldapsearchresultentry(buf,buf+mylen,&sre)) {
-	      pal=sre.attributes;
-	      goto ausgeben;
-	    }
-	  }
-	  exit(0);
 	} else
 	  puts("punt!");
       }
       break;
     case SearchResultDone:
       puts("  >> SearchResultDone <<");
-      puts("to be done");
-      break;
+      {
+	long result;
+	struct string matcheddn,errormessage,referral;
+	int tmp;
+	printf("scan_ldapresult: %d\n",
+	       tmp=scan_ldapresult(ldapsequence+done+res,ldapsequence+done+res+len,
+				   &result,&matcheddn,&errormessage,&referral));
+	printf("result %lu, matcheddn \"%.*s\", errormessage \"%.*s\", referral \"%.*s\"\n",
+	       result,(int)matcheddn.l,matcheddn.s,
+	       (int)errormessage.l,errormessage.s,
+	       (int)referral.l,referral.s);
+	break;
+      }
     case UnbindRequest:
       puts("  >> UnbindRequest <<");
       break;
