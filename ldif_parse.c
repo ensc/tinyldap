@@ -83,7 +83,7 @@ static int parserec(buffer* b, struct ldaprec** l) {
     if (n==0) break;
     i=scan_whitenskip(buf,n);
     buf[n]=0;
-    if ((i2=str_chr(buf,';'))<n) {
+    if ((i2=str_chr(buf,';'))<(unsigned int)n) {
       buf[i2]=0;
       if (str_equal("binary",buf+i2+1)) binary=1;
     }
