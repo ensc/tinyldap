@@ -56,7 +56,6 @@ int main(int argc,char* argv[]) {
 	  buffer_putsflush(buffer_2,"case sensitivity flag is nonzero?!\n");
 	  return 1;
 	}
-	break;
       } else if (!strcmp(map+j,"dn"))
 	dn=j;
       else if (!strcmp(map+j,"objectClass"))
