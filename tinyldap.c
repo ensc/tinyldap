@@ -494,6 +494,36 @@ int handle(int in,int out) {
       case UnbindRequest:
 	close(out); if (in!=out) close(in);
 	return 0;
+      case ModifyRequest:
+	{
+	  struct ModifyRequest mr;
+	  int tmp;
+	  buffer_putsflush(buffer_2,"modifyrequest!\n");
+	  if ((tmp=scan_ldapmodifyrequest(buf+res,buf+res+len,&mr))) {
+	    buffer_puts(buffer_1,"modify request: dn \"");
+	    buffer_put(buffer_1,mr.object.s,mr.object.l);
+	    buffer_putsflush(buffer_1,"\"\n");
+	    switch (mr.m.operation) {
+	    case 0: buffer_puts(buffer_1,"Add\n"); break;
+	    case 1: buffer_puts(buffer_1,"Delete\n"); break;
+	    case 2: buffer_puts(buffer_1,"Replace\n"); break;
+	    }
+	    buffer_put(buffer_1,mr.m.AttributeDescription.s,mr.m.AttributeDescription.l);
+	    buffer_puts(buffer_1,"\n");
+	    {
+	      struct AttributeDescriptionList* x=&mr.m.vals;
+	      do {
+		buffer_puts(buffer_1," -> \"");
+		buffer_put(buffer_1,x->a.s,x->a.l);
+		buffer_putsflush(buffer_1,"\"\n");
+		x=x->next;
+	      } while (x);
+	    }
+	  } else {
+	    buffer_putsflush(buffer_2,"couldn't parse modify request!\n");
+	    exit(1);
+	  }
+	}
       default:
 	buffer_puts(buffer_2,"unknown request type ");
 	buffer_putulong(buffer_2,op);

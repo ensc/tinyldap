@@ -1,0 +1,4 @@
+
+  - add support for case insensitive matching
+  - add real dn parsing
+  - add write support with an external journal

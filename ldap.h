@@ -59,6 +59,18 @@ struct SearchResultEntry {
   struct PartialAttributeList* attributes;
 };
 
+struct Modification {
+  enum { Add=0, Delete=1, Replace=2 } operation;
+  struct string AttributeDescription; /* ? */
+  struct AttributeDescriptionList vals;
+  struct Modification* next;
+};
+
+struct ModifyRequest {
+  struct string object;
+  struct Modification m;
+};
+
 enum ldapops {
   BindRequest=0, BindResponse=1,
   UnbindRequest=2,
@@ -92,6 +104,7 @@ int scan_ldapsearchresultentry(const char* src,const char* max,struct SearchResu
 int scan_ldapresult(const char* src,const char* max,long* result,
 		    struct string* matcheddn,struct string* errormessage,
 		    struct string* referral);
+int scan_ldapmodifyrequest(const char* src,const char* max,struct ModifyRequest* m);
 
 int fmt_ldapstring(char* dest,struct string* s);
 int fmt_ldapmessage(char* dest,long messageid,long op,long len);
@@ -104,6 +117,7 @@ int fmt_ldappal(char* dest,struct PartialAttributeList* pal);
 int fmt_ldapava(char* dest,struct AttributeValueAssertion* a);
 int fmt_ldapadl(char* dest,struct AttributeDescriptionList* adl);
 int fmt_ldapavl(char* dest,struct AttributeDescriptionList* adl);
+int fmt_ldapmodifyrequest(char* dest,struct ModifyRequest* m);
 
 #define fmt_ldapbindresponse(a,b,c,d,e) fmt_ldapresult(a,b,c,d,e)
 #define fmt_ldapsearchresultdone(a,b,c,d,e) fmt_ldapresult(a,b,c,d,e)

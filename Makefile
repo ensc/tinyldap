@@ -16,7 +16,7 @@ freefilter.o freeava.o scan_ldapava.o fmt_ldapsearchresultentry.o \
 fmt_ldapstring.o freepal.o scan_ldapsearchresultentry.o \
 fmt_ldapresult.o fmt_ldappal.o fmt_ldapadl.o fmt_ldapava.o \
 fmt_ldapsearchfilter.o fmt_ldapsearchrequest.o matchstring.o \
-matchprefix.o
+matchprefix.o scan_ldapmodifyrequest.o
 
 ldif.a: ldif_parse.o ldap_match.o ldap_match_mapped.o
 
@@ -59,7 +59,7 @@ parse tinyldap_standalone tinyldap_debug ldapclient_str addindex \
 dumpidx *.da *.bbg *.bb *.gcov gmon.out
 
 tar: clean
-	cd ..; tar cvvf ldap.tar.bz2 ldap --use=bzip2 --exclude CVS --exclude exp.ldif --exclude polyp* --exclude rfc*
+	cd ..; tar cvvf tinyldap.tar.bz2 tinyldap --use=bzip2 --exclude capture --exclude CVS --exclude exp.ldif --exclude polyp* --exclude rfc*
 
 fmt_asn1int.o: fmt_asn1int.c
 fmt_asn1intpayload.o: fmt_asn1intpayload.c
