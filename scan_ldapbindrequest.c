@@ -10,8 +10,7 @@ int scan_ldapbindrequest(const char* src,const char* max,
   {
     enum asn1_tagclass tc;
     enum asn1_tagtype tt;
-    long method;
-    if (!(tmp=scan_asn1tag(src+res,max,&tc,&tt,&method))) return 0;
+    if (!(tmp=scan_asn1tag(src+res,max,&tc,&tt,method))) return 0;
     if (tc!=PRIVATE || tt!=PRIMITIVE) return 0;
   }
   return res;

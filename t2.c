@@ -87,7 +87,8 @@ int main(int argc,char* argv[]) {
 //  char* ldapsequence=mmap_read("req",&size);
   char* ldapsequence=mmap_read(argc>1?argv[1]:"/tmp/ldap/127.000.000.001.00389-127.000.000.001.38433",&size);
   long messageid, op, len;
-  int res,done=0;
+  int res;
+  unsigned long done=0;
   while (done<size) {
     printf("scan_ldapmessage: %d\n",res=scan_ldapmessage(ldapsequence+done,ldapsequence+size,&messageid,&op,&len));
     if (!res) { puts("punt!"); break; }
@@ -151,7 +152,7 @@ int main(int argc,char* argv[]) {
 	  case 2: printf("derefFindingBaseObj"); break;
 	  case 3: printf("derefAlways"); break;
 	  }
-	  printf(", size limit %d, time limit %d\n",br.sizeLimit,br.timeLimit);
+	  printf(", size limit %ld, time limit %ld\n",br.sizeLimit,br.timeLimit);
 	  printfilter(br.filter); printf("\n");
 	}
 	printal(br.attributes);

@@ -1,12 +1,13 @@
-DEBUG=1
+#DEBUG=1
 
-all: t t1 t2 bindrequest tinyldap ldapclient ldapclient_str
+all: t1 t2 bindrequest tinyldap ldapclient ldapclient_str # t
 
 asn1.a: fmt_asn1intpayload.o fmt_asn1length.o fmt_asn1tag.o \
 fmt_asn1int.o fmt_asn1string.o fmt_asn1transparent.o scan_asn1tag.o \
 scan_asn1length.o scan_asn1int.o scan_asn1string.o scan_asn1INTEGER.o \
 scan_asn1STRING.o scan_asn1SEQUENCE.o scan_asn1ENUMERATED.o \
-scan_asn1BOOLEAN.o scan_asn1rawint.o scan_asn1SET.o
+scan_asn1BOOLEAN.o scan_asn1rawint.o scan_asn1SET.o fmt_asn1sint.o \
+fmt_asn1sintpayload.o
 
 ldap.a: scan_ldapmessage.o fmt_ldapmessage.o fmt_ldapbindrequest.o \
 scan_ldapbindrequest.o scan_ldapbindresponse.o scan_ldapresult.o \
@@ -20,10 +21,10 @@ ldif.a: ldif_parse.o ldap_match.o strduptab.o strstorage.o
 
 DIET=diet -Os
 CC=gcc
-CFLAGS=-pipe -I. -Wall
+CFLAGS=-pipe -I. -Wall -W
 ifneq ($(DEBUG),)
 DIET=diet
-CFLAGS=-pipe -I. -Wall -g
+CFLAGS=-pipe -I. -Wall -W -g
 endif
 
 %.o: %.c

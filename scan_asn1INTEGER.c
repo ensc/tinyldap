@@ -1,6 +1,6 @@
 #include "asn1.h"
 
-int scan_asn1INTEGER(const char* src,const char* max,unsigned long* l) {
+int scan_asn1INTEGER(const char* src,const char* max,signed long* l) {
   int tmp;
   long tag;
   enum asn1_tagclass tc;

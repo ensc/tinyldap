@@ -43,7 +43,7 @@ int fmt_ldapsearchfilter(char* dest,struct Filter* f) {
       l=fmt_ldapstring(nd,&f->ava.desc);
       l+=fmt_asn1SEQUENCE(nd+l,tmp);
       l+=fmt_ldapsubstring(nd+l,f->substrings);
-      sum+=l;
+      sum=l;
     }
     break;
   case PRESENT:

@@ -1,3 +1,4 @@
+#include "byte.h"
 #include "ldif.h"
 
 /* behave like strcmp */

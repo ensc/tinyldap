@@ -1,3 +1,6 @@
+/* parser and formatter for ASN.1 DER encoding.
+ * The parser can read BER encoding, too. */
+
 enum asn1_tagclass {
   UNIVERSAL=(0<<6),
   APPLICATION=(1<<6),
@@ -33,8 +36,17 @@ int fmt_asn1length(char* dest,unsigned long l);
 int fmt_asn1intpayload(char* dest,unsigned long l);
 
 /* write int in least amount of bytes, return number of bytes */
+/* as used in ASN.1 INTEGER.  This only does the payload, not the tag
+ * and length headers! */
+int fmt_asn1sintpayload(char* dest,signed long l);
+
+/* write int in least amount of bytes, return number of bytes */
 /* as used in ASN.1 INTEGER or ENUMERATED. */
 int fmt_asn1int(char* dest,enum asn1_tagclass tc,enum asn1_tagtype tt,enum asn1_tag tag,unsigned long l);
+
+/* write int in least amount of bytes, return number of bytes */
+/* as used in ASN.1 INTEGER or ENUMERATED. */
+int fmt_asn1sint(char* dest,enum asn1_tagclass tc,enum asn1_tagtype tt,enum asn1_tag tag,signed long l);
 
 /* write any data type that does not require transformation in the least
  * amount of bytes, return number of bytes */
@@ -66,19 +78,38 @@ int fmt_asn1string(char* dest,enum asn1_tagclass tc,enum asn1_tagtype tt,enum as
 /* write ASN.1 SET */
 #define fmt_asn1SET(dest,l) fmt_asn1transparent(dest,UNIVERSAL,CONSTRUCTED,SET_OF,l);
 
+
+/* conventions for the parser routines:
+ *   src points to the first byte to parse
+ *   max points to the first byte behind the buffer
+ *   the return value is the number of bytes parsed or 0 for parse error */
+
+/* parse ASN.1 tag into a tag class, tag type and tag number */
 int scan_asn1tag(const char* src,const char* max,
 		 enum asn1_tagclass* tc,enum asn1_tagtype* tt, unsigned long* tag);
+
+/* parse ASN.1 length */
 int scan_asn1length(const char* src,const char* max,unsigned long* length);
+
+/* parse ASN.1 integer with tag and length */
 int scan_asn1int(const char* src,const char* max,
 		 enum asn1_tagclass* tc,enum asn1_tagtype* tt, unsigned long* tag,
-		 unsigned long* l);
+		 long* l);
+
+/* parse raw integer (payload after tag and length); internal helper */
 int scan_asn1rawint(const char* src,const char* max,unsigned int len,long* i);
+
+/* parse string with tag and length.
+ * Points s to the first byte in the string, and writes the length of
+ * the string to l. */
 int scan_asn1string(const char* src,const char* max,
 		    enum asn1_tagclass* tc,enum asn1_tagtype* tt,unsigned long* tag,
 		    const char** s,unsigned long* l);
 
+/* the following expect a specific universal type and return a parse
+ * error if the tag does not match that type */
 int scan_asn1BOOLEAN(const char* src,const char* max,unsigned long* l);
-int scan_asn1INTEGER(const char* src,const char* max,unsigned long* l);
+int scan_asn1INTEGER(const char* src,const char* max,signed long* l);
 int scan_asn1ENUMERATED(const char* src,const char* max,unsigned long* l);
 int scan_asn1STRING(const char* src,const char* max,const char** s,unsigned long* l);
 int scan_asn1SEQUENCE(const char* src,const char* max,unsigned long* len);
