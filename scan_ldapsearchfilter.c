@@ -39,7 +39,7 @@ int scan_ldapsearchfilter(const char* src,const char* max,struct Filter** f) {
   const char* nmax;
   *f=0;
   if (!(res=scan_asn1tag(src,max,&tc,&tt,&tag))) goto error;
-  if (tc!=PRIVATE || tt!=CONSTRUCTED || tag>9) goto error;
+  if (tc!=PRIVATE || (tt!=CONSTRUCTED && tag!=7) || tag>9) goto error;
   if (!(tmp=scan_asn1length(src+res,max,&len))) goto error;
   res+=tmp;
   if (src+res+len>max) goto error;
@@ -100,8 +100,9 @@ int scan_ldapsearchfilter(const char* src,const char* max,struct Filter** f) {
       break;
     }
   case 7:    /*  present         [7] AttributeDescription, */
-    if (!(tmp=scan_ldapstring(src+res,nmax,&(*f)->ava.desc))) goto error;
-    res+=tmp;
+    (*f)->ava.desc.s=src+res;
+    (*f)->ava.desc.l=len;
+    res+=len;
     break;
   case 9:    /*  extensibleMatch [9] MatchingRuleAssertion } */
     goto error;
