@@ -605,12 +605,15 @@ authfailure:
 		      buffer_put(buffer_2,f.ava.value.s,f.ava.value.l);
 		      buffer_putsflush(buffer_2,".\n");
 #endif
-		      if (check_password(c,&password))
+		      if (check_password(c,&password)) {
 			done=1;
+			goto found;
+		      }
 		    }
 		  }
 		}
 		if (!done) goto authfailure;
+found:
 	      }
 	    }
 	    {
@@ -742,6 +745,7 @@ authfailure:
 	  }
 	}
       case AbandonRequest:
+	buffer_putsflush(buffer_2,"AbandonRequest!\n");
 	/* do nothing */
 	break;
       default:

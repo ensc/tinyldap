@@ -76,8 +76,14 @@ usage:
       struct AttributeDescriptionList *n;
       n=malloc(sizeof(struct AttributeDescriptionList));
       n->a.s=argv[i]; n->a.l=strlen(argv[i]);
-      n->next=next;
+      n->next=0;
+      next->next=n;
       next=n;
+
+      buffer_puts(buffer_2,"requesting ");
+      buffer_puts(buffer_2,argv[i]);
+      buffer_putnlflush(buffer_2);
+
       i++;
     }
     sr.baseObject.s=argv[2]; sr.baseObject.l=strlen(sr.baseObject.s);
@@ -106,6 +112,7 @@ usage:
 	  return 0;
 	}
 	len+=tmp;
+nextmessage:
 	if ((tmp2=scan_ldapmessage(buf,buf+len,&mid,&op,&slen))) {
 	  max=buf+slen+tmp2;
 	  if (op==SearchResultEntry) {
@@ -137,6 +144,12 @@ usage:
 	  } else {
 	    buffer_putsflush(buffer_2,"unexpected response.\n");
 	    return 0;
+	  }
+	  if (max<buf+len) {
+	    byte_copy(buf,buf+len-max,max);
+	    tmp-=(max-(buf+len));
+	    len-=(max-(buf+len));
+	    goto nextmessage;
 	  }
 	}
       }

@@ -71,6 +71,7 @@ int main() {
       /* we add 8 for the <length-in-uint32_t,0> pair and we substract 8
        * for the two saved pointers ("dn" and "objectClass") */
       if (x->dn>=0) len+=8; else {
+	if (x->n==0 && x->next==0) break;
 	buffer_putsflush(buffer_2,"record without dn?!\n");
 	dumprec(x);
 	return 1;
