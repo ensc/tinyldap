@@ -453,26 +453,20 @@ int handle(int in,int out) {
 	       * of the matches in a table.  Use findrec to locate
 	       * the records that point to the data. */
 	      useindex(sr.filter,result);
-	      for (i=0; i<record_count; ++i)
-		if (isset(result,i)) {
-		  uint32 j;
-		  uint32_unpack(map+indices_offset+4*i,&j);
-
-#if 0
-		  buffer_puts(buffer_2,"potential match: ");
-		  buffer_putulong(buffer_2,i);
-		  buffer_puts(buffer_2," -> ");
-		  {
-		    uint32 l;
-		    uint32_unpack(map+j+8,&l);
-		    buffer_puts(buffer_2,map+l);
-		  }
-		  buffer_putsflush(buffer_2,"\n");
-#endif
-
-		  if (ldap_match_mapped(j,&sr))
-		    answerwith(j,&sr,messageid,out);
+	      for (i=0; i<record_count; ) {
+		if (!result[i/(8*sizeof(long))]) {
+		  i+=8*sizeof(long);
+		  continue;
 		}
+		for (; i<record_count; ++i) {
+		  if (isset(result,i)) {
+		    uint32 j;
+		    uint32_unpack(map+indices_offset+4*i,&j);
+		    if (ldap_match_mapped(j,&sr))
+		      answerwith(j,&sr,messageid,out);
+		  }
+		}
+	      }
 	    } else {
 	      char* x=map+5*4+size_of_string_table+attribute_count*8;
 	      unsigned long i;
