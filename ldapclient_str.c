@@ -7,6 +7,7 @@
 #include "socket.h"
 #include "ip4.h"
 #include "str.h"
+#include "open.h"
 
 #define BUFSIZE 8192
 
@@ -37,30 +38,39 @@ int main(int argc,char* argv[]) {
   char buf[BUFSIZE];
   int len=0;
 
-  if (argc<3) {
+  if (argc<4) {
 usage:
-    buffer_putsflush(buffer_2,"usage: ldapclient ip baseObject foo=bar [baz...]\n");
+    buffer_putsflush(buffer_2,"usage: ldapclient_src ip baseObject Attrib Prefix\n");
     return 0;
   }
   sock=socket_tcp4();
   {
     char ip[4];
     if (argv[1][scan_ip4(argv[1],ip)]) goto usage;
-    if (socket_connect4(sock,ip,389)) {
+    if (socket_connect4(sock,ip,389) && !argv[5]) {
       buffer_putsflush(buffer_2,"could not connect to ldap server!\n");
       return 1;
     }
   }
-  if (ldapbind(sock)) {
+  if (argv[5] || ldapbind(sock)) {
     struct Filter f;
     struct AttributeDescriptionList adl;
     struct SearchRequest sr;
+    struct Substring ssr;
     f.x=f.next=0;
-    f.type=EQUAL;
-    f.ava.desc.s=argv[3]; f.ava.desc.l=str_chr(argv[3],'=');
-    if (argv[3][f.ava.desc.l] != '=') goto usage;
-    f.ava.value.s=argv[3]+f.ava.desc.l+1; f.ava.value.l=str_len(f.ava.value.s);
+    f.type=SUBSTRING;
+    f.ava.desc.s=argv[3]; f.ava.desc.l=str_len(argv[3]);
+    // if (argv[3][f.ava.desc.l] != '=') goto usage;
+    //f.ava.value.s=argv[3]+f.ava.desc.l+1; f.ava.value.l=str_len(f.ava.value.s);
+    f.ava.value.s="";
+    f.ava.value.l=0;
+    ssr.substrtype=prefix;
+    ssr.s.s=argv[4];
+    ssr.s.l=str_len(ssr.s.s);
+    ssr.next=0;
     f.a=&adl;
+    //f.a=0;
+    f.substrings=&ssr;
     adl.a.s="mail"; adl.a.l=4;
     adl.next=0;
     sr.baseObject.s=argv[2]; sr.baseObject.l=strlen(sr.baseObject.s);
@@ -72,6 +82,13 @@ usage:
     {
       int tmp=fmt_ldapmessage(0,++messageid,SearchRequest,len);
       fmt_ldapmessage(buf+100-tmp,messageid,SearchRequest,len);
+      if (argv[5]) { int w; 
+	puts("writing file");
+	w=open_trunc(argv[5]);
+	write(w,buf+100-tmp,len+tmp);
+	close(w);
+	return 0;
+      }
       write(sock,buf+100-tmp,len+tmp);
     }
     {

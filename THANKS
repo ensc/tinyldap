@@ -1,3 +1,5 @@
 Trevor Harrison found a bug in fmt_asn1tag for the multibyte encoding.
 
 David Lichteblau found lots of problems in the ASN.1 code.
+
+Özgür Kesim helped fix the substring search.

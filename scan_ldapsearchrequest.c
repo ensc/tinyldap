@@ -20,7 +20,7 @@ int scan_ldapsearchrequest(const char* src,const char* max,
   if (!(tmp=scan_ldapsearchfilter(src+res,max,&s->filter))) goto error;
   res+=tmp;
   /* now for the attributelist */
-  if (!(tmp=scan_asn1SET(src+res,max,&etmp))) goto error;
+  if (!(tmp=scan_asn1SEQUENCE(src+res,max,&etmp))) goto error;
   res+=tmp;
   {
     const char* nmax=src+res+etmp;

@@ -9,7 +9,7 @@ int fmt_ldapadl(char* dest,struct AttributeDescriptionList* adl) {
     sum+=fmt_asn1OCTETSTRING(0,0,x->a.l);
     x=x->next;
   }
-  tmp=fmt_asn1SET(dest,sum);
+  tmp=fmt_asn1SEQUENCE(dest,sum);
   sum+=tmp;
   if (dest) {
     dest+=tmp;

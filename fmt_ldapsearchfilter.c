@@ -18,7 +18,7 @@
 */
 
 int fmt_ldapsubstring(char* dest,struct Substring* s) {
-  long sum=0,tmp;
+  long sum=0,tmp=0;
   while (s) {
     tmp=fmt_asn1string(dest,PRIVATE,CONSTRUCTED,s->substrtype,s->s.s,s->s.l);
     if (dest) dest+=tmp; sum+=tmp;
@@ -37,8 +37,13 @@ int fmt_ldapsearchfilter(char* dest,struct Filter* f) {
   case SUBSTRING:
     {
       char* nd=dest;
-      sum=fmt_ldapstring(nd,&f->ava.desc);
-      sum+=fmt_ldapsubstring(nd+sum,f->substrings);
+      long l=0,tmp=0;
+
+      tmp=fmt_ldapsubstring(0,f->substrings);
+      l=fmt_ldapstring(nd,&f->ava.desc);
+      l+=fmt_asn1SEQUENCE(nd+l,tmp);
+      l+=fmt_ldapsubstring(nd+l,f->substrings);
+      sum+=l;
     }
     break;
   case PRESENT:

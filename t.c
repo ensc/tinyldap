@@ -538,7 +538,7 @@ int main() {
   char* max;
   int l,fd,res;
 //  fd=open_read("/tmp/ldap/127.000.000.001.32875-127.000.000.001.00389");
-  fd=open_read("/tmp/ldap/127.000.000.001.32779-127.000.000.001.00389");
+  fd=open_read(argv[1] ? argv[1] : "data");
 //  fd=open_read("/tmp/ldap/127.000.000.001.38433-127.000.000.001.00389");
 //  fd=open_read("/tmp/ldap/127.000.000.001.00389-127.000.000.001.32779");
 //  fd=open_read("answer");

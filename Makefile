@@ -1,6 +1,6 @@
 DEBUG=1
 
-all: t t1 t2 bindrequest tinyldap ldapclient
+all: t t1 t2 bindrequest tinyldap ldapclient ldapclient_str
 
 asn1.a: fmt_asn1intpayload.o fmt_asn1length.o fmt_asn1tag.o \
 fmt_asn1int.o fmt_asn1string.o fmt_asn1transparent.o scan_asn1tag.o \
@@ -37,13 +37,13 @@ endif
 
 t1: ldif.a
 t2: ldap.a asn1.a
-bindrequest tinyldap ldapclient: ldap.a asn1.a
+bindrequest tinyldap ldapclient ldapclient_str: ldap.a asn1.a
 
 tinyldap: ldif.a
 
 .PHONY: clean tar
 clean:
-	rm -f t t1 t2 *.[ao] bindrequest tinyldap
+	rm -f t t1 t2 *.[ao] bindrequest tinyldap ldapclient
 
 tar: clean
 	cd ..; tar cvvf ldap.tar.bz2 ldap --use=bzip2 --exclude CVS --exclude exp.ldif --exclude polyp* --exclude rfc*
@@ -79,6 +79,7 @@ ldif_parse.o: ldif_parse.c strduptab.h strstorage.h ldif.h
 
 tinyldap.o: tinyldap.c ldap.h ldif.h
 ldapclient.o: ldapclient.c ldap.h
+ldapclient_str.o: ldapclient_str.c ldap.h
 bindrequest.o: bindrequest.c ldap.h
 
 strduptab.o: strduptab.c strduptab.h strstorage.h
