@@ -6,6 +6,8 @@ int scan_ldapsearchrequest(const char* src,const char* max,
 			 struct SearchRequest* s) {
   int res,tmp;
   unsigned long etmp;
+  s->attributes=0;
+  s->filter=0;
   if (!(res=scan_ldapstring(src,max,&s->baseObject))) goto error;
   if (!(tmp=scan_asn1ENUMERATED(src+res,max,&etmp))) goto error;
   if (etmp>2) goto error; s->scope=etmp; res+=tmp;
@@ -40,5 +42,11 @@ int scan_ldapsearchrequest(const char* src,const char* max,
     return res;
   }
 error:
+  free_ldapsearchrequest(s);
   return 0;
+}
+
+void free_ldapsearchrequest(struct SearchRequest* s) {
+  free_ldapadl(s->attributes->next);
+  free_ldapsearchfilter(s->filter);
 }

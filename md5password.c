@@ -1,4 +1,5 @@
 #include <md5.h>
+#include <string.h>
 #include "buffer.h"
 #include "str.h"
 #include "textcode.h"

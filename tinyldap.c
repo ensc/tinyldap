@@ -514,6 +514,7 @@ add_attribute:
     fmt_ldapsearchresultentry(buf+tmp,&sre);
     write(out,buf,l+tmp);
   }
+  free_ldappal(sre.attributes);
 }
 
 int handle(int in,int out) {
@@ -624,9 +625,9 @@ authfailure:
 		  buffer_putsflush(buffer_2,"wrong password, bind failed!\n");
 		  goto authfailure;
 		}
-found:
 	      }
 	    }
+found:
 	    {
 	      char outbuf[1024];
 	      int s=100;
@@ -709,6 +710,7 @@ found:
 		x+=j*8;
 	      }
 	    }
+	    free_ldapsearchrequest(&sr);
 	  } else {
 	    buffer_putsflush(buffer_2,"couldn't parse search request!\n");
 	    exit(1);

@@ -21,6 +21,7 @@ int scan_ldapmodifyrequest(const char* src,const char* max,struct ModifyRequest*
   int res,tmp;
   long oslen; /* outer sequence length */
   struct Modification* last=0;
+  m->m.next=0;
   if (!(res=scan_ldapstring(src,max,&m->object))) goto error;
   if (!(tmp=scan_asn1SEQUENCE(src+res,max,&oslen))) goto error;
   res+=tmp;
@@ -73,5 +74,19 @@ int scan_ldapmodifyrequest(const char* src,const char* max,struct ModifyRequest*
   } while (src+res<max);
   return res;
 error:
+  free_ldapmodifyrequest(m);
   return 0;
+}
+
+static void free_mod(struct Modification* m) {
+  while (m) {
+    struct Modification* tmp=m->next;
+    free(m);
+    m=tmp;
+  }
+}
+
+void free_ldapmodifyrequest(struct ModifyRequest* m) {
+  free_ldapadl(m->m.vals.next);
+  free_mod(m->m.next);
 }

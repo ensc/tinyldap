@@ -109,6 +109,6 @@ int scan_ldapsearchfilter(const char* src,const char* max,struct Filter** f) {
   }
   return res;
 error:
-  freefilter((*f));
+  free_ldapsearchfilter(*f);
   return 0;
 }

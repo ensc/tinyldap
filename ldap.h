@@ -130,4 +130,13 @@ int fmt_ldapmodifyrequest(char* dest,struct ModifyRequest* m);
 #define fmt_ldapbindresponse(a,b,c,d,e) fmt_ldapresult(a,b,c,d,e)
 #define fmt_ldapsearchresultdone(a,b,c,d,e) fmt_ldapresult(a,b,c,d,e)
 
+void free_ldapadl(struct AttributeDescriptionList* a);
+void free_ldappal(struct PartialAttributeList* a);
+void free_ldapsearchfilter(struct Filter* f);
+/* does not free s itself */
+void free_ldapsearchrequest(struct SearchRequest* s);
+/* does not free m itself */
+void free_ldapmodifyrequest(struct ModifyRequest* m);
+
+
 #endif
