@@ -65,6 +65,14 @@ static int unbase64(char* buf) {
   return destlen;
 }
 
+
+static inline int add_normalized(const char* s,long len) {
+  char* newdn=alloca(len+1);
+  long val;
+  if ((val=mstorage_add(&stringtable,newdn,normalize_dn(newdn,s,len)))<0) return -1;
+  return val;
+}
+
 static int parserec(buffer* b, struct ldaprec** l) {
   char buf[8192];
   int n,i,eof=0,ofs=0;
@@ -142,8 +150,7 @@ lookagain:
 	if (tmp==objectClass) {
 	  if ((val=mduptab_add(&classes,payload.s,len-1))<0) goto nomem;
 	} else if (tmp==dn) {
-	  char* newdn=alloca(len);
-	  if ((val=mstorage_add(&stringtable,newdn,normalize_dn(newdn,payload.s,len)))<0) goto nomem;
+	  if ((val=add_normalized(payload.s,len))==-1) goto nomem;
 	} else
 	  if ((val=mstorage_add_bin(&stringtable,payload.s,len))<0) goto nomem;
 	addattribute(l,tmp,val);
@@ -181,8 +188,7 @@ lookagain:
     if (tmp==objectClass) {
       if ((val=mduptab_add(&classes,payload.s,len-1))<0) goto nomem;
     } else if (tmp==dn) {
-      char* newdn=alloca(payload.len+1);
-      if ((val=mstorage_add(&stringtable,newdn,normalize_dn(newdn,payload.s,payload.len)))<0) goto nomem;
+      if ((val=add_normalized(payload.s,payload.len))==-1) goto nomem;
     } else
       if ((val=mstorage_add_bin(&stringtable,payload.s,payload.len))<0) goto nomem;
     addattribute(l,tmp,val);
