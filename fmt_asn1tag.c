@@ -18,7 +18,7 @@ int fmt_asn1tag(char* dest,enum asn1_tagclass tc,enum asn1_tagtype tt,unsigned l
     *dest=(int)tc+(int)tt+0x1f; ++dest;
     while (j) {
       --j;
-      *dest=((l>>(j*7))&0x7f);
+      *dest=((l>>(j*7))&0x7f) + (j?0x80:0);
       ++dest;
     }
   }

@@ -1,0 +1,1 @@
+Trevor Harrison found a bug in fmt_asn1tag for the multibyte encoding.
