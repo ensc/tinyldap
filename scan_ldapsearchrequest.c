@@ -15,7 +15,7 @@ int scan_ldapsearchrequest(const char* src,const char* max,
   res+=tmp;
   if (!(tmp=scan_asn1INTEGER(src+res,max,&s->timeLimit))) goto error;
   res+=tmp;
-  if (!(tmp=scan_asn1BOOLEAN(src+res,max,&s->timeLimit))) goto error;
+  if (!(tmp=scan_asn1BOOLEAN(src+res,max,&s->typesOnly))) goto error;
   res+=tmp;
   if (!(tmp=scan_ldapsearchfilter(src+res,max,&s->filter))) goto error;
   res+=tmp;
