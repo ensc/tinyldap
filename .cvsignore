@@ -17,3 +17,4 @@ doit
 idx2ldif
 ldap-capture
 server
+md5password

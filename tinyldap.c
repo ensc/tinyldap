@@ -558,13 +558,15 @@ int handle(int in,int out) {
 	    if (name.l) {
 	      struct Filter f;
 	      struct string password;
-	      f.type=EQUAL; f.attrofs=dn_ofs;
+	      f.type=EQUAL;
 	      scan_ldapstring(buf+res+tmp,buf+res+len,&password);
 	      f.ava.desc.l=2; f.ava.desc.s="dn";
 	      f.ava.value=name;
 	      f.next=0;
+	      fixup(&f);
 
 	      if (!indexable(&f)) {
+		buffer_putsflush(buffer_2,"no index for dn, bind failed!\n");
 authfailure:
 		{
 		  char outbuf[1024];
@@ -582,8 +584,12 @@ authfailure:
 		useindex(&f,result);
 		done=0;
 		for (i=0; i<record_set_length; ++i)
-		  if (result[i]) 
+		  if (result[i])
 		    done=1;
+		if (!done) {
+		  buffer_putsflush(buffer_2,"no matching dn found, bind failed!\n");
+		  goto authfailure;
+		}
 		done=0;
 		for (i=0; i<record_count; ) {
 		  if (!result[i/(8*sizeof(long))]) {
@@ -595,8 +601,10 @@ authfailure:
 		      uint32 j;
 		      const char* c;
 		      uint32_unpack(map+indices_offset+4*i,&j);
-		      if (!(j=ldap_find_attr_value(j,userPassword_ofs)))
+		      if (!(j=ldap_find_attr_value(j,userPassword_ofs))) {
+			buffer_putsflush(buffer_2,"no userPassword attribute found, bind failed!\n");
 			goto authfailure;
+		      }
 		      c=map+j;
 #if 0
 		      buffer_puts(buffer_2,"compare ");
@@ -612,7 +620,10 @@ authfailure:
 		    }
 		  }
 		}
-		if (!done) goto authfailure;
+		if (!done) {
+		  buffer_putsflush(buffer_2,"wrong password, bind failed!\n");
+		  goto authfailure;
+		}
 found:
 	      }
 	    }
