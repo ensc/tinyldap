@@ -36,7 +36,21 @@ mergesub:
     printava(&f->ava,"==");
     break;
   case SUBSTRING:
-    printava(&f->ava,"\\in");
+    {
+      struct Substring* s=f->substrings;
+      int first=1;
+      printf("%.*s has ",(int)f->ava.desc.l,f->ava.desc.s);
+      while (s) {
+	if (!first) printf(" and "); first=0;
+	switch(s->substrtype) {
+	case prefix: printf("prefix \""); break;
+	case any: printf("substr \""); break;
+	case suffix: printf("suffix \""); break;
+	}
+	printf("%.*s\"",(int)s->s.l,s->s.s);
+	s=s->next;
+      }
+    }
     break;
   case GREATEQUAL:
     printava(&f->ava,">=");
@@ -64,7 +78,7 @@ int main(int argc,char* argv[]) {
 #if 1
   unsigned long size;
 //  char* ldapsequence=mmap_read("req",&size);
-  char* ldapsequence=mmap_read(argc>1?argv[1]:"capture/127.000.000.001.32779-127.000.000.001.00389",&size);
+  char* ldapsequence=mmap_read(argc>1?argv[1]:"capture/127.000.000.001.38433-127.000.000.001.00389",&size);
   long messageid, op, len;
   int res,done=0;
   while (done<size) {

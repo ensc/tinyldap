@@ -21,15 +21,19 @@ struct PartialAttributeList {
   struct PartialAttributeList* next;
 };
 
+struct Substring {
+  enum { prefix=0, any=1, suffix=2 } substrtype;
+  struct string s;
+  struct Substring* next;
+};
+
 struct Filter {
   enum {
     AND=0, OR=1, NOT=2, EQUAL=3, SUBSTRING=4, GREATEQUAL=5, LESSEQUAL=6, PRESENT=7, APPROX=8, EXTENSIBLE=9
   } type;
   struct AttributeValueAssertion ava;
+  struct Substring* substrings;
   struct AttributeDescriptionList *a;
-  enum {
-    PREFIX=0, ANY=1, SUFFIX=2
-  } substrtype;
   struct Filter* x,*next;
 };
 

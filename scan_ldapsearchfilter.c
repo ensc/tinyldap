@@ -79,9 +79,22 @@ int scan_ldapsearchfilter(const char* src,const char* max,struct Filter** f) {
       if (!(tmp=scan_ldapstring(src+res,nmax,&(*f)->ava.desc))) goto error;
       res+=tmp;
       if (!(tmp=scan_asn1SEQUENCE(src+res,nmax,&len2))) goto error;
-      if (src+tmp+len2!=nmax) goto error;
       res+=tmp;
-      goto error;	/* TODO */
+      if (src+res+len2!=nmax) goto error;
+      while (src+res<nmax) {
+	struct Substring* s=malloc(sizeof(struct Substring));
+	unsigned long x;
+	enum asn1_tagtype tt;
+	enum asn1_tagclass tc;
+	if (!s) goto error;
+	if (!(tmp=scan_asn1string(src+res,nmax,&tc,&tt,&x,&s->s.s,&s->s.l))) goto error;
+	if (x>2) goto error;
+	s->substrtype=x;
+	res+=tmp;
+	s->next=(*f)->substrings;
+	(*f)->substrings=s;
+      }
+      break;
     }
   case 7:    /*  present         [7] AttributeDescription, */
     goto error;
