@@ -30,10 +30,19 @@ static void dumpbstr(const char* c) {
   }
 }
 
-int main() {
+int main(int argc,char* argv[]) {
   int verbose=1;
   unsigned long filelen;
-  char* map=mmap_read("data",&filelen);
+  char* fn=argc<2?"data":argv[1];
+  char* map=mmap_read(fn,&filelen);
+  if (!map) {
+    buffer_puts(buffer_2,"could not open ");
+    buffer_puts(buffer_2,fn);
+    buffer_puts(buffer_2,": ");
+    buffer_puterror(buffer_2);
+    buffer_putnlflush(buffer_2);
+    return 1;
+  }
   uint32 magic,attribute_count,record_count,indices_offset,size_of_string_table;
   uint32_unpack(map,&magic);
   uint32_unpack(map+4,&attribute_count);

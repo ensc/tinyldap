@@ -42,6 +42,7 @@ void dumprec(struct ldaprec* l) {
 }
 
 extern mstorage_t stringtable;
+extern mduptab_t attributes,classes;
 
 int main(int argc,char* argv[]) {
   int fd;
@@ -51,7 +52,18 @@ int main(int argc,char* argv[]) {
   long offset_stringtable,offset_classes,offset_attributes;
   char* map,* dest;
 
-  mstorage_init(&stringtable);
+  if ((fd=open(destname,O_RDWR|O_CREAT|O_TRUNC,0600))<0) {
+    buffer_putsflush(buffer_2,"could not create destination data file");
+    return 1;
+  }
+  mstorage_init_persistent(&stringtable,fd);
+  mduptab_init(&attributes);
+  mduptab_init(&classes);
+
+  {
+    char dummy[5*4];
+    mstorage_add(&stringtable,dummy,5*4);
+  }
 
   ldif_parse(argc<2?"exp.ldif":argv[1]);
   if (!first) {
@@ -59,7 +71,7 @@ int main(int argc,char* argv[]) {
     return 1;
   }
 
-  size_of_string_table=stringtable.used+classes.strings.used+attributes.strings.used;
+  size_of_string_table=stringtable.used+classes.strings.used+attributes.strings.used-5*4;
   size_of_string_table=(size_of_string_table+3)&-4;	/* round up to 32 bits */
   /* first find out how much space we need */
   len = 5*sizeof(uint32_t);  /* magic plus four counts */
@@ -104,10 +116,7 @@ int main(int argc,char* argv[]) {
   len+=record_count*4;
   /* done!  we don't create any indices for now. */
 
-  if ((fd=open(destname,O_RDWR|O_CREAT|O_TRUNC,0600))<0) {
-    buffer_putsflush(buffer_2,"could not create destination data file");
-    return 1;
-  }
+  munmap(stringtable.root,stringtable.mapped);
   ftruncate(fd,len);
   if ((map=mmap(0,len,PROT_READ|PROT_WRITE,MAP_SHARED,fd,0))==MAP_FAILED) {
     buffer_putsflush(buffer_2,"could not mmap destination data file!\n");
@@ -122,9 +131,9 @@ int main(int argc,char* argv[]) {
 
 //  size_of_string_table=stringtable.used+classes.strings.used+attributes.strings.used;
   offset_stringtable=5*4;
-  offset_classes=offset_stringtable+stringtable.used;
+  offset_classes= /* offset_stringtable+ */ stringtable.used;
   offset_attributes=offset_classes+classes.strings.used;
-  byte_copy(map+offset_stringtable,stringtable.used,stringtable.root);
+//  byte_copy(map+offset_stringtable,stringtable.used,stringtable.root);
   byte_copy(map+offset_classes,classes.strings.used,classes.strings.root);
   byte_copy(map+offset_attributes,attributes.strings.used,attributes.strings.root);
 //  fdprintf(2,"offset_classes=%lu, offset_attributes=%lu, attributes=%lu\n",
@@ -154,7 +163,7 @@ int main(int argc,char* argv[]) {
       int i=x->n+1;
       record_offsets[cur]=dest-map; ++cur;
       uint32_pack(dest,i); uint32_pack(dest+4,0); dest+=8;
-      uint32_pack(dest,x->dn+offset_stringtable);
+      uint32_pack(dest,x->dn /* +offset_stringtable */);
       for (i=0; i<x->n; ++i) {
 	if (x->a[i].name==objectClass) {
 	  uint32_pack(dest+4,x->a[i].value+offset_classes);
@@ -169,7 +178,7 @@ int main(int argc,char* argv[]) {
 	  if (x->a[i].name==objectClass)
 	    uint32_pack(dest+4,x->a[i].value+offset_classes);
 	  else
-	    uint32_pack(dest+4,x->a[i].value+offset_stringtable);
+	    uint32_pack(dest+4,x->a[i].value /* +offset_stringtable */);
 	  dest+=8;
 	}
       }
