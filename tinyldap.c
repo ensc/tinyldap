@@ -62,11 +62,13 @@ int main() {
 	{
 	  struct SearchRequest sr;
 	  int tmp;
+#if 0
 	  {
 	    int fd=open_write("request");
 	    write(fd,buf,res+len);
 	    close(fd);
 	  }
+#endif
 	  if ((tmp=scan_ldapsearchrequest(buf+res,buf+res+len,&sr))) {
 	    struct ldaprec* r=first;
 #if 0
