@@ -176,15 +176,17 @@ static void tagmatches(uint32* index,unsigned int elements,struct string* s,unsi
 	* Look before and after mid, too */
       for (oldk=k; k>0; ) {
 	k-=4;
-	if ((l=matchstring(s,map+k))==0)
+	if ((l=matchstring(s,map+k))==0) {
 	  if ((rec=findrec(k)))
 	    setbit(bitfield,rec);
+	} else break;
       }
       for (k=oldk; k<elements; ++k) {
 	k+=4;
-	if ((l=matchstring(s,map+k))==0)
+	if ((l=matchstring(s,map+k))==0) {
 	  if ((rec=findrec(k)))
 	    setbit(bitfield,rec);
+	} else break;
       }
       return;
     }
@@ -557,10 +559,6 @@ again:
 #ifdef DEBUG
     handle(asock,asock);
     close(asock);
-    {
-      static int count=0;
-      if (++count==500) return 0;
-    }
     goto again;
 //    exit(0);
 #else

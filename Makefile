@@ -55,7 +55,7 @@ tinyldap_debug: tinyldap.c
 clean:
 	rm -f t t[1-9] *.[ao] bindrequest tinyldap ldapclient data \
 parse tinyldap_standalone tinyldap_debug ldapclient_str addindex \
-dumpidx
+dumpidx *.da *.bbg *.bb *.gcov gmon.out
 
 tar: clean
 	cd ..; tar cvvf ldap.tar.bz2 ldap --use=bzip2 --exclude CVS --exclude exp.ldif --exclude polyp* --exclude rfc*
