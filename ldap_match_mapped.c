@@ -4,6 +4,7 @@
 #include "str.h"
 #include "uint32.h"
 #include "case.h"
+#include <ctype.h>
 #include <unistd.h>
 #include <stdio.h>
 
@@ -126,6 +127,20 @@ int ldap_matchfilter_mapped(uint32 ofs,struct Filter* f) {
   return 1;
 }
 
+/* return 0 if they didn't match, otherwise return length in b */
+static int match(const char* a,int len,const char* b) {
+  const char* A=a+len;
+  const char* B=b+strlen(b);
+  while (len>0 && A>a && B>b) {
+    --A; --B; --len;
+    while (*A==' ' && A>a) { --A; --len; }
+    while (*B==' ' && B>b) --B;
+    if (tolower(*A) != tolower(*B))
+      return 0;
+  }
+  return strlen(B);
+}
+
 /* return non-zero if the record matches the search request */
 int ldap_match_mapped(uint32 ofs,struct SearchRequest* sr) {
   unsigned int l,i;
@@ -137,7 +152,8 @@ int ldap_match_mapped(uint32 ofs,struct SearchRequest* sr) {
 //    puts("fail: baseObject longer than dn");
     return 0;
   }
-  if (!byte_equal(sr->baseObject.s,sr->baseObject.l,map+k+l-sr->baseObject.l)) {
+  /* we want "o=foo, o=bar" and "o=FOO,o=baR" to be equal */
+  if (!(l=match(sr->baseObject.s,sr->baseObject.l,map+k))) {
 //    puts("fail: not suffix");
     return 0;
   }
