@@ -44,19 +44,28 @@ int scan_ldapmodifyrequest(const char* src,const char* max,struct ModifyRequest*
       long iislen;	/* urgh, _three_ levels of indirection */
       const char* imax;
       if (!(tmp=scan_asn1SEQUENCE(src+res,max,&iislen))) goto error;
+      res+=tmp;
       imax=src+res+iislen;
       if (imax>max) goto error;
-      res+=tmp;
       if (!(tmp=scan_ldapstring(src+res,imax,&last->AttributeDescription))) goto error;
       res+=tmp;
       {
 	long iiislen;	/* urgh, _four_ levels of indirection */
 	const char* iimax;
+	struct AttributeDescriptionList* ilast=0;
 	if (!(tmp=scan_asn1SET(src+res,max,&iiislen))) goto error;
+	res+=tmp;
 	iimax=src+res+iiislen;
-	if (src+res+iiislen!=imax) goto error; res+=tmp;
+	if (src+res+iiislen!=imax) goto error;
 	while (src+res<iimax) {
-	  /* TODO */
+	  if (ilast) {
+	    struct AttributeDescriptionList* x;
+	    if (!(x=malloc(sizeof(struct AttributeDescriptionList)))) goto error;
+	    x->next=ilast; ilast=x;
+	  } else
+	    ilast=&last->vals;
+	  if (!(tmp=scan_ldapstring(src+res,imax,&ilast->a))) goto error;
+	  res+=tmp;
 	}
       }
     }
