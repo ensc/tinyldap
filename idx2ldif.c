@@ -1,3 +1,4 @@
+#include <alloca.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include "buffer.h"
@@ -31,7 +32,7 @@ static void dumpbstr(const char* c) {
 
 int main() {
   int verbose=1;
-  long filelen;
+  unsigned long filelen;
   char* map=mmap_read("data",&filelen);
   uint32 magic,attribute_count,record_count,indices_offset,size_of_string_table;
   uint32_unpack(map,&magic);

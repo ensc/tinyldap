@@ -5,7 +5,7 @@ int scan_ldapmessage(const char* src,const char* max,
 		     unsigned long* messageid,unsigned long* op,unsigned long* len) {
   int res,tmp;
   if (!(res=scan_asn1SEQUENCE(src,max,len))) goto error;
-  if (!(tmp=scan_asn1INTEGER(src+res,max,messageid))) goto error;
+  if (!(tmp=scan_asn1INTEGER(src+res,max,(long*)messageid))) goto error;
   res+=tmp;
   {
     enum asn1_tagclass tc;

@@ -5,7 +5,7 @@ int scan_ldapbindrequest(const char* src,const char* max,
 			 unsigned long* version,struct string* name,
 			 unsigned long* method) {
   int res,tmp;
-  if (!(res=scan_asn1INTEGER(src,max,version))) return 0;
+  if (!(res=scan_asn1INTEGER(src,max,(signed long*)version))) return 0;
   if (!(tmp=scan_ldapstring(src+res,max,name))) return 0;
   res+=tmp;
   {

@@ -4,7 +4,7 @@
 
 int main() {
   int verbose=0;
-  long filelen;
+  unsigned long filelen;
   char* map=mmap_read("data",&filelen);
   uint32 magic,attribute_count,record_count,indices_offset,size_of_string_table;
   buffer_puts(buffer_1,"magic: ");

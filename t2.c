@@ -118,11 +118,10 @@ int main(int argc,char* argv[]) {
     case BindResponse:
       puts("  >> BindResponse <<");
       {
-	long result;
+	unsigned long result;
 	struct string matcheddn,errormessage,referral;
-	int tmp;
 	printf("scan_ldapbindresponse: %d\n",
-	       tmp=scan_ldapbindresponse(ldapsequence+done+res,ldapsequence+done+res+len,
+	       scan_ldapbindresponse(ldapsequence+done+res,ldapsequence+done+res+len,
 					 &result,&matcheddn,&errormessage,&referral));
 	printf("result %lu, matcheddn \"%.*s\", errormessage \"%.*s\", referral \"%.*s\"\n",
 	       result,(int)matcheddn.l,matcheddn.s,
@@ -162,8 +161,7 @@ int main(int argc,char* argv[]) {
       puts("  >> SearchResultEntry <<");
       {
 	struct SearchResultEntry sre;
-	int tmp;
-	if ((tmp=scan_ldapsearchresultentry(ldapsequence+done+res,ldapsequence+done+res+len,&sre))) {
+	if (scan_ldapsearchresultentry(ldapsequence+done+res,ldapsequence+done+res+len,&sre)) {
 	  struct PartialAttributeList* pal=sre.attributes;
 	  printf("objectName \"%.*s\"\n",(int)sre.objectName.l,sre.objectName.s);
 	  while (pal) {
@@ -186,9 +184,8 @@ int main(int argc,char* argv[]) {
       {
 	long result;
 	struct string matcheddn,errormessage,referral;
-	int tmp;
 	printf("scan_ldapresult: %d\n",
-	       tmp=scan_ldapresult(ldapsequence+done+res,ldapsequence+done+res+len,
+	       scan_ldapresult(ldapsequence+done+res,ldapsequence+done+res+len,
 				   &result,&matcheddn,&errormessage,&referral));
 	printf("result %lu, matcheddn \"%.*s\", errormessage \"%.*s\", referral \"%.*s\"\n",
 	       result,(int)matcheddn.l,matcheddn.s,
@@ -202,9 +199,9 @@ int main(int argc,char* argv[]) {
     case AbandonRequest:
       puts("  >> AbandonRequest <<");
       {
-	unsigned long which;
+	long which;
 	if (scan_asn1rawint(ldapsequence+done+res,ldapsequence+done+res+len,len,&which))
-	  printf("Abandon: %lu\n",which);
+	  printf("Abandon: %lu\n",(unsigned long)which);
       }
       break;
     default:
