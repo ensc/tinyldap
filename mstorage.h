@@ -15,7 +15,7 @@ int mstorage_init_persistent(mstorage_t* p,int fd);
 
 /* Works like strstorage_add, but will return an
  * offset to mstorage_root, which is mmapped and may thus change. */
-/* negative offset == error */
+/* offset -1 ==> error */
 long mstorage_add(mstorage_t* p,const char* s,unsigned long n);
 
 /* undo mapping */

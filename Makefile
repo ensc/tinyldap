@@ -1,4 +1,4 @@
-#DEBUG=1
+DEBUG=1
 
 all: t1 t2 parse dumpidx idx2ldif addindex bindrequest tinyldap \
 tinyldap_standalone tinyldap_debug ldapclient ldapclient_str \
@@ -28,7 +28,7 @@ ldif.a: ldif_parse.o ldap_match_mapped.o
 storage.a: strstorage.o strduptab.o mstorage_add.o mduptab_add.o \
 bstr_diff.o mduptab_adds.o bstr_diff2.o mstorage_add_bin.o \
 mstorage_init.o mstorage_init_persistent.o mstorage_unmap.o \
-mduptab_init.o
+mduptab_init.o mduptab_init_reuse.o
 
 auth.a: auth.o
 

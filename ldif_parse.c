@@ -15,8 +15,17 @@
 
 mduptab_t attributes,classes;
 mstorage_t stringtable;
-
 long dn, objectClass;
+
+/* this is called after each record.
+ * If it returns -1, ldif_parse will exit immediately.
+ * If it returns 0, ldif_parse will continue parsing and overwrite the
+ *   current ldaprec.
+ * If it returns 1, ldif_parse will allocate a new ldaprec and link it
+ *   using the next pointer in the current ldaprec.
+ * If the callback is NULL, a callback that always returns 1 is assumed.
+ * */
+int (*ldif_parse_callback)(struct ldaprec* l);
 
 unsigned long ldifrecords;
 
@@ -27,7 +36,11 @@ static void addattribute(struct ldaprec** l,long name,long val) {
       (*l)->a[(*l)->n].value=val;
       ++(*l)->n;
     } else {
-      buffer_putsflush(buffer_2,"LDIF parse error: too many attributes!\n");
+      buffer_puts(buffer_2,"LDIF parse error: too many attributes!:\n  ");
+      buffer_puts(buffer_2,attributes.strings.root+name);
+      buffer_puts(buffer_2,"\nat dn\n  ");
+      buffer_puts(buffer_2,(*l)->dn+stringtable.root);
+      buffer_putnlflush(buffer_2);
       exit(1);
     }
 }
@@ -129,8 +142,7 @@ lookagain:
 	if (!stralloc_catb(&payload,buf,n)) goto nomem;
 	goto lookagain;
       } else if (c=='\n') {
-	struct ldaprec* m=malloc(sizeof(struct ldaprec));
-	if (!m) return 2;
+	struct ldaprec* m;
 
 	if (!stralloc_0(&payload)) goto nomem;
 	if (base64) {
@@ -155,11 +167,28 @@ lookagain:
 	  if ((val=mstorage_add_bin(&stringtable,payload.s,len))<0) goto nomem;
 	addattribute(l,tmp,val);
 
+	m=0;
+	if (ldif_parse_callback) {
+	  switch (ldif_parse_callback(*l)) {
+	  case -1:
+	    return -1;
+	  case 0:
+	    m=*l;
+	    break;
+#if 0
+	  case 1:
+	    m=0;
+	    break;
+#endif
+	  }
+	}
+	if (!m) if (!(m=malloc(sizeof(struct ldaprec)))) return 2;
+
 	(*l)->next=m;
 	m->n=0; m->dn=-1; m->next=0;
 	ofs=0;
 //	dumprec(*l);
-	l=&((*l)->next);
+	if (*l!=m) l=&((*l)->next);
 	++ldifrecords;
 	continue;
       } else {
@@ -194,7 +223,8 @@ lookagain:
     addattribute(l,tmp,val);
 #endif
   } while (!eof);
-  if ((*l)->dn<0) {
+  if (ldif_parse_callback && ldif_parse_callback(*l)==-1) return -1;
+  if ((*l)->dn<0 && ((*l)->next)) {
     struct ldaprec* m=(*l)->next;
     free((*l));
     (*l)=m;

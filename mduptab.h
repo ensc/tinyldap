@@ -9,8 +9,10 @@
 
 typedef struct mduptable {
   mstorage_t table,strings;
+  mstorage_t* Strings;
 } mduptab_t;
 
 void mduptab_init(mduptab_t* t);
+void mduptab_init_reuse(mduptab_t* t,mstorage_t* s);
 long mduptab_add(mduptab_t* t,const char* s,unsigned int len);
 long mduptab_adds(mduptab_t* t,const char* s);

@@ -1,3 +1,5 @@
+/* This is just the main() for "parse".  The actual parser is in
+ * ldif_parse.c */
 #include <alloca.h>
 #include <inttypes.h>
 #include <unistd.h>
@@ -11,16 +13,44 @@
 #include "uint32.h"
 #include "byte.h"
 
+/* these are defined in ldif_parse.c.
+ * We extern them here so we can initialize them.
+ * This was not necessary until I reworked mstorage_t to support
+ * persistence via a file descriptor, which needs to be -1 and not 0 if
+ * unused. */
 extern mduptab_t attributes,classes;
+  /* we do a minor optimization by saving the strings of names of
+   * attributes and objectClass values only once.  mduptab_t is the data
+   * structure used for this, see mduptab.h */
 extern mstorage_t stringtable;
+  /* this is a giant string table where all the strings (keys and
+   * values) of the data are written to.  This is actually the memory
+   * mapped destination file. */
+extern int (*ldif_parse_callback)(struct ldaprec* l);
+  /* ldif_parse.c contains the actual ldif parser.  It reads from a
+   * buffer (see libowfat, buffer.h) and creates a linked list of
+   * entries.  This is unnecessarily wasteful, so I added the above
+   * callback, which is called after each record.  If the callback
+   * is non-NULL and returns 1 when called with the record the parser
+   * just read in, the parser will assume the record has been stored
+   * somewhere else and not create a linked list but overwrite the same
+   * record in memory.  This saves space and overhead.  If we need to
+   * work on even larger files, this could even be reworked to be a
+   * persistent mmapped temp file. */
 
 /* parse exp.ldif and write binary representation to "data".
  * please read "FORMAT" for a description of the file format */
+
+/* please note that tinyldap separates the data and the index although
+ * they are in the same file.  This program only creates the binary
+ * representation, the actual indices are created by addindex. */
 
 #ifndef PAGE_SIZE
 #define PAGE_SIZE 4096
 #endif
 
+/* for debugging and error messages */
+/* ldaprec is the struct used by ldif_parse.c */
 void dumprec(struct ldaprec* l) {
   int i;
   if (l->dn>=0) {
@@ -30,10 +60,10 @@ void dumprec(struct ldaprec* l) {
   } else
     buffer_puts(buffer_1,"no dn?!\n");
   for (i=0; i<l->n; ++i) {
-    buffer_puts(buffer_1,attributes.strings.root+l->a[i].name);
+    buffer_puts(buffer_1,attributes.Strings->root+l->a[i].name);
     buffer_puts(buffer_1,": ");
     if (l->a[i].name==objectClass)
-      buffer_puts(buffer_1,classes.strings.root+l->a[i].value);
+      buffer_puts(buffer_1,classes.Strings->root+l->a[i].value);
     else
       buffer_puts(buffer_1,stringtable.root+l->a[i].value);
     buffer_puts(buffer_1,"\n");
@@ -41,16 +71,69 @@ void dumprec(struct ldaprec* l) {
   buffer_putsflush(buffer_1,"\n");
 }
 
-extern mstorage_t stringtable;
-extern mduptab_t attributes,classes;
+/* Records are stored with a variable length externally, see FORMAT.
+ * We need to store the records and a table of the offsets of the
+ * records inside the data file in the data file.  These data structures
+ * hold this data: */
+mstorage_t record_offsets;
+mstorage_t records;
+unsigned long offset_classes,record_count;
+  /* record_count is just a convenience, the same value is also visible
+   * as record_offsets.used/4 */
+
+int ldif_callback(struct ldaprec* l) {
+  char x[8];	/* temp buf for endianness conversion */
+  int i;
+  uint32 ofs;
+  uint32 oc;	/* value of the first objectClass */
+  int found;
+
+  if (!l->n) return 0;
+  found=0;
+  for (i=0; i<l->n; ++i) {
+    if (l->a[i].name==objectClass) {
+      oc=l->a[i].value;
+      l->a[i].value=-1;
+      found=1;
+      break;
+    }
+  }
+  if (!found) {
+    buffer_putsflush(buffer_1,"ignoring record without objectClass...\n");
+    dumprec(l);
+    return 0;
+  }
+
+  uint32_pack(x,l->n+1);
+  uint32_pack(x+4,0);
+  if ((ofs=mstorage_add(&records,x,8))==(uint32)-1) return -1;
+  uint32_pack(x,l->dn);
+  uint32_pack(x+4,oc);
+
+  if (mstorage_add(&records,x,8)==-1) return -1;
+  for (i=0; i<l->n; ++i) {
+    if (l->a[i].name==objectClass && l->a[i].value==-1) continue;
+    uint32_pack(x,l->a[i].name);
+    uint32_pack(x+4,l->a[i].value);
+    if (mstorage_add(&records,x,8)==-1) return -1;
+  }
+  uint32_pack(x,ofs);
+  if (mstorage_add(&record_offsets,x,4)==-1) return -1;
+  ++record_count;
+  return 0;
+}
 
 int main(int argc,char* argv[]) {
   int fd;
   long len;
   char* destname=argc<3?"data":argv[2];
-  unsigned long size_of_string_table,indices_offset,record_count;
-  long offset_stringtable,offset_classes,offset_attributes;
+  unsigned long size_of_string_table,indices_offset;
+  long offset_stringtable;
   char* map,* dest;
+
+  mstorage_init(&record_offsets);
+  mstorage_init(&records);
+  ldif_parse_callback=ldif_callback;
 
   if ((fd=open(destname,O_RDWR|O_CREAT|O_TRUNC,0600))<0) {
     buffer_puts(buffer_2,"could not create destination data file ");
@@ -65,8 +148,8 @@ derrout:
     buffer_puts(buffer_2,"mstorage_init_persistent: error mmapping ");
     goto derrout;
   }
-  mduptab_init(&attributes);
-  mduptab_init(&classes);
+  mduptab_init_reuse(&attributes,&stringtable);
+  mduptab_init_reuse(&classes,&stringtable);
 
   {
     char dummy[5*4];
@@ -79,7 +162,7 @@ derrout:
     return 1;
   }
 
-  size_of_string_table=stringtable.used+classes.strings.used+attributes.strings.used-5*4;
+  size_of_string_table=stringtable.used-5*4;
   size_of_string_table=(size_of_string_table+3)&-4;	/* round up to 32 bits */
   /* first find out how much space we need */
   len = 5*sizeof(uint32_t);  /* magic plus four counts */
@@ -88,37 +171,8 @@ derrout:
 
 //  fdprintf(2,"offsets of records: %lu\n",len);
 
-  /* now for the hard part: the records */
-  {
-    struct ldaprec* x=first;
-    record_count=0;
-    while (x) {
-      int oc=0,i;
-//      long old=len;
-      /* we add 8 for the <length-in-uint32_t,0> pair and we substract 8
-       * for the two saved pointers ("dn" and "objectClass") */
-      if (x->dn>=0) len+=8; else {
-	if (x->n==0 && x->next==0) break;
-	buffer_putsflush(buffer_2,"record without dn?!\n");
-	dumprec(x);
-	return 1;
-      }
-      for (i=0; i<x->n; ++i) {
-	len+=8;
-	if (x->a[i].name==objectClass) oc=1;
-      }
-      if (!oc) {
-	buffer_puts(buffer_2,"record \"");
-	buffer_puts(buffer_2,x->dn+stringtable.root);
-	buffer_putsflush(buffer_2,"\" has no objectClass?!\n");
-	dumprec(x);
-	return 1;
-      }
-      ++record_count;
-//      fdprintf(2,"considering record \"%s\": length %d\n",x->dn+stringtable.root,len-old);
-      x=x->next;
-    }
-  }
+  len += records.used;
+
 //  fdprintf(2,"offsets of indices: %lu\n",len);
   indices_offset=len;
   len+=record_count*4;
@@ -139,66 +193,31 @@ derrout:
 
 //  size_of_string_table=stringtable.used+classes.strings.used+attributes.strings.used;
   offset_stringtable=5*4;
-  offset_classes= /* offset_stringtable+ */ stringtable.used;
-  offset_attributes=offset_classes+classes.strings.used;
-//  byte_copy(map+offset_stringtable,stringtable.used,stringtable.root);
-  byte_copy(map+offset_classes,classes.strings.used,classes.strings.root);
-  byte_copy(map+offset_attributes,attributes.strings.used,attributes.strings.root);
-//  fdprintf(2,"offset_classes=%lu, offset_attributes=%lu, attributes=%lu\n",
-//	   offset_classes,offset_attributes,attributes.strings.used);
+  offset_classes=stringtable.used;
+
   dest=map+offset_stringtable+size_of_string_table;
   {
     unsigned long i;
     for (i=0; i<attributes.table.used/sizeof(long); ++i) {
-#if 0
-      fdprintf(2,"writing at %x: attribute %lu (%s)\n",dest+i-map,
-	       ((long*)attributes.table.root)[i],attributes.strings.root+((long*)attributes.table.root)[i]);
-#endif
-      uint32_pack(dest+i*4,((long*)attributes.table.root)[i]+offset_attributes);
+      uint32_pack(dest+i*4,((long*)attributes.table.root)[i]);
     }
     i=attributes.table.used/sizeof(long)*4;
     dest+=i;
     byte_zero(dest,i);
     dest+=i;
   }
-//  fdprintf(2,"actual offset before records: %lu\n",dest-map);
-  /* now the records */
+
   {
-    struct ldaprec* x=first;
-    uint32_t* record_offsets=alloca(4*record_count);
-    uint32_t cur=0;
-    while (x) {
-      int i=x->n+1;
-      record_offsets[cur]=dest-map; ++cur;
-      uint32_pack(dest,i); uint32_pack(dest+4,0); dest+=8;
-      uint32_pack(dest,x->dn /* +offset_stringtable */);
-      for (i=0; i<x->n; ++i) {
-	if (x->a[i].name==objectClass) {
-	  uint32_pack(dest+4,x->a[i].value+offset_classes);
-	  x->a[i].name=-1;
-	  break;
-	}
-      }
-      dest+=8;
-      for (i=0; i<x->n; ++i) {
-	if (x->a[i].name>=0) {
-	  uint32_pack(dest,x->a[i].name+offset_attributes);
-	  if (x->a[i].name==objectClass)
-	    uint32_pack(dest+4,x->a[i].value+offset_classes);
-	  else
-	    uint32_pack(dest+4,x->a[i].value /* +offset_stringtable */);
-	  dest+=8;
-	}
-      }
-      x=x->next;
-    }
-//    fdprintf(2,"actual offset of record_index: %lu\n",dest-map);
-    /* now the record_index */
-    for (cur=0; cur<record_count; ++cur) {
-      uint32_pack(dest,record_offsets[cur]);
-      dest+=4;
-    }
+    char* x;
+    unsigned long i;
+    uint32 addme=dest-map;
+    byte_copy(dest,records.used,records.root);
+    x=record_offsets.root;
+    dest+=records.used;
+    for (i=0; i<record_count; ++i)
+      uint32_pack(dest+4*i,uint32_read(x+4*i)+addme);
   }
+
   munmap(map,len);
   close(fd);
   return 0;
