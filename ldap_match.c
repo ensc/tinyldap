@@ -10,9 +10,6 @@
 static const char* findattr(struct ldaprec* f,struct string* name) {
   int i;
   if (!matchstring(name,"dn")) return f->dn;
-  if (!matchstring(name,"mail")) return f->mail;
-  if (!matchstring(name,"sn")) return f->sn;
-  if (!matchstring(name,"cn")) return f->cn;
   for (i=0; i<ATTRIBS; ++i)
     if (!matchstring(name,f->a[i].name))
       return f->a[i].value;

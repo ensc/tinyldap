@@ -9,7 +9,7 @@ struct attribute {
 };
 
 struct ldaprec {
-  long dn, mail, sn, cn;	/* most often encountered records */
+  long dn;
   int n;	/* number of attributes */
   struct attribute a[ATTRIBS];
   struct ldaprec* next;

@@ -12,15 +12,12 @@
 mduptab_t attributes,classes;
 mstorage_t stringtable;
 
-long dn, mail, sn, cn, objectClass;
+long dn, objectClass;
 
 unsigned long ldifrecords;
 
 static void addattribute(struct ldaprec** l,long name,long val) {
   if (name==dn) (*l)->dn=val; else
-  if (name==mail) (*l)->mail=val; else
-  if (name==sn) (*l)->sn=val; else
-  if (name==cn) (*l)->cn=val; else {
     if ((*l)->n<ATTRIBS) {
       (*l)->a[(*l)->n].name=name;
       (*l)->a[(*l)->n].value=val;
@@ -29,7 +26,6 @@ static void addattribute(struct ldaprec** l,long name,long val) {
       buffer_putsflush(buffer_2,"LDIF parse error: too many attributes!\n");
       exit(1);
     }
-  }
 }
 
 /* "ou=fnord; O=fefe; c=de" -> "ou=fnord,o=fefe,c=de" */
@@ -60,7 +56,7 @@ static int parserec(buffer* b, struct ldaprec** l) {
   char buf[8192];
   int n,i,eof=0,ofs=0;
   if (!(*l=malloc(sizeof(struct ldaprec)))) return 2;
-  (*l)->dn=(*l)->mail=(*l)->sn=(*l)->cn=-1;
+  (*l)->dn=-1;
   (*l)->next=0; (*l)->n=0;
   ldifrecords=0;
   do {
@@ -102,7 +98,7 @@ lookagain:
 	addattribute(l,tmp,val);
 
 	(*l)->next=m;
-	m->n=0; m->dn=m->mail=m->sn=m->cn=-1; m->next=0;
+	m->n=0; m->dn=-1; m->next=0;
 	ofs=0;
 //	dumprec(*l);
 	l=&((*l)->next);
@@ -141,9 +137,6 @@ int ldif_parse(const char* filename) {
   buffer in=BUFFER_INIT(read,fd,buf,sizeof buf);
   if (fd<0) return 1;
   dn=mduptab_add(&attributes,"dn");
-  mail=mduptab_add(&attributes,"mail");
-  sn=mduptab_add(&attributes,"sn");
-  cn=mduptab_add(&attributes,"cn");
   objectClass=mduptab_add(&attributes,"objectClass");
   {
     int res=parserec(&in,&first);

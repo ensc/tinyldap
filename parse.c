@@ -27,21 +27,6 @@ void dumprec(struct ldaprec* l) {
     buffer_puts(buffer_1,"\n");
   } else
     buffer_puts(buffer_1,"no dn?!\n");
-  if (l->mail>=0) {
-    buffer_puts(buffer_1,"mail: ");
-    buffer_puts(buffer_1,stringtable.root+l->mail);
-    buffer_puts(buffer_1,"\n");
-  }
-  if (l->sn>=0) {
-    buffer_puts(buffer_1,"sn: ");
-    buffer_puts(buffer_1,stringtable.root+l->sn);
-    buffer_puts(buffer_1,"\n");
-  }
-  if (l->cn>=0) {
-    buffer_puts(buffer_1,"cn: ");
-    buffer_puts(buffer_1,stringtable.root+l->cn);
-    buffer_puts(buffer_1,"\n");
-  }
   for (i=0; i<l->n; ++i) {
     buffer_puts(buffer_1,attributes.strings.root+l->a[i].name);
     buffer_puts(buffer_1,": ");
@@ -89,9 +74,6 @@ int main() {
 	dumprec(x);
 	return 1;
       }
-      if (x->mail>=0) len+=8;
-      if (x->sn>=0) len+=8;
-      if (x->cn>=0) len+=8;
       for (i=0; i<x->n; ++i) {
 	len+=8;
 	if (x->a[i].name==objectClass) oc=1;
@@ -158,12 +140,7 @@ int main() {
     uint32_t* record_offsets=alloca(4*record_count);
     uint32_t cur=0;
     while (x) {
-//      char* old=dest;
       int i=x->n+1;
-      if (x->mail>=0) ++i;
-      if (x->sn>=0) ++i;
-      if (x->cn>=0) ++i;
-//      fdprintf(2,"writing record \"%s\": ",map+x->dn+offset_stringtable);
       record_offsets[cur]=dest-map; ++cur;
       uint32_pack(dest,i); uint32_pack(dest+4,0); dest+=8;
       uint32_pack(dest,x->dn+offset_stringtable);
@@ -175,21 +152,6 @@ int main() {
 	}
       }
       dest+=8;
-      if (x->mail>=0) {
-	uint32_pack(dest,mail+offset_attributes);
-	uint32_pack(dest+4,x->mail+offset_stringtable);
-	dest+=8;
-      }
-      if (x->sn>=0) {
-	uint32_pack(dest,sn+offset_attributes);
-	uint32_pack(dest+4,x->sn+offset_stringtable);
-	dest+=8;
-      }
-      if (x->cn>=0) {
-	uint32_pack(dest,cn+offset_attributes);
-	uint32_pack(dest+4,x->cn+offset_stringtable);
-	dest+=8;
-      }
       for (i=0; i<x->n; ++i) {
 	if (x->a[i].name>=0) {
 	  uint32_pack(dest,x->a[i].name+offset_attributes);
@@ -200,7 +162,6 @@ int main() {
 	  dest+=8;
 	}
       }
-//      fdprintf(2,"length %d\n",dest-old);
       x=x->next;
     }
 //    fdprintf(2,"actual offset of record_index: %lu\n",dest-map);
