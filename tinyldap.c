@@ -63,13 +63,17 @@ int main() {
 	  int tmp;
 	  if ((tmp=scan_ldapsearchrequest(buf+res,buf+res+len,&sr))) {
 	    struct ldaprec* r=first;
+#if 0
 	    buffer_puts(buffer_2,"baseObject: \"");
 	    buffer_put(buffer_2,sr.baseObject.s,sr.baseObject.l);
 	    buffer_putsflush(buffer_2,"\"\n");
+#endif
 	    while (r) {
+#if 0
 	      buffer_puts(buffer_2,"ldap_match(\"");
 	      buffer_puts(buffer_2,r->dn);
 	      buffer_putsflush(buffer_2,"\"\n");
+#endif
 	      if (ldap_match(r,&sr)) {
 		struct SearchResultEntry sre;
 		struct PartialAttributeList** pal=&sre.attributes;
@@ -81,17 +85,21 @@ int main() {
 		  while (adl) {
 		    const char* val=0;
 		    int i=0;
+#if 0
 		    buffer_puts(buffer_2,"looking for attribute \"");
 		    buffer_put(buffer_2,adl->a.s,adl->a.l);
 		    buffer_putsflush(buffer_2,"\"\n");
+#endif
 		    if (!matchstring(&adl->a,"dn")) val=r->dn; else
 		    if (!matchstring(&adl->a,"cn")) val=r->cn; else
 		    if (!matchstring(&adl->a,"mail")) val=r->mail; else
 		    if (!matchstring(&adl->a,"sn")) val=r->sn; else
 		    for (; i<r->n; ++i) {
+#if 0
 		      buffer_puts(buffer_2,"comparing with \"");
 		      buffer_puts(buffer_2,r->a[i].name);
 		      buffer_putsflush(buffer_2,"\"\n");
+#endif
 		      if (!matchstring(&adl->a,r->a[i].name))
 			val=r->a[i].value;
 		    }
