@@ -1,3 +1,4 @@
+#include <alloca.h>
 #include <buffer.h>
 #include <scan.h>
 #include <open.h>
@@ -195,8 +196,9 @@ struct ldaprec *first=0;
 int ldif_parse(const char* filename) {
   char buf[4096];
   int fd=open_read(filename);
-  buffer in=BUFFER_INIT(read,fd,buf,sizeof buf);
+  buffer in;
   if (fd<0) return 1;
+  buffer_init(&in,read,fd,buf,sizeof buf);
   dn=mduptab_adds(&attributes,"dn");
   objectClass=mduptab_adds(&attributes,"objectClass");
   {

@@ -115,8 +115,9 @@ struct ldaprec *first=0;
 int parse_ldif(const char* filename) {
   char buf[4096];
   int fd=open_read(filename);
-  buffer in=BUFFER_INIT(read,fd,buf,sizeof buf);
+  buffer in;
   if (fd<0) return 1;
+  buffer_init(&in,read,fd,buf,sizeof buf);
   dn=strduptab_add(&tags,"dn");
   mail=strduptab_add(&tags,"mail");
   sn=strduptab_add(&tags,"sn");
