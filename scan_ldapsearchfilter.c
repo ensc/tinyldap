@@ -35,42 +35,55 @@ int scan_ldapsearchfilter(const char* src,const char* max,struct Filter** f) {
   enum asn1_tagtype tt;
   unsigned long tag,len;
   int res,tmp;
+  const char* nmax;
   *f=0;
   if (!(res=scan_asn1tag(src,max,&tc,&tt,&tag))) goto error;
-  if (tc!=CONTEXT_SPECIFIC || tt!=CONSTRUCTED || tag>9) goto error;
+  if (tc!=PRIVATE || tt!=CONSTRUCTED || tag>9) goto error;
   if (!(tmp=scan_asn1length(src+res,max,&len))) goto error;
   res+=tmp;
   if (src+res+len>max) goto error;
   if (!(*f=malloc(sizeof(struct Filter)))) goto error;
+  nmax=src+res+len;
   switch ((*f)->type=tag) {
   case 0:    /*  and             [0] SET OF Filter, */
-    goto error;
   case 1:    /*  or              [1] SET OF Filter, */
-    goto error;
-  case 2:    /*  not             [2] Filter, */
-    {
-      if (!(tmp=scan_ldapsearchfilter(src+res,src+res+len,&(*f)->x))) goto error;
-      if (tmp!=len) goto error;
+    (*f)->x=0;
+    while (src+res<max) {
+      struct Filter* F=(*f)->x;
+      if (!(tmp=scan_ldapsearchfilter(src+res,nmax,&(*f)->x))) {
+	if (F) {	/* OK, end of sequence */
+	  (*f)->x=F;
+	  break;
+	}
+	(*f)->x=F;
+	goto error;
+      }
+      (*f)->x->next=F;
+      res+=tmp;
     }
+    break;
+  case 2:    /*  not             [2] Filter, */
+    if (!(tmp=scan_ldapsearchfilter(src+res,nmax,&(*f)->x))) goto error;
+    if (tmp!=len) goto error;
+    break;
   case 3:    /*  equalityMatch   [3] AttributeValueAssertion, */
-    goto error;
+  case 5:    /*  greaterOrEqual  [5] AttributeValueAssertion, */
+  case 6:    /*  lessOrEqual     [6] AttributeValueAssertion, */
+  case 8:    /*  approxMatch     [8] AttributeValueAssertion, */
+    if (!(tmp=scan_ldapava(src+res,nmax,&(*f)->ava))) goto error;
+    res+=tmp;
+    break;
   case 4:    /*  substrings      [4] SubstringFilter, */
     {
-      const char* nmax=src+res+len;
       long len2;
       if (!(tmp=scan_ldapstring(src+res,nmax,&(*f)->ava.desc))) goto error;
       res+=tmp;
       if (!(tmp=scan_asn1SEQUENCE(src+res,nmax,&len2))) goto error;
       if (src+tmp+len2!=nmax) goto error;
-      goto error;
+      res+=tmp;
+      goto error;	/* TODO */
     }
-  case 5:    /*  greaterOrEqual  [5] AttributeValueAssertion, */
-    goto error;
-  case 6:    /*  lessOrEqual     [6] AttributeValueAssertion, */
-    goto error;
   case 7:    /*  present         [7] AttributeDescription, */
-    goto error;
-  case 8:    /*  approxMatch     [8] AttributeValueAssertion, */
     goto error;
   case 9:    /*  extensibleMatch [9] MatchingRuleAssertion } */
     goto error;

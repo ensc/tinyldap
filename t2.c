@@ -4,6 +4,62 @@
 #include "asn1.h"
 #include "ldap.h"
 
+void printava(struct AttributeValueAssertion* a,const char* rel) {
+  printf("[%.*s %s %.*s]",(int)a->desc.l,a->desc.s,rel,(int)a->value.l,a->value.s);
+}
+
+void printal(struct AttributeList* a) {
+  while (a) {
+    printf("%.*s",(int)a->a.l,a->a.s);
+    a=a->next;
+    if (a) printf(",");
+  }
+  printf("\n");
+}
+
+void printfilter(struct Filter* f) {
+  switch (f->type) {
+  case AND:
+    printf("&(");
+mergesub:
+    printfilter(f->x);
+    printf(")");
+    break;
+  case OR:
+    printf("|(");
+    goto mergesub;
+    break;
+  case NOT:
+    printf("!(");
+    goto mergesub;
+  case EQUAL:
+    printava(&f->ava,"==");
+    break;
+  case SUBSTRING:
+    printava(&f->ava,"\\in");
+    break;
+  case GREATEQUAL:
+    printava(&f->ava,">=");
+    break;
+  case LESSEQUAL:
+    printava(&f->ava,"<=");
+    break;
+  case PRESENT:
+    printava(&f->ava,"\\exist");
+    break;
+  case APPROX:
+    printava(&f->ava,"\\approx");
+    break;
+  case EXTENSIBLE:
+    printf("[extensible]");
+    break;
+  }
+  if (f->next) {
+    printf(",");
+    printfilter(f->next);
+  }
+}
+
 int main(int argc,char* argv[]) {
 #if 1
   unsigned long size;
@@ -36,6 +92,11 @@ int main(int argc,char* argv[]) {
       {
 	struct SearchRequest br;
 	printf("scan_ldapsearchrequest %d\n",res=scan_ldapsearchrequest(ldapsequence+done+res,ldapsequence+size,&br));
+	if (res) {
+	  printf("LDAPDN: \"%.*s\"\n",(int)br.LDAPDN.l,br.LDAPDN.s);
+	  printfilter(br.filter); printf("\n");
+	}
+	printal(br.attributes);
 	break;
       }
     }

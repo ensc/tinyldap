@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include "asn1.h"
 #include "ldap.h"
 
@@ -18,8 +19,29 @@ int scan_ldapsearchrequest(const char* src,const char* max,
   res+=tmp;
   if (!(tmp=scan_ldapsearchfilter(src+res,max,&s->filter))) goto error;
   res+=tmp;
-  /* TODO: parse attributedescriptionlist */
-  return res;
+  /* now for the attributelist */
+#if 1
+  if (!(tmp=scan_asn1SEQUENCE(src+res,max,&etmp))) goto error;
+  res+=tmp;
+#endif
+  {
+    const char* nmax=src+res+etmp;
+//#define nmax max
+    struct AttributeList** a=&s->attributes;
+    if (nmax>max) goto error;
+    for (;;) {
+      if (src+res>nmax) goto error;
+      if (src+res==nmax) break;
+      if (!*a) *a=malloc(sizeof(struct AttributeList));
+      if (!*a) goto error;
+      (*a)->next=0;
+      if (!(tmp=scan_ldapstring(src+res,nmax,&(*a)->a))) goto error;
+      res+=tmp;
+      a=&(*a)->next;
+    }
+    /* TODO: parse attributedescriptionlist */
+    return res;
+  }
 error:
   return 0;
 }
