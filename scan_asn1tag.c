@@ -7,6 +7,7 @@ int scan_asn1tag(const char* src,const char* max,enum asn1_tagclass* tc,enum asn
   if (max<src) return 0;
   if ((*src & 0x1f) == 0x1f) {
     for (;;) {
+      ++src;
       if (src>max) return 0;
       *tag=*tag*128+(*src&0x7F);
       if (!(*src&0x80)) break;

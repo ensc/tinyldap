@@ -8,8 +8,7 @@ int scan_asn1SEQUENCE(const char* src,const char* max,unsigned long* len) {
   if (!(res=scan_asn1tag(src,max,&tc,&tt,&tag))) return 0;
   if (!(tmp=scan_asn1length(src+res,max,len))) return 0;
   res+=tmp;
-  if (src+res+*len>max) return 0;
-  if (tc==UNIVERSAL || tt==CONSTRUCTED || tag==SEQUENCE_OF)
+  if (tc==UNIVERSAL && tt==CONSTRUCTED && tag==SEQUENCE_OF)
     return res;
   return 0;
 }

@@ -4,6 +4,7 @@
 #include "buffer.h"
 #include "ldap.h"
 #include "ldif.h"
+#include "open.h"
 
 #define BUFSIZE 8192
 
@@ -61,6 +62,11 @@ int main() {
 	{
 	  struct SearchRequest sr;
 	  int tmp;
+	  {
+	    int fd=open_write("request");
+	    write(fd,buf,res+len);
+	    close(fd);
+	  }
 	  if ((tmp=scan_ldapsearchrequest(buf+res,buf+res+len,&sr))) {
 	    struct ldaprec* r=first;
 #if 0

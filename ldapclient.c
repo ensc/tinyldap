@@ -82,6 +82,10 @@ usage:
       for (;;) {
 	long slen,mid,op;
 	tmp=read(sock,buf+len,sizeof(buf)-len);
+	if (tmp<=0) {
+	  buffer_putsflush(buffer_2,"read error.\n");
+	  return 0;
+	}
 	len+=tmp;
 	if ((tmp2=scan_ldapmessage(buf,buf+len,&mid,&op,&slen))) {
 	  max=buf+slen+tmp2;

@@ -14,5 +14,8 @@ int scan_asn1length(const char* src,const char* max,unsigned long* length) {
     *length=l;
   } else
     *length=*src&0x7f;
-  return src-orig+1;
+  src++;
+  if (src+*length>max) return 0;
+  if (src+*length<src) return 0;
+  return src-orig;
 }

@@ -15,7 +15,6 @@ int scan_asn1int(const char* src,const char* max,enum asn1_tagclass* tc,enum asn
   if (!(len=scan_asn1tag(src,max,tc,tt,tag))) return 0;
   if (!(tmp=scan_asn1length(src+len,max,&tlen))) return 0;
   len+=tmp;
-  if (src+len+tlen>max) return 0;
   *l=handleint(src+len,tlen);
   return len+tlen;
 }

@@ -1,4 +1,4 @@
-#DEBUG=1
+DEBUG=1
 
 all: t t1 t2 bindrequest tinyldap ldapclient
 
