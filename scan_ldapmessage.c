@@ -11,7 +11,7 @@ int scan_ldapmessage(const char* src,const char* max,
     enum asn1_tagclass tc;
     enum asn1_tagtype tt;
     if (!(tmp=scan_asn1tag(src+res,max,&tc,&tt,op))) goto error;
-    if (tc!=APPLICATION || tt!=CONSTRUCTED) goto error;
+    if (tc!=APPLICATION) goto error;
     res+=tmp;
     if (!(tmp=scan_asn1length(src+res,max,len))) goto error;
     res+=tmp;

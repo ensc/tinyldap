@@ -2,6 +2,7 @@
 #include "byte.h"
 #include "buffer.h"
 #include "ldap.h"
+#include "ldif.h"
 
 #define BUFSIZE 8192
 

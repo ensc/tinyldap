@@ -1,3 +1,5 @@
+#ifndef _LDAP_H
+#define _LDAP_H
 
 struct string {
   long l;
@@ -8,9 +10,15 @@ struct AttributeValueAssertion {
   struct string desc, value;
 };
 
-struct AttributeList {
+struct AttributeDescriptionList {
   struct string a;
-  struct AttributeList *next;
+  struct AttributeDescriptionList *next;
+};
+
+struct PartialAttributeList {
+  struct string type;
+  struct AttributeDescriptionList* values;
+  struct PartialAttributeList* next;
 };
 
 struct Filter {
@@ -18,7 +26,7 @@ struct Filter {
     AND=0, OR=1, NOT=2, EQUAL=3, SUBSTRING=4, GREATEQUAL=5, LESSEQUAL=6, PRESENT=7, APPROX=8, EXTENSIBLE=9
   } type;
   struct AttributeValueAssertion ava;
-  struct AttributeList *a;
+  struct AttributeDescriptionList *a;
   enum {
     PREFIX=0, ANY=1, SUFFIX=2
   } substrtype;
@@ -26,7 +34,7 @@ struct Filter {
 };
 
 struct SearchRequest {
-  struct string LDAPDN;
+  struct string baseObject;
   enum { baseObject=0, singleLevel=1, wholeSubtree=2 } scope;
   enum {
     neverDerefAliases=0,
@@ -37,7 +45,12 @@ struct SearchRequest {
   unsigned long sizeLimit, timeLimit, typesOnly;
   struct Filter* filter;
     /* really an AttributeDescriptionList, but the types are equivalent: */
-  struct AttributeList* attributes;
+  struct AttributeDescriptionList* attributes;
+};
+
+struct SearchResultEntry {
+  struct string objectName;
+  struct PartialAttributeList* attributes;
 };
 
 enum ldapops {
@@ -50,11 +63,12 @@ enum ldapops {
   ModifyDNRequest=12, ModifyDNResponse=13,
   CompareRequest=14, CompareResponse=15,
   AbandonRequest=16,
-  ExtendedRequest=23 /* das ist doch kein Zufall?! */, ExtendedResponse=24
+  ExtendedRequest=23 /* coincidence?  I think not. */,
+  ExtendedResponse=24
 };
 
 void freefilter(struct Filter* f);
-void freeava(struct AttributeList* a);
+void freeava(struct AttributeDescriptionList* a);
 
 int scan_ldapstring(const char* src,const char* max,struct string* s);
 int scan_ldapmessage(const char* src,const char* max,
@@ -67,9 +81,16 @@ int scan_ldapbindresponse(const char* src,const char* max,
 int scan_ldapava(const char* src,const char* max,struct AttributeValueAssertion* a);
 int scan_ldapsearchfilter(const char* src,const char* max,struct Filter** f);
 int scan_ldapsearchrequest(const char* src,const char* max,struct SearchRequest* s);
+int scan_ldapsearchresultentry(const char* src,const char* max,struct SearchResultEntry* sre);
 
+int fmt_ldapstring(char* dest,struct string* s);
 int fmt_ldapmessage(char* dest,long messageid,long op,long len);
 int fmt_ldapbindrequest(char* dest,long version,char* name,char* simple);
 int fmt_ldapbindresponse(char* dest,long result,char* matcheddn,
 			 char* errormessage,char* referral);
 int fmt_ldapsearchfilter(char* dest,struct Filter* f);
+int fmt_ldapsearchrequest(char* dest,struct SearchRequest* s);
+int fmt_ldapsearchresultentry(char* dest,struct SearchResultEntry* sre);
+int fmt_ldapsearchresultdone(char* dest,long result,char* matcheddn,char* errormessage,char* referral);
+
+#endif

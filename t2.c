@@ -8,7 +8,7 @@ void printava(struct AttributeValueAssertion* a,const char* rel) {
   printf("[%.*s %s %.*s]",(int)a->desc.l,a->desc.s,rel,(int)a->value.l,a->value.s);
 }
 
-void printal(struct AttributeList* a) {
+void printal(struct AttributeDescriptionList* a) {
   while (a) {
     printf("%.*s",(int)a->a.l,a->a.s);
     a=a->next;
@@ -73,6 +73,7 @@ int main(int argc,char* argv[]) {
     printf("message id %lu, op %lu, len %lu\n",messageid,op,len);
     switch (op) {
     case BindRequest:
+      puts("  >> BindRequest <<");
       {
 	long version,method;
 	struct string name;
@@ -89,16 +90,23 @@ int main(int argc,char* argv[]) {
 	break;
       }
     case SearchRequest:
+      puts("  >> SearchRequest <<");
       {
 	struct SearchRequest br;
-	printf("scan_ldapsearchrequest %d\n",res=scan_ldapsearchrequest(ldapsequence+done+res,ldapsequence+size,&br));
-	if (res) {
-	  printf("LDAPDN: \"%.*s\"\n",(int)br.LDAPDN.l,br.LDAPDN.s);
+	int tmp;
+	printf("scan_ldapsearchrequest %d\n",tmp=scan_ldapsearchrequest(ldapsequence+done+res,ldapsequence+size,&br));
+	if (tmp) {
+	  printf("baseObject: \"%.*s\"\n",(int)br.baseObject.l,br.baseObject.s);
 	  printfilter(br.filter); printf("\n");
 	}
 	printal(br.attributes);
 	break;
       }
+    case UnbindRequest:
+      puts("  >> UnbindRequest <<");
+      break;
+    default:
+      puts("  >> unklar << ;)");
     }
     done+=len+res;
   }

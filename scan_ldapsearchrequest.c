@@ -6,7 +6,7 @@ int scan_ldapsearchrequest(const char* src,const char* max,
 			 struct SearchRequest* s) {
   int res,tmp;
   unsigned long etmp;
-  if (!(res=scan_ldapstring(src,max,&s->LDAPDN))) goto error;
+  if (!(res=scan_ldapstring(src,max,&s->baseObject))) goto error;
   if (!(tmp=scan_asn1ENUMERATED(src+res,max,&etmp))) goto error;
   if (etmp>2) goto error; s->scope=etmp; res+=tmp;
   if (!(tmp=scan_asn1ENUMERATED(src+res,max,&etmp))) goto error;
@@ -27,12 +27,12 @@ int scan_ldapsearchrequest(const char* src,const char* max,
   {
     const char* nmax=src+res+etmp;
 //#define nmax max
-    struct AttributeList** a=&s->attributes;
+    struct AttributeDescriptionList** a=&s->attributes;
     if (nmax>max) goto error;
     for (;;) {
       if (src+res>nmax) goto error;
       if (src+res==nmax) break;
-      if (!*a) *a=malloc(sizeof(struct AttributeList));
+      if (!*a) *a=malloc(sizeof(struct AttributeDescriptionList));
       if (!*a) goto error;
       (*a)->next=0;
       if (!(tmp=scan_ldapstring(src+res,nmax,&(*a)->a))) goto error;

@@ -1,9 +1,9 @@
 #include <stdlib.h>
 #include "ldap.h"
 
-void freeava(struct AttributeList* a) {
+void freeava(struct AttributeDescriptionList* a) {
   while (a) {
-    struct AttributeList* tmp=a->next;
+    struct AttributeDescriptionList* tmp=a->next;
     free(a);
     a=tmp;
   }
