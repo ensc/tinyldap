@@ -56,7 +56,10 @@ int main(int argc,char* argv[]) {
     for (i=0; i<attribute_count; ++i) {
       uint32 j;
       uint32_unpack(x,&j);
-      if (!strcmp(map+j,argv[2])) {
+      buffer_puts(buffer_1,map+j); buffer_putsflush(buffer_1,"\n");
+      if (!strcasecmp(map+j,"dn")) dn=j;
+      if (!strcasecmp(map+j,"objectClass")) objectClass=j;
+      if (!strcasecmp(map+j,argv[2])) {
 	buffer_putsflush(buffer_2,"found attribute!\n");
 	wanted=j; casesensitive=x+attribute_count*4-map;
 	uint32_unpack(map+casesensitive,&j);
@@ -64,10 +67,7 @@ int main(int argc,char* argv[]) {
 	  buffer_putsflush(buffer_2,"case sensitivity flag is nonzero?!\n");
 	  return 1;
 	}
-      } else if (!strcmp(map+j,"dn"))
-	dn=j;
-      else if (!strcmp(map+j,"objectClass"))
-	objectClass=j;
+      }
       x+=4;
     }
     if (!wanted) {
@@ -90,10 +90,12 @@ int main(int argc,char* argv[]) {
 	uint32_unpack(x+8,&k);
 	mstorage_add(&idx,(char*)&k,4);
 	++counted;
+	x+=j*8;
       } else if (wanted==objectClass) {
 	uint32_unpack(x+12,&k);
 	mstorage_add(&idx,(char*)&k,4);
 	++counted;
+	x+=j*8;
       } else {
 	x+=16;
 	for (; j>2; --j) {

@@ -23,6 +23,8 @@ ldif.a: ldif_parse.o ldap_match.o ldap_match_mapped.o
 
 storage.a: strstorage.o strduptab.o mstorage_add.o mduptab_add.o
 
+auth.a: auth.o
+
 DIET=/opt/diet/bin/diet -Os
 CC=gcc
 CFLAGS=-pipe -I. -Wall -W
@@ -43,7 +45,7 @@ endif
 t1 parse: ldif.a storage.a
 t2: ldap.a asn1.a
 t3 t4 t5 addindex: storage.a
-tinyldap tinyldap_standalone tinyldap_debug: ldif.a storage.a
+tinyldap tinyldap_standalone tinyldap_debug: ldif.a storage.a auth.a
 bindrequest tinyldap tinyldap_standalone tinyldap_debug ldapclient ldapclient_str: ldap.a asn1.a
 
 tinyldap_standalone: tinyldap.c

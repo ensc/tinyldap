@@ -25,3 +25,4 @@ int ldif_parse(const char* filename);
 int ldap_match(struct ldaprec* r,struct SearchRequest* sr);
 int ldap_match_mapped(uint32 ofs,struct SearchRequest* sr);
 int ldap_match_present(uint32 ofs,uint32 attrofs);
+uint32 ldap_find_attr_value(uint32 ofs,uint32 attrofs);

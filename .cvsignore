@@ -12,3 +12,8 @@ data
 dumpidx
 parse
 tinyldap_debug
+attic
+doit
+idx2ldif
+ldap-capture
+server

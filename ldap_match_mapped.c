@@ -50,6 +50,17 @@ int ldap_match_present(uint32 ofs,uint32 attrofs) {
   return 0;
 }
 
+uint32 ldap_find_attr_value(uint32 ofs,uint32 attrofs) {
+  uint32 j,k;
+  if (attrofs==dn_ofs) return uint32_read(map+ofs+8);
+  if (attrofs==objectClass_ofs) return uint32_read(map+ofs+12);
+  uint32_unpack(map+ofs,&j);
+  for (k=2; k<j; ++k)
+    if (uint32_read(map+ofs+k*8)==attrofs)
+      return uint32_read(map+ofs+k*8+4);
+  return 0;
+}
+
 /* return non-zero if the record matches the search filter */
 int ldap_matchfilter_mapped(uint32 ofs,struct Filter* f) {
   struct Filter* y=f->x;
@@ -165,7 +176,7 @@ int ldap_match_mapped(uint32 ofs,struct SearchRequest* sr) {
     return 0;
   }
   /* we want "o=foo, o=bar" and "o=FOO,o=baR" to be equal */
-  if (sr->baseObject.l && !(l=match(sr->baseObject.s,sr->baseObject.l,map+k))) {
+  if (sr->baseObject.l && !match(sr->baseObject.s,sr->baseObject.l,map+k)) {
 //    puts("fail: not suffix");
     return 0;
   }
@@ -175,7 +186,7 @@ int ldap_match_mapped(uint32 ofs,struct SearchRequest* sr) {
   case baseObject: if (l==sr->baseObject.l) break; return 0;
   default:
     i=str_chr(map+k,',');
-    if (i+2>=sr->baseObject.l-l) break;
+    if (i+2>=l-sr->baseObject.l) break;
     return 0;
   }
   return ldap_matchfilter_mapped(ofs,sr->filter);

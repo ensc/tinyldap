@@ -1,5 +1,6 @@
 #include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
 #include "byte.h"
 #include "buffer.h"
 #include "ldap.h"
@@ -7,13 +8,14 @@
 #include "open.h"
 #include "mmap.h"
 #include "uint32.h"
+#include "auth.h"
 #ifdef STANDALONE
 #include "socket.h"
 #include "ip6.h"
 #include <wait.h>
 #endif
 
-#define verbose 0
+#define verbose 1
 #define debug 1
 
 char* map;
@@ -24,7 +26,7 @@ uint32 magic,attribute_count,record_count,indices_offset,size_of_string_table;
 uint32 record_set_length;
 
 /* some pre-looked-up attribute offsets to speed up ldap_match_mapped */
-uint32 dn_ofs,objectClass_ofs;
+uint32 dn_ofs,objectClass_ofs,userPassword_ofs;
 
 #define BUFSIZE 8192
 
@@ -215,8 +217,9 @@ static uint32 findrec(uint32 dat) {
   while ((top>=bottom)) {
     uint32 mid=(top+bottom)/2;
     uint32 l;
+
     l=uint32_read(map+uint32_read(&records[mid])+8);
-    if (l<dat) {
+    if (l<=dat) {
       if (mid>=record_count-1)
 	l=uint32_read(map+uint32_read(&records[0])+12);
       else
@@ -548,6 +551,64 @@ int handle(int in,int out) {
 	      buffer_putulong(buffer_2,method);
 	      buffer_putsflush(buffer_2,".\n");
 	    }
+	    if (name.l) {
+	      struct Filter f;
+	      struct string password;
+	      f.type=EQUAL; f.attrofs=dn_ofs;
+	      scan_ldapstring(buf+res+tmp,buf+res+len,&password);
+	      f.ava.desc.l=2; f.ava.desc.s="dn";
+	      f.ava.value=name;
+	      f.next=0;
+
+	      if (!indexable(&f)) {
+authfailure:
+		{
+		  char outbuf[1024];
+		  int s=100;
+		  int len=fmt_ldapbindresponse(outbuf+s,48,"","authentication failure","");
+		  int hlen=fmt_ldapmessage(0,messageid,BindResponse,len);
+		  fmt_ldapmessage(outbuf+s-hlen,messageid,BindResponse,len);
+		  write(out,outbuf+s-hlen,len+hlen);
+		  continue;
+		}
+	      } else {
+		unsigned long* result;
+		unsigned long i,done;
+		result=alloca(record_set_length*sizeof(unsigned long));
+		useindex(&f,result);
+		done=0;
+		for (i=0; i<record_set_length; ++i)
+		  if (result[i]) 
+		    done=1;
+		done=0;
+		for (i=0; i<record_count; ) {
+		  if (!result[i/(8*sizeof(long))]) {
+		    i+=8*sizeof(long);
+		    continue;
+		  }
+		  for (; i<record_count; ++i) {
+		    if (isset(result,i)) {
+		      uint32 j;
+		      const char* c;
+		      uint32_unpack(map+indices_offset+4*i,&j);
+		      if (!(j=ldap_find_attr_value(j,userPassword_ofs)))
+			goto authfailure;
+		      c=map+j;
+#if 0
+		      buffer_puts(buffer_2,"compare ");
+		      buffer_puts(buffer_2,c);
+		      buffer_puts(buffer_2," with ");
+		      buffer_put(buffer_2,f.ava.value.s,f.ava.value.l);
+		      buffer_putsflush(buffer_2,".\n");
+#endif
+		      if (check_password(c,&password))
+			done=1;
+		    }
+		  }
+		}
+		if (!done) goto authfailure;
+	      }
+	    }
 	    {
 	      char outbuf[1024];
 	      int s=100;
@@ -600,7 +661,6 @@ int handle(int in,int out) {
 #if (debug != 0)
 	      if (debug) buffer_putsflush(buffer_2,"query can be answered with index!\n");
 #endif
-	      record_set_length=(record_count+sizeof(unsigned long)*8-1) / (sizeof(long)*8);
 	      result=alloca(record_set_length*sizeof(unsigned long));
 	      /* Use the index to find matching data.  Put the offsets
 	       * of the matches in a table.  Use findrec to locate
@@ -719,19 +779,22 @@ int main() {
   uint32_unpack(map+2*4,&record_count);
   uint32_unpack(map+3*4,&indices_offset);
   uint32_unpack(map+4*4,&size_of_string_table);
+  record_set_length=(record_count+sizeof(unsigned long)*8-1) / (sizeof(long)*8);
 
   /* look up "dn" and "objectClass" */
   {
     char* x=map+5*4+size_of_string_table;
     unsigned int i;
-    dn_ofs=objectClass_ofs=0;
+    dn_ofs=objectClass_ofs=userPassword_ofs=0;
     for (i=0; i<attribute_count; ++i) {
       uint32 j;
       j=uint32_read(x);
       if (!strcmp("dn",map+j))
 	dn_ofs=j;
-      else if (!strcmp("objectClass",map+j))
+      else if (!strcasecmp("objectClass",map+j))
 	objectClass_ofs=j;
+      else if (!strcasecmp("userPassword",map+j))
+	userPassword_ofs=j;
       x+=4;
     }
     if (!dn_ofs || !objectClass_ofs) {
