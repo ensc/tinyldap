@@ -483,6 +483,22 @@ static void answerwith(uint32 ofs,struct SearchRequest* sr,long messageid,int ou
   /* now go through list of requested attributes */
   {
     struct AttributeDescriptionList* adl=sr->attributes;
+    if (!adl) {
+      /* did not ask for any attributes.  send 'em all. */
+      /* to do that, construct a list of all attributes */
+      uint32 i;
+      char* x=map+5*4+size_of_string_table+4;
+      adl=alloca((attribute_count-1)*sizeof(struct AttributeDescriptionList));
+      for (i=0; i<attribute_count-1; ++i) {
+	uint32 j;
+	uint32_unpack(x,&j);
+	x+=4;
+	adl[i].a.s=map+j;
+	adl[i].a.l=strlen(map+j);
+	adl[i].next=&adl[i+1];
+      }
+      adl[attribute_count-1].next=0;
+    }
     while (adl) {
       const char* val=0;
       uint32 i=2,j;
