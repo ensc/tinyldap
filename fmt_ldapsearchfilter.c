@@ -47,7 +47,8 @@ int fmt_ldapsearchfilter(char* dest,struct Filter* f) {
     }
     break;
   case PRESENT:
-    sum=fmt_ldapstring(dest,&f->ava.desc);
+//    sum=fmt_ldapstring(dest,&f->ava.desc);
+    return fmt_asn1string(dest,PRIVATE,PRIMITIVE,f->type,f->ava.desc.s,f->ava.desc.l);
     break;
   default: return 0;
   }

@@ -66,6 +66,7 @@ usage:
     f.ava.desc.s=argv[3]; f.ava.desc.l=str_chr(argv[3],'=');
     if (argv[3][f.ava.desc.l] != '=') goto usage;
     f.ava.value.s=argv[3]+f.ava.desc.l+1; f.ava.value.l=strlen(f.ava.value.s);
+    if (f.ava.value.l==1 && f.ava.value.s[0]=='*') f.type=PRESENT;
     f.a=0;
     i=4; /* This should be the first index to an attribute argument in argv[] */
     adl.a.s=argv[i];
