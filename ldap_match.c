@@ -5,21 +5,6 @@
 #include <unistd.h>
 #include <stdio.h>
 
-/* behave like strcmp */
-static int matchstring(struct string* s,const char* c) {
-  int l,l1,i;
-  if (!c) return -1;
-  l1=l=strlen(c);
-  if (s->l<l1) l1=s->l;
-  i=byte_diff(s->s,l1,c);
-  if (i) return i;
-  /* one is a prefix of the other */
-  if (l==s->l) return 0;
-  if (c[l1]) /* is c the longer string? */
-    return c[l1];
-  return -(int)(s->s[l1]);
-}
-
 /* look up value of an attribute for an LDIF record.
  * Return NULL if not found */
 static const char* findattr(struct ldaprec* f,struct string* name) {
