@@ -50,7 +50,7 @@ int scan_ldapmodifyrequest(const char* src,const char* max,struct ModifyRequest*
       if (!(tmp=scan_ldapstring(src+res,imax,&last->AttributeDescription))) goto error;
       res+=tmp;
       {
-	long iiislen;	/* urgh, _four_ levels of indirection */
+	long iiislen;	/* waah, _four_ levels of indirection!  It doesn't get more inefficient than this */
 	const char* iimax;
 	struct AttributeDescriptionList* ilast=0;
 	if (!(tmp=scan_asn1SET(src+res,max,&iiislen))) goto error;
