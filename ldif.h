@@ -24,3 +24,4 @@ int ldif_parse(const char* filename);
 /* return non-zero if the record matches the search request */
 int ldap_match(struct ldaprec* r,struct SearchRequest* sr);
 int ldap_match_mapped(uint32 ofs,struct SearchRequest* sr);
+int ldap_match_present(uint32 ofs,uint32 attrofs);

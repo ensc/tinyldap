@@ -126,7 +126,7 @@ static void fixup(struct Filter* f) {
       f->attrofs=f->attrflag=0;
       for (i=0; i<attribute_count; ++i) {
 	uint32 j=uint32_read(x);
-	if (!matchstring(&f->ava.desc,map+j)) {
+	if (!matchcasestring(&f->ava.desc,map+j)) {
 	  f->attrofs=j;
 	  uint32_unpack(x+-attribute_count*4,&f->attrflag);
 	  break;
@@ -164,6 +164,8 @@ static int indexable(struct Filter* f) {
       if (!indexable(y)) return 0;
       y=y->next;
     }
+    /* fall through */
+  case PRESENT:
     return 1;
 #if 0
   /* doesn't make much sense to try to speed up negated queries */
@@ -370,6 +372,21 @@ static int useindex(struct Filter* f,unsigned long* bitfield) {
       }
     }
     return 0;
+  case PRESENT:
+    {
+      /* now this is not exactly using an index, but a linear search
+       * through the record table, but since each check is very cheap,
+       * we pretend it's indexed */
+      char* x=map+5*4+size_of_string_table+attribute_count*8;
+      unsigned long i;
+      emptyset(bitfield);
+      for (i=0; i<record_count; ++i) {
+	if (ldap_match_present(x-map,f->attrofs))
+	  setbit(bitfield,i);
+	x+=uint32_read(x)*8;
+      }
+      return 1;
+    }
   case EQUAL:
     {
       uint32 ofs;

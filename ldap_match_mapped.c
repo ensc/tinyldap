@@ -40,6 +40,16 @@ found:
   return 1;
 }
 
+int ldap_match_present(uint32 ofs,uint32 attrofs) {
+  uint32 j,k;
+  if (attrofs==dn_ofs || attrofs==objectClass_ofs) return 1;
+  uint32_unpack(map+ofs,&j);
+  for (k=4; k<j; ++k)
+    if (uint32_read(map+ofs+k*4)==attrofs)
+      return 1;
+  return 0;
+}
+
 /* return non-zero if the record matches the search filter */
 int ldap_matchfilter_mapped(uint32 ofs,struct Filter* f) {
   struct Filter* y=f->x;
@@ -59,6 +69,8 @@ int ldap_matchfilter_mapped(uint32 ofs,struct Filter* f) {
     return 0;
   case NOT:
     return !ldap_matchfilter_mapped(ofs,y);
+  case PRESENT:
+    return ldap_match_present(ofs,f->attrofs);
   case EQUAL:
     {
       uint32 i,j,k;
@@ -153,7 +165,7 @@ int ldap_match_mapped(uint32 ofs,struct SearchRequest* sr) {
     return 0;
   }
   /* we want "o=foo, o=bar" and "o=FOO,o=baR" to be equal */
-  if (!(l=match(sr->baseObject.s,sr->baseObject.l,map+k))) {
+  if (sr->baseObject.l && !(l=match(sr->baseObject.s,sr->baseObject.l,map+k))) {
 //    puts("fail: not suffix");
     return 0;
   }
