@@ -11,6 +11,9 @@ int main() {
   char buf[BUFSIZE];
   int len=0;
   ldif_parse("exp.ldif");
+  if (!first) {
+    buffer_putsflush(buffer_2,"keine Datenbasis?!");
+  }
   for (;;) {
     int tmp=read(0,buf+len,BUFSIZE-len);
     int res;
@@ -60,7 +63,13 @@ int main() {
 	  int tmp;
 	  if ((tmp=scan_ldapsearchrequest(buf+res,buf+res+len,&sr))) {
 	    struct ldaprec* r=first;
+	    buffer_puts(buffer_2,"baseObject: \"");
+	    buffer_put(buffer_2,sr.baseObject.s,sr.baseObject.l);
+	    buffer_putsflush(buffer_2,"\"\n");
 	    while (r) {
+	      buffer_puts(buffer_2,"ldap_match(\"");
+	      buffer_puts(buffer_2,r->dn);
+	      buffer_putsflush(buffer_2,"\"\n");
 	      if (ldap_match(r,&sr)) {
 		struct SearchResultEntry sre;
 		struct PartialAttributeList** pal=&sre.attributes;
@@ -132,16 +141,16 @@ nomem:
 	      }
 	      r=r->next;
 	    }
-	    {
-	      char buf[1000];
-	      long l=fmt_ldapsearchresultdone(buf+100,0,"","","");
-	      int hlen=fmt_ldapmessage(0,++messageid,SearchResultDone,l);
-	      fmt_ldapmessage(buf+100-hlen,messageid,SearchResultDone,l);
-	      write(1,buf+100-hlen,l+hlen);
-	    }
 	  } else {
 	    buffer_putsflush(buffer_2,"couldn't parse search request!\n");
 	    exit(1);
+	  }
+	  {
+	    char buf[1000];
+	    long l=fmt_ldapsearchresultdone(buf+100,0,"","","");
+	    int hlen=fmt_ldapmessage(0,++messageid,SearchResultDone,l);
+	    fmt_ldapmessage(buf+100-hlen,messageid,SearchResultDone,l);
+	    write(1,buf+100-hlen,l+hlen);
 	  }
 	}
 	break;
@@ -149,10 +158,17 @@ nomem:
 	exit(1);
       }
       Len+=res;
+#if 0
+      buffer_puts(buffer_2,"byte_copy(buf,");
+      buffer_putulong(buffer_2,len-Len);
+      buffer_puts(buffer_2,",buf+");
+      buffer_putulong(buffer_2,Len);
+      buffer_putsflush(buffer_2,");\n");
+#endif
       if (Len<len) {
 	byte_copy(buf,len-Len,buf+Len);
 	len-=Len;
-      }
+      } else len=0;
     } else
       exit(2);
   }

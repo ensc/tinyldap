@@ -29,7 +29,7 @@ int ldapbind(int sock) {
   res=scan_ldapmessage(outbuf,outbuf+len,&messageid,&op,&Len);
   if (!res) return 0;
   if (op!=BindResponse) return 0;
-  res=scan_ldapbindresponse(outbuf+res,outbuf+res+len,&result,&matcheddn,&errormessage,&referral);
+  res=scan_ldapbindresponse(outbuf+res,outbuf+res+Len,&result,&matcheddn,&errormessage,&referral);
   if (!res) return 0;
   if (result) return 0;
   return 1;
@@ -86,11 +86,17 @@ usage:
 	long slen,mid,op;
 	tmp=read(sock,buf+len,sizeof(buf)-len);
 	len+=tmp;
-	if ((tmp2=scan_ldapmessage(buf,buf+len,&mid,&op,&slen)))
-	  if (op==SearchResultEntry) {
-	    max=buf+slen+tmp2;
-	    break;
+	if ((tmp2=scan_ldapmessage(buf,buf+len,&mid,&op,&slen))) {
+	  max=buf+slen+tmp2;
+	  if (op==SearchResultEntry) break;
+	  if (op==SearchResultDone) {
+	    buffer_putsflush(buffer_2,"no matches.\n");
+	    return 0;
+	  } else {
+	    buffer_putsflush(buffer_2,"unexpected response.\n");
+	    return 0;
 	  }
+	}
       }
       if ((tmp=scan_ldapsearchresultentry(buf+tmp2,max,&sre))) {
 	struct PartialAttributeList* pal=sre.attributes;
