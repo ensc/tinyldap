@@ -28,7 +28,7 @@ int fmt_ldapsubstring(char* dest,struct Substring* s) {
 }
 
 int fmt_ldapsearchfilter(char* dest,struct Filter* f) {
-  long sum,tmp;
+  long sum,tmp,tmp2=0;
   switch (f->type) {
   case AND: case OR: case NOT:
     sum=fmt_ldapsearchfilter(dest,f->x); break;
@@ -57,5 +57,6 @@ int fmt_ldapsearchfilter(char* dest,struct Filter* f) {
   if (dest) byte_copyr(dest+tmp+1,sum,dest);
   fmt_asn1tag(dest,PRIVATE,CONSTRUCTED,f->type);
   fmt_asn1length(dest+1,sum);
-  return sum+tmp+1;
+  if (f->next) tmp2=fmt_ldapsearchfilter(dest+sum+tmp+1,f->next);
+  return sum+tmp+tmp2+1;
 }

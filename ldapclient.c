@@ -43,7 +43,7 @@ int main(int argc,char* argv[]) {
 
   if (argc<5) {
 usage:
-    buffer_putsflush(buffer_2,"usage: ldapclient ip baseObject foo=bar baz [buzz...]\n");
+    buffer_putsflush(buffer_2,"usage: ldapclient ip baseObject filter foo [bar...]\n");
     return 0;
   }
   sock=socket_tcp4();
@@ -56,18 +56,16 @@ usage:
     }
   }
   if (ldapbind(sock)) {
-    struct Filter f;
+    struct Filter *f;
     struct AttributeDescriptionList adl;
     struct AttributeDescriptionList *next;
     struct SearchRequest sr;
     int i;
-    f.x=f.next=0;
-    f.type=EQUAL;
-    f.ava.desc.s=argv[3]; f.ava.desc.l=str_chr(argv[3],'=');
-    if (argv[3][f.ava.desc.l] != '=') goto usage;
-    f.ava.value.s=argv[3]+f.ava.desc.l+1; f.ava.value.l=strlen(f.ava.value.s);
-    if (f.ava.value.l==1 && f.ava.value.s[0]=='*') f.type=PRESENT;
-    f.a=0;
+    if (!scan_ldapsearchfilterstring(argv[3],&f)) {
+      buffer_putsflush(buffer_2,"could not parse filter!\n");
+      close(sock);
+      return 1;
+    }
     i=4; /* This should be the first index to an attribute argument in argv[] */
     adl.a.s=argv[i];
     adl.a.l=strlen(argv[i]);
@@ -90,7 +88,7 @@ usage:
     sr.baseObject.s=argv[2]; sr.baseObject.l=strlen(sr.baseObject.s);
     sr.scope=wholeSubtree; sr.derefAliases=neverDerefAliases;
     sr.sizeLimit=sr.timeLimit=sr.typesOnly=0;
-    sr.filter=&f;
+    sr.filter=f;
     sr.attributes=&adl;
     len=fmt_ldapsearchrequest(buf+100,&sr);
     {

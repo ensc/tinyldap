@@ -115,6 +115,7 @@ int scan_ldapresult(const char* src,const char* max,long* result,
 		    struct string* matcheddn,struct string* errormessage,
 		    struct string* referral);
 int scan_ldapmodifyrequest(const char* src,const char* max,struct ModifyRequest* m);
+int scan_ldapsearchfilterstring(const char* src,struct Filter** f);
 
 int fmt_ldapstring(char* dest,struct string* s);
 int fmt_ldapmessage(char* dest,long messageid,long op,long len);
