@@ -31,8 +31,8 @@ found:
     case any:
       {
 	unsigned long len=str_len(attr);
-	if (len>x->s.l) return 0;
-	for (i=0; i<x->s.l-len; ++i)
+	if (len<x->s.l) return 0;
+	for (i=0; i<=len-x->s.l; ++i)
 	  if (!diff(x->s.s,x->s.l,attr+i))
 	    goto found;
       }

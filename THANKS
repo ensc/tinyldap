@@ -6,4 +6,7 @@ David Lichteblau found lots of problems in the ASN.1 code.
 
 Thomas Walpuski has found lots of problems with the LDAP code.
 
-Dirk Meyer helped BSD portability
+Dirk Meyer helped BSD portability.
+
+Zak Johnson fixed substring matches in ldap_match_mapped.
+
