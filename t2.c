@@ -135,6 +135,20 @@ int main(int argc,char* argv[]) {
 	printf("scan_ldapsearchrequest %d\n",tmp=scan_ldapsearchrequest(ldapsequence+done+res,ldapsequence+done+res+len,&br));
 	if (tmp) {
 	  printf("baseObject: \"%.*s\"\n",(int)br.baseObject.l,br.baseObject.s);
+	  printf("  scope: ");
+	  switch (br.scope) {
+	  case 0: printf("baseObject"); break;
+	  case 1: printf("singleLevel"); break;
+	  case 2: printf("wholeSubtree"); break;
+	  }
+	  printf(", deref: ");
+	  switch (br.derefAliases) {
+	  case 0: printf("neverDerefAliases"); break;
+	  case 1: printf("derefInSearching"); break;
+	  case 2: printf("derefFindingBaseObj"); break;
+	  case 3: printf("derefAlways"); break;
+	  }
+	  printf(", size limit %d, time limit %d\n",br.sizeLimit,br.timeLimit);
 	  printfilter(br.filter); printf("\n");
 	}
 	printal(br.attributes);

@@ -48,7 +48,6 @@ struct SearchRequest {
   } derefAliases;
   unsigned long sizeLimit, timeLimit, typesOnly;
   struct Filter* filter;
-    /* really an AttributeDescriptionList, but the types are equivalent: */
   struct AttributeDescriptionList* attributes;
 };
 

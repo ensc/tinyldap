@@ -9,11 +9,10 @@ scan_asn1STRING.o scan_asn1SEQUENCE.o scan_asn1ENUMERATED.o \
 scan_asn1BOOLEAN.o scan_asn1rawint.o scan_asn1SET.o
 
 ldap.a: scan_ldapmessage.o fmt_ldapmessage.o fmt_ldapbindrequest.o \
-scan_ldapbindrequest.o fmt_ldapbindresponse.o scan_ldapbindresponse.o \
+scan_ldapbindrequest.o scan_ldapbindresponse.o scan_ldapresult.o \
 scan_ldapstring.o scan_ldapsearchfilter.o scan_ldapsearchrequest.o \
 freefilter.o freeava.o scan_ldapava.o fmt_ldapsearchresultentry.o \
 fmt_ldapstring.o freepal.o scan_ldapsearchresultentry.o \
-scan_ldapresult.o
 
 ldif.a: ldif_parse.o
 
