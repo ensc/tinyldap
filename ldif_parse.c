@@ -68,7 +68,8 @@ static int unbase64(char* buf) {
 static int parserec(buffer* b, struct ldaprec** l) {
   char buf[8192];
   int n,i,eof=0,ofs=0;
-  int len,base64;
+  unsigned int i2;
+  int len,base64,binary;
   stralloc payload={0,0,0};
 
   if (!(*l=malloc(sizeof(struct ldaprec)))) return 2;
@@ -77,11 +78,15 @@ static int parserec(buffer* b, struct ldaprec** l) {
   ldifrecords=0;
   do {
     long tmp, val;
-    base64=0;
+    base64=binary=0;
     n=ofs+buffer_get_token(b,buf+ofs,8192-ofs,":",1);
     if (n==0) break;
     i=scan_whitenskip(buf,n);
     buf[n]=0;
+    if ((i2=str_chr(buf,';'))<n) {
+      buf[i2]=0;
+      if (str_equal("binary",buf+i2+1)) binary=1;
+    }
     if ((tmp=mduptab_adds(&attributes,buf+i))<0) {
 nomem:
       buffer_putsflush(buffer_2,"out of memory!\n");
@@ -122,7 +127,7 @@ lookagain:
 	stralloc_0(&payload);
 	if (base64) {
 	  len=unbase64(payload.s);
-	  payload.s[len]=0; ++len;
+	  if (!binary) { payload.s[len]=0; ++len; }
 	} else
 	  len=n+1;
 
@@ -161,7 +166,7 @@ lookagain:
     stralloc_0(&payload);
     if (base64) {
       len=unbase64(payload.s);
-      payload.s[len]=0; ++len;
+      if (!binary) { payload.s[len]=0; ++len; }
     } else
       len=n+1;
 
@@ -176,10 +181,10 @@ lookagain:
     if (tmp==objectClass) {
       if ((val=mduptab_add(&classes,payload.s,len-1))<0) goto nomem;
     } else if (tmp==dn) {
-      char* newdn=alloca(n-i+1);
-      if ((val=mstorage_add(&stringtable,newdn,normalize_dn(newdn,payload.s,len)))<0) goto nomem;
+      char* newdn=alloca(payload.len+1);
+      if ((val=mstorage_add(&stringtable,newdn,normalize_dn(newdn,payload.s,payload.len)))<0) goto nomem;
     } else
-      if ((val=mstorage_add_bin(&stringtable,payload.s,len))<0) goto nomem;
+      if ((val=mstorage_add_bin(&stringtable,payload.s,payload.len))<0) goto nomem;
     addattribute(l,tmp,val);
 #endif
   } while (!eof);

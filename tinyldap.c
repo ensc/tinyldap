@@ -17,8 +17,13 @@
 #endif
 #include <signal.h>
 
+#ifdef DEBUG
+#define verbose 1
+#define debug 1
+#else
 #define verbose 0
 #define debug 0
+#endif
 
 char* map;
 long filelen;
