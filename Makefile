@@ -1,6 +1,6 @@
-#DEBUG=1
+DEBUG=1
 
-all: t1 t2 parse dumpidx addindex bindrequest tinyldap tinyldap_standalone tinyldap_debug ldapclient ldapclient_str # t
+all: t1 t2 parse dumpidx idx2ldif addindex bindrequest tinyldap tinyldap_standalone tinyldap_debug ldapclient ldapclient_str # t
 
 asn1.a: fmt_asn1intpayload.o fmt_asn1length.o fmt_asn1tag.o \
 fmt_asn1int.o fmt_asn1string.o fmt_asn1transparent.o scan_asn1tag.o \
@@ -56,7 +56,7 @@ tinyldap_debug: tinyldap.c
 clean:
 	rm -f t t[1-9] *.[ao] bindrequest tinyldap ldapclient data \
 parse tinyldap_standalone tinyldap_debug ldapclient_str addindex \
-dumpidx *.da *.bbg *.bb *.gcov gmon.out
+dumpidx idx2ldif *.da *.bbg *.bb *.gcov gmon.out
 
 tar: clean
 	cd ..; tar cvvf tinyldap.tar.bz2 tinyldap --use=bzip2 --exclude capture --exclude CVS --exclude exp.ldif --exclude polyp* --exclude rfc*
