@@ -44,8 +44,8 @@ int ldap_match_present(uint32 ofs,uint32 attrofs) {
   uint32 j,k;
   if (attrofs==dn_ofs || attrofs==objectClass_ofs) return 1;
   uint32_unpack(map+ofs,&j);
-  for (k=4; k<j; ++k)
-    if (uint32_read(map+ofs+k*4)==attrofs)
+  for (k=2; k<j; ++k)
+    if (uint32_read(map+ofs+k*8)==attrofs)
       return 1;
   return 0;
 }
