@@ -10,3 +10,10 @@ tinyldap is the server test application.  It can understand BindRequest,
 some simple forms of SearchRequest, and it can even answer simple
 queries.
 
+tinyldap now supports an external database representation with indexes.
+However, the indexes are not used yet by tinyldap.  It still iterates
+through all records.  Use "parse" to create the file "data" from an LDIF
+file called "exp.ldif" (I can't give you my test data, sorry).  Then use
+"addindex" to add indexes if you like.  Use "dumpidx" to have the
+contents of data displayed on screen.  tinyldap has been modified to use
+data instead of the in-memory linked list.

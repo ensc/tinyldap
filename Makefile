@@ -17,7 +17,7 @@ fmt_ldapstring.o freepal.o scan_ldapsearchresultentry.o \
 fmt_ldapresult.o fmt_ldappal.o fmt_ldapadl.o fmt_ldapava.o \
 fmt_ldapsearchfilter.o fmt_ldapsearchrequest.o matchstring.o
 
-ldif.a: ldif_parse.o ldap_match.o ldif_index.o ldap_match_mapped.o
+ldif.a: ldif_parse.o ldap_match.o ldap_match_mapped.o
 
 storage.a: strstorage.o strduptab.o mstorage_add.o mduptab_add.o
 
