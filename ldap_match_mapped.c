@@ -72,7 +72,7 @@ static inline int matchint(struct Filter* f,const char* t) {
     r=matchcasestring(&f->ava.value,t);
   else
     r=matchstring(&f->ava.value,t);
-  if (f->type==EQUAL) return (r!=0);
+  if (f->type==EQUAL) return (r==0);
   if (f->type==LESSEQUAL) return (r>0);
   return (r<0);
 }
