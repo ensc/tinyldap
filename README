@@ -1,28 +1,20 @@
-polyp-00 ist der ASN.1-Code, der mir gemailt wurde.
-Leider half er mir nicht sonderlich beim Verständnis von LDAP, daher hab
-ich das nochmal selber angefangen.
+Please read ldap.h and asn1.h for an overview of the API.
 
-Nachdem mir der Parser beim Verständnis geholfen hat, weiß ich jetzt,
-wie der Parser wirklich aussehen muß, und habe ihn in Form von scan_*
-Routinen neugehackt.  Er ist dadurch viel übersichtlicher geworden.
-Die Routinen auf dem höchsten Level sind scan_ldapmessage und
-scan_ldapbindrequest, und damit erschöpft sich der Parser im Moment auch
-schon.  Ich habe auch gleich angefangen, einen LDAP Formatter zu
-schreiben, der in Form der fmt_* Routinen vorliegt, und er ist genau so
-weit wie der Parser, nämlich kann er eine BindResponse mit der gleichen
-Message-ID wie der BindRequest formatieren, in eine LDAPMessage
-einpacken und das auf file handle 1 ausgeben.  Das Ergebnis entspricht
-den Paketen von openldap, d.h. scheint zu funktionieren.
+Example code using the high level API is in tinyldap and ldapclient.
+This will be encapsulated some more eventually.  The next steps are:
 
-bindrequest ist die Client-Testanwendung.  Er stellt einen BindRequest
-und gibt ihn auf stdout aus.
+  - integrate the LDIF parser from t1.c
+  - write fmt_ldapsearchresponse
+  - write fmt_ldapsearchrequest and scan_ldapsearchresponse
 
--rwxr-xr-x    1 leitner  users        1676 Jan 14 02:58 bindrequest
+Then we will have a minimal LDAP server!
 
-tinyldap ist die Server-Testanwendung.  Er list eine LDAPMessage von
-stdin, schaut ob es ein BindRequest ist, und wenn ja, dann generiert er
-eine passende BindResponse.
+ldapclient is the client test application.  It connects to localhost,
+makes a BindRequest and dumps the BindResponse in human readable form.
 
--rwxr-xr-x    1 leitner  users        4084 Jan 14 03:13 tinyldap
+tinyldap is the server test application.  It reads LDAPMessages from
+stdin, looks whether it is a BindRequest and if so, answers it with an
+affirmative BindResponse.  If it is a SearchRequest, it will be parsed
+and dumped to stdout in human readable form.  That will obviously change
+next.
 
-diet libc und libowfat rulen! ;)
