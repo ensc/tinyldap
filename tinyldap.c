@@ -233,12 +233,12 @@ static long findrec(uint32 dat) {
     uint32 mid=(top+bottom)/2;
     uint32 l;
 
-    l=uint32_read(map+uint32_read(&records[mid])+8);
+    l=uint32_read(map+uint32_read((char*)(&records[mid]))+8);
     if (l<=dat) {
       if (mid>=record_count-1)
-	l=uint32_read(map+uint32_read(&records[0])+12);
+	l=uint32_read(map+uint32_read((char*)(&records[0]))+12);
       else
-	l=uint32_read(map+uint32_read(&records[mid+1])+8);
+	l=uint32_read(map+uint32_read((char*)(&records[mid+1]))+8);
       if (l>dat) return mid;	/* found! */
       bottom=mid+1;
     } else
@@ -287,7 +287,7 @@ static void tagmatches(uint32* index,unsigned int elements,struct string* s,
     uint32 k;
     int l;
 
-    k=uint32_read(&index[mid]);
+    k=uint32_read((char*)(&index[mid]));
 #ifdef DEBUG
     buffer_puts(buffer_2,"match[");
     buffer_putulong(buffer_2,bottom);
@@ -311,14 +311,14 @@ static void tagmatches(uint32* index,unsigned int elements,struct string* s,
       /* there may be multiple matches.
 	* Look before and after mid, too */
       for (k=mid-1; k>0; --k) {
-	m=uint32_read(&index[k]);
+	m=uint32_read((char*)(&index[k]));
 	if ((l=match(s,map+m))==0) {
 	  if ((rec=findrec(m))>=0)
 	    setbit(bitfield,rec);
 	} else break;
       }
       for (k=mid+1; k<elements; ++k) {
-	m=uint32_read(&index[k]);
+	m=uint32_read((char*)(&index[k]));
 	if ((l=match(s,map+m))==0) {
 	  if ((rec=findrec(m))>=0)
 	    setbit(bitfield,rec);
