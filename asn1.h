@@ -68,6 +68,7 @@ int scan_asn1length(const char* src,const char* max,unsigned long* length);
 int scan_asn1int(const char* src,const char* max,
 		 enum asn1_tagclass* tc,enum asn1_tagtype* tt, unsigned long* tag,
 		 unsigned long* l);
+int scan_asn1rawint(const char* src,const char* max,unsigned int len,long* i);
 int scan_asn1string(const char* src,const char* max,
 		    enum asn1_tagclass* tc,enum asn1_tagtype* tt,unsigned long* tag,
 		    const char** s,unsigned long* l);

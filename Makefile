@@ -6,7 +6,7 @@ asn1.a: fmt_asn1intpayload.o fmt_asn1length.o fmt_asn1tag.o \
 fmt_asn1int.o fmt_asn1string.o fmt_asn1transparent.o scan_asn1tag.o \
 scan_asn1length.o scan_asn1int.o scan_asn1string.o scan_asn1INTEGER.o \
 scan_asn1STRING.o scan_asn1SEQUENCE.o scan_asn1ENUMERATED.o \
-scan_asn1BOOLEAN.o
+scan_asn1BOOLEAN.o scan_asn1rawint.o
 
 ldap.a: scan_ldapmessage.o fmt_ldapmessage.o fmt_ldapbindrequest.o \
 scan_ldapbindrequest.o fmt_ldapbindresponse.o scan_ldapbindresponse.o \

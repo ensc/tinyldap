@@ -108,7 +108,7 @@ int main(int argc,char* argv[]) {
       {
 	struct SearchRequest br;
 	int tmp;
-	printf("scan_ldapsearchrequest %d\n",tmp=scan_ldapsearchrequest(ldapsequence+done+res,ldapsequence+size,&br));
+	printf("scan_ldapsearchrequest %d\n",tmp=scan_ldapsearchrequest(ldapsequence+done+res,ldapsequence+done+res+len,&br));
 	if (tmp) {
 	  printf("baseObject: \"%.*s\"\n",(int)br.baseObject.l,br.baseObject.s);
 	  printfilter(br.filter); printf("\n");
@@ -118,6 +118,14 @@ int main(int argc,char* argv[]) {
       }
     case UnbindRequest:
       puts("  >> UnbindRequest <<");
+      break;
+    case AbandonRequest:
+      puts("  >> AbandonRequest <<");
+      {
+	unsigned long which;
+	if (scan_asn1rawint(ldapsequence+done+res,ldapsequence+done+res+len,len,&which))
+	  printf("Abandon: %lu\n",which);
+      }
       break;
     default:
       puts("  >> unklar << ;)");
