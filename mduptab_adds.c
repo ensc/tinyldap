@@ -1,8 +1,7 @@
-#include <stdlib.h>
-#include <string.h>
 #include "mstorage.h"
 #include "mduptab.h"
+#include "str.h"
 
 long mduptab_adds(mduptab_t* t,const char* s) {
-  return mduptab_add(t,s,strlen(s));
+  return mduptab_add(t,s,str_len(s));
 }

@@ -57,7 +57,7 @@ static int normalize_dn(char* dest,const char* src,int len) {
 }
 
 static int unbase64(char* buf) {
-  unsigned int destlen;
+  unsigned long destlen;
   char temp[8192];
   long l=scan_base64(buf,temp,&destlen);
   if (buf[l] && buf[l]!='\n') return 0;
@@ -200,8 +200,9 @@ struct ldaprec *first=0;
 
 int ldif_parse(const char* filename) {
   char buf[4096];
-  int fd=open_read(filename);
+  int fd;
   buffer in;
+  if (str_equal(filename,"-")) fd=0; else fd=open_read(filename);
   if (fd<0) return 1;
   buffer_init(&in,read,fd,buf,sizeof buf);
   dn=mduptab_adds(&attributes,"dn");

@@ -11,7 +11,7 @@ int main(int argc,char* argv[]) {
   for (i=1; i<argc; ++i) {
     MD5_CTX c;
     MD5Init(&c);
-    MD5Update(&c,argv[i],strlen(argv[i]));
+    MD5Update(&c,argv[i],str_len(argv[i]));
     MD5Final(digest,&c);
     digest[16]=0;
     md5[fmt_base64(md5,digest,16)]=0;

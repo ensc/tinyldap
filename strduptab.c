@@ -2,7 +2,7 @@
 #include "str.h"
 #include "strduptab.h"
 #include "strstorage.h"
-#include <string.h>
+#include "str.h"
 
 #define PAGESIZE 4096
 
@@ -21,7 +21,7 @@ const char* strduptab_add(struct stringduptable* t,const char* s) {
     t->s=x;
   }
   {
-    const char* x=strstorage_add(s,strlen(s)+1);
+    const char* x=strstorage_add(s,str_len(s)+1);
     if (!x) return 0;
     s=x;
   }

@@ -7,7 +7,7 @@ int bstr_diff2(const char* a,const char* b,unsigned int blen) {
   const char* A,* B;
   int j;
   /* like str_diff, just for bstrs */
-  if (*a) A=a+strlen(a); else { A=a+5+uint32_read(a+1); a+=5; }
+  if (*a) A=a+str_len(a); else { A=a+5+uint32_read(a+1); a+=5; }
   B=b+blen;
   for (;;) {
     if (a==A) {

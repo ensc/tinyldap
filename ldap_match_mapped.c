@@ -22,7 +22,7 @@ static int substringmatch(struct Substring* x,const char* attr,int ignorecase) {
     diff=byte_diff;
   while (x) {
     unsigned long i;
-    if (x->s.l>strlen(attr)) return 0;
+    if (x->s.l>str_len(attr)) return 0;
     switch (x->substrtype) {
     case prefix:
       if (diff(x->s.s,x->s.l,attr)) return 0;
@@ -30,7 +30,7 @@ found:
       break;
     case any:
       {
-	unsigned long len=strlen(attr);
+	unsigned long len=str_len(attr);
 	if (len>x->s.l) return 0;
 	for (i=0; i<x->s.l-len; ++i)
 	  if (!diff(x->s.s,x->s.l,attr+i))
@@ -38,7 +38,7 @@ found:
       }
       return 0;
     case suffix:
-      if (diff(x->s.s,x->s.l,attr+strlen(attr)-x->s.l)) return 0;
+      if (diff(x->s.s,x->s.l,attr+str_len(attr)-x->s.l)) return 0;
     }
     x=x->next;
   }
@@ -158,7 +158,7 @@ int ldap_matchfilter_mapped(uint32 ofs,struct Filter* f) {
 /* return 0 if they didn't match, otherwise return length in b */
 static int match(const char* a,int len,const char* b) {
   const char* A=a+len;
-  const char* B=b+strlen(b);
+  const char* B=b+str_len(b);
   while (len>0 && A>a && B>b) {
     --A; --B; --len;
     while (*A==' ' && A>a) { --A; --len; }
@@ -166,7 +166,7 @@ static int match(const char* a,int len,const char* b) {
     if (tolower(*A) != tolower(*B))
       return 0;
   }
-  return strlen(B);
+  return str_len(B);
 }
 
 /* return non-zero if the record matches the search request */
@@ -174,7 +174,7 @@ int ldap_match_mapped(uint32 ofs,struct SearchRequest* sr) {
   unsigned int l,i;
   uint32 k;
   uint32_unpack(map+ofs+8,&k);
-  l=strlen(map+k);
+  l=str_len(map+k);
   /* first see if baseObject is a suffix of dn */
   if (sr->baseObject.l>l) {
 //    puts("fail: baseObject longer than dn");

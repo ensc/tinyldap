@@ -74,7 +74,7 @@ usage:
     f.substrings=&ssr;
     adl.a.s="mail"; adl.a.l=4;
     adl.next=0;
-    sr.baseObject.s=argv[2]; sr.baseObject.l=strlen(sr.baseObject.s);
+    sr.baseObject.s=argv[2]; sr.baseObject.l=str_len(sr.baseObject.s);
     sr.scope=wholeSubtree; sr.derefAliases=neverDerefAliases;
     sr.sizeLimit=sr.timeLimit=sr.typesOnly=0;
     sr.filter=&f;

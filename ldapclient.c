@@ -68,13 +68,13 @@ usage:
     }
     i=4; /* This should be the first index to an attribute argument in argv[] */
     adl.a.s=argv[i];
-    adl.a.l=strlen(argv[i]);
+    adl.a.l=str_len(argv[i]);
     next=&adl;
     ++i;
     while (i<argc) {
       struct AttributeDescriptionList *n;
       n=malloc(sizeof(struct AttributeDescriptionList));
-      n->a.s=argv[i]; n->a.l=strlen(argv[i]);
+      n->a.s=argv[i]; n->a.l=str_len(argv[i]);
       n->next=0;
       next->next=n;
       next=n;
@@ -85,7 +85,7 @@ usage:
 
       i++;
     }
-    sr.baseObject.s=argv[2]; sr.baseObject.l=strlen(sr.baseObject.s);
+    sr.baseObject.s=argv[2]; sr.baseObject.l=str_len(sr.baseObject.s);
     sr.scope=wholeSubtree; sr.derefAliases=neverDerefAliases;
     sr.sizeLimit=sr.timeLimit=sr.typesOnly=0;
     sr.filter=f;
