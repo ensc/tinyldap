@@ -44,7 +44,7 @@ int main(int argc,char* argv[]) {
   {
     unsigned int i;
     char* x=map+5*4+size_of_string_table;
-    wanted=0;
+    wanted=casesensitive=dn=objectClass=0;
     for (i=0; i<attribute_count; ++i) {
       uint32 j;
       uint32_unpack(x,&j);
@@ -65,6 +65,10 @@ int main(int argc,char* argv[]) {
     }
     if (!wanted) {
       buffer_putsflush(buffer_2,"that attribute is not in the database!\n");
+      return 1;
+    }
+    if (!dn || !objectClass) {
+      buffer_putsflush(buffer_2,"dn or objectClass not found!\n");
       return 1;
     }
   }
