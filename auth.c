@@ -3,7 +3,6 @@
 #include "auth.h"
 #include "str.h"
 #include "textcode.h"
-#include "byte.h"
 
 int check_password(const char* fromdb,struct string* plaintext) {
   if (str_start(fromdb,"{MD5}")) {
@@ -14,8 +13,8 @@ int check_password(const char* fromdb,struct string* plaintext) {
     MD5Update(&c,plaintext->s,plaintext->l);
     MD5Final(digest,&c);
     digest[16]=0;
-    fmt_hexdump(md5,digest,16);
-    if (byte_equal(md5,32,fromdb+5))
+    md5[fmt_base64(md5,digest,16)]=0;
+    if (str_equal(md5,fromdb+5))
       return 1;
   }
   return 0;
