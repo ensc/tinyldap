@@ -104,22 +104,39 @@ usage:
       char* max;
       struct SearchResultEntry sre;
       int matches=0;
+      len=0;
       for (;;) {
 	long slen,mid,op;
-	len=0;
+	int cur;
+
 	tmp=read(sock,buf+len,sizeof(buf)-len);
+
+#if 0
+	buffer_puts(buffer_2,"DEBUG: read ");
+	buffer_putulong(buffer_2,tmp);
+	buffer_putsflush(buffer_2," bytes.\n");
+#endif
+
 	if (tmp<=0) {
 	  buffer_putsflush(buffer_2,"read error.\n");
 	  return 0;
 	}
 	len+=tmp;
+	cur=0;
 nextmessage:
-	if ((tmp2=scan_ldapmessage(buf,buf+len,&mid,&op,&slen))) {
-	  max=buf+slen+tmp2;
+	if ((tmp2=scan_ldapmessage(buf+cur,buf+len,&mid,&op,&slen))) {
+	  max=buf+cur+slen+tmp2;
 	  if (op==SearchResultEntry) {
 	    ++matches;
-	  if ((tmp=scan_ldapsearchresultentry(buf+tmp2,max,&sre))) {
+	  if ((tmp=scan_ldapsearchresultentry(buf+cur+tmp2,max,&sre))) {
 	    struct PartialAttributeList* pal=sre.attributes;
+
+#if 0
+	    buffer_puts(buffer_2,"DEBUG: sre size ");
+	    buffer_putulong(buffer_2,tmp);
+	    buffer_putsflush(buffer_2,".\n");
+#endif
+
 	    buffer_puts(buffer_1,"objectName \"");
 	    buffer_put(buffer_1,sre.objectName.s,sre.objectName.l);
 	    buffer_puts(buffer_1,"\"\n");
@@ -137,7 +154,7 @@ nextmessage:
 	      pal=pal->next;
 	    }
 	  } else
-	    buffer_putsflush(buffer_1,"punt!\n");
+	    goto copypartialandcontinue;
 	  } else if (op==SearchResultDone) {
 	    if (!matches)
 	      buffer_putsflush(buffer_2,"no matches.\n");
@@ -147,11 +164,17 @@ nextmessage:
 	    return 0;
 	  }
 	  if (max<buf+len) {
-	    byte_copy(buf,buf+len-max,max);
-	    tmp-=(max-(buf+len));
-	    len-=(max-(buf+len));
+	    cur+=slen+tmp2;
 	    goto nextmessage;
 	  }
+	} else {
+	  /* copy partial message */
+copypartialandcontinue:
+	  byte_copy(buf,len-cur,buf+cur);
+	  len-=cur; cur=0;
+#if 0
+	  buffer_putsflush(buffer_2,"scan_ldapmessage failed!\n");
+#endif
 	}
       }
 

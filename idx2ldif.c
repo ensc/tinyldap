@@ -13,7 +13,7 @@ static void dumpbstr(const char* c) {
   l=bstrlen(c);
   d=bstrfirst(c);
   for (i=0; i<l; ++i)
-    if (!isprint(d[i])) printable=0;
+    if (!isprint(d[i])) { printable=0; break; }
   if (printable) {
     buffer_puts(buffer_1," ");
     if (*c)

@@ -25,7 +25,7 @@ free_ldapadl.o free_ldappal.o free_ldapsearchfilter.o
 ldif.a: ldif_parse.o ldap_match.o ldap_match_mapped.o
 
 storage.a: strstorage.o strduptab.o mstorage_add.o mduptab_add.o \
-bstr_diff.o mduptab_adds.o bstr_diff2.o
+bstr_diff.o mduptab_adds.o bstr_diff2.o mstorage_add_bin.o
 
 auth.a: auth.o
 
@@ -63,7 +63,7 @@ tinyldap_debug: tinyldap.c
 clean:
 	rm -f t t[1-9] *.[ao] bindrequest tinyldap ldapclient data \
 parse tinyldap_standalone tinyldap_debug ldapclient_str addindex \
-dumpidx idx2ldif *.da *.bbg *.bb *.gcov gmon.out
+dumpidx idx2ldif md5password *.da *.bbg *.bb *.gcov gmon.out
 
 tar: clean
 	cd ..; tar cvvf tinyldap.tar.bz2 tinyldap --use=bzip2 --exclude capture --exclude CVS --exclude exp.ldif --exclude polyp* --exclude rfc*

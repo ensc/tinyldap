@@ -47,6 +47,7 @@ error:
 }
 
 void free_ldapsearchrequest(struct SearchRequest* s) {
-  free_ldapadl(s->attributes->next);
+  if (s->attributes)
+    free_ldapadl(s->attributes->next);
   free_ldapsearchfilter(s->filter);
 }

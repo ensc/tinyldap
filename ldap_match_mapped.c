@@ -29,7 +29,6 @@ static int substringmatch(struct Substring* x,const char* attr,int ignorecase) {
 found:
       break;
     case any:
-      if (x->s.l>strlen(attr)) return 0;
       for (i=0; i<x->s.l-strlen(attr); ++i) {
 	if (!diff(x->s.s,x->s.l,attr+i)) goto found;
       }

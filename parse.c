@@ -40,13 +40,13 @@ void dumprec(struct ldaprec* l) {
   buffer_putsflush(buffer_1,"\n");
 }
 
-int main() {
+int main(int argc,char* argv[]) {
   int fd;
   long len;
   unsigned long size_of_string_table,indices_offset,record_count;
   long offset_stringtable,offset_classes,offset_attributes;
   char* map,* dest;
-  ldif_parse("exp.ldif");
+  ldif_parse(argc<2?"exp.ldif":argv[1]);
   if (!first) {
     buffer_putsflush(buffer_2,"no data?!");
     return 1;
@@ -84,6 +84,7 @@ int main() {
 	buffer_puts(buffer_2,"record \"");
 	buffer_puts(buffer_2,x->dn+stringtable.root);
 	buffer_putsflush(buffer_2,"\" has no objectClass?!\n");
+	dumprec(x);
 	return 1;
       }
       ++record_count;

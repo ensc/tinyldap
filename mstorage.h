@@ -18,4 +18,11 @@ long mstorage_add(mstorage_t* p,const char* s,unsigned long n);
 /* undo mapping */
 void mstorage_unmap(mstorage_t* p);
 
+/* this is tinyldap specific.  If the data contains at least one 0-byte,
+ * it is stored in a tinyldap specific encoding:
+ *   char 0;
+ *   uint32 len;
+ *   char data[len] */
+long mstorage_add_bin(mstorage_t* p,const char* s,unsigned long n);
+
 #endif

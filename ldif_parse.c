@@ -139,7 +139,7 @@ lookagain:
 	  char* newdn=alloca(len);
 	  if ((val=mstorage_add(&stringtable,newdn,normalize_dn(newdn,payload.s,len)))<0) goto nomem;
 	} else
-	  if ((val=mstorage_add(&stringtable,payload.s,len))<0) goto nomem;
+	  if ((val=mstorage_add_bin(&stringtable,payload.s,len))<0) goto nomem;
 	addattribute(l,tmp,val);
 
 	(*l)->next=m;
@@ -178,7 +178,7 @@ lookagain:
       char* newdn=alloca(n-i+1);
       if ((val=mstorage_add(&stringtable,newdn,normalize_dn(newdn,payload.s,len)))<0) goto nomem;
     } else
-      if ((val=mstorage_add(&stringtable,payload.s,len))<0) goto nomem;
+      if ((val=mstorage_add_bin(&stringtable,payload.s,len))<0) goto nomem;
     addattribute(l,tmp,val);
 #endif
   } while (!eof);
