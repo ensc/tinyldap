@@ -1,6 +1,5 @@
-#include <string.h>
-#include "bstr.h"
 #include "case.h"
+#include "bstr.h"
 #include "ldif.h"
 
 /* like matchstring, but case insensitively */
@@ -16,7 +15,7 @@ int matchcasestring(struct string* s,const char* c) {
   if (l==s->l) return 0;
   /* one is a prefix of the other */
   if (l1<l)	/* we cut off c */
-    return c[l1];
+    return -c[l1];
   return (int)(s->s[l1]);
 }
 

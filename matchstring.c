@@ -1,6 +1,6 @@
 #include "byte.h"
-#include "ldif.h"
 #include "bstr.h"
+#include "ldif.h"
 
 /* behave like strcmp */
 int matchstring(struct string* s,const char* c) {
