@@ -1,4 +1,4 @@
-#DEBUG=1
+DEBUG=1
 
 all: t t1 t2 bindrequest tinyldap ldapclient
 
@@ -10,7 +10,8 @@ scan_asn1BOOLEAN.o
 
 ldap.a: scan_ldapmessage.o fmt_ldapmessage.o fmt_ldapbindrequest.o \
 scan_ldapbindrequest.o fmt_ldapbindresponse.o scan_ldapbindresponse.o \
-scan_ldapstring.o scan_ldapsearchfilter.o
+scan_ldapstring.o scan_ldapsearchfilter.o scan_ldapsearchrequest.o \
+freefilter.o
 
 DIET=diet -Os
 CC=gcc
