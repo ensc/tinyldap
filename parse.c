@@ -53,10 +53,18 @@ int main(int argc,char* argv[]) {
   char* map,* dest;
 
   if ((fd=open(destname,O_RDWR|O_CREAT|O_TRUNC,0600))<0) {
-    buffer_putsflush(buffer_2,"could not create destination data file");
+    buffer_puts(buffer_2,"could not create destination data file ");
+derrout:
+    buffer_puts(buffer_2,destname);
+    buffer_puts(buffer_2,": ");
+    buffer_puterror(buffer_2);
+    buffer_putnlflush(buffer_2);
     return 1;
   }
-  mstorage_init_persistent(&stringtable,fd);
+  if (mstorage_init_persistent(&stringtable,fd)==-1) {
+    buffer_puts(buffer_2,"mstorage_init_persistent: error mmapping ");
+    goto derrout;
+  }
   mduptab_init(&attributes);
   mduptab_init(&classes);
 
