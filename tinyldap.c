@@ -385,6 +385,10 @@ int main() {
 #endif
 
   map=mmap_read("data",&filelen);
+  if (!map) {
+    buffer_putsflush(buffer_2,"could not open data!\n");
+    return 1;
+  }
   uint32_unpack(map,&magic);
   uint32_unpack(map+4,&attribute_count);
   uint32_unpack(map+2*4,&record_count);
