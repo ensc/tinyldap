@@ -105,7 +105,7 @@ usage:
       len=0;
       for (;;) {
 	long slen,mid,op;
-	int cur;
+	int cur=0;
 
 	tmp=read(sock,buf+len,sizeof(buf)-len);
 
@@ -119,43 +119,44 @@ usage:
 	  buffer_putsflush(buffer_2,"read error.\n");
 	  return 0;
 	}
-	cur=len;
+//	cur=len;
 	len+=tmp;
 nextmessage:
 	if ((tmp2=scan_ldapmessage(buf+cur,buf+len,&mid,&op,&slen))) {
 	  max=buf+cur+slen+tmp2;
 	  if (op==SearchResultEntry) {
 	    ++matches;
-	  if ((tmp=scan_ldapsearchresultentry(buf+cur+tmp2,max,&sre))) {
-	    struct PartialAttributeList* pal=sre.attributes;
+	    if ((tmp=scan_ldapsearchresultentry(buf+cur+tmp2,max,&sre))) {
+	      struct PartialAttributeList* pal=sre.attributes;
 
 #if 0
-	    buffer_puts(buffer_2,"DEBUG: sre size ");
-	    buffer_putulong(buffer_2,tmp);
-	    buffer_putsflush(buffer_2,".\n");
+	      buffer_puts(buffer_2,"DEBUG: sre size ");
+	      buffer_putulong(buffer_2,tmp);
+	      buffer_putsflush(buffer_2,".\n");
 #endif
 
-	    buffer_puts(buffer_1,"dn: ");
-	    buffer_put(buffer_1,sre.objectName.s,sre.objectName.l);
-	    buffer_puts(buffer_1,"\n");
-	    while (pal) {
-	      struct AttributeDescriptionList* adl=pal->values;
-	      do {
-		buffer_puts(buffer_1,"  ");
-		buffer_put(buffer_1,pal->type.s,pal->type.l);
-		buffer_puts(buffer_1,": ");
-		if (adl) {
-		  buffer_put(buffer_1,adl->a.s,adl->a.l);
-		  buffer_puts(buffer_1,"\n");
-		  adl=adl->next;
-		  if (!adl) break;
-		}
-	      } while (adl);
-	      buffer_putsflush(buffer_1,"\n");
-	      pal=pal->next;
-	    }
-	  } else
-	    goto copypartialandcontinue;
+	      buffer_puts(buffer_1,"dn: ");
+	      buffer_put(buffer_1,sre.objectName.s,sre.objectName.l);
+	      buffer_puts(buffer_1,"\n");
+	      while (pal) {
+		struct AttributeDescriptionList* adl=pal->values;
+		do {
+		  buffer_puts(buffer_1,"  ");
+		  buffer_put(buffer_1,pal->type.s,pal->type.l);
+		  buffer_puts(buffer_1,": ");
+		  if (adl) {
+		    buffer_put(buffer_1,adl->a.s,adl->a.l);
+		    buffer_puts(buffer_1,"\n");
+		    adl=adl->next;
+		    if (!adl) break;
+		  }
+		} while (adl);
+		buffer_putsflush(buffer_1,"\n");
+		pal=pal->next;
+	      }
+	      free_ldapsearchresultentry(&sre);
+	    } else
+	      goto copypartialandcontinue;
 	  } else if (op==SearchResultDone) {
 	    if (!matches)
 	      buffer_putsflush(buffer_2,"no matches.\n");
@@ -169,6 +170,10 @@ nextmessage:
 	    goto nextmessage;
 	  }
 	} else {
+	  if (len-cur>200) {
+	    buffer_putsflush(buffer_2,"nanu?!\n");
+	    tmp2=scan_ldapmessage(buf+cur,buf+len,&mid,&op,&slen);
+	  }
 	  /* copy partial message */
 copypartialandcontinue:
 	  byte_copy(buf,len-cur,buf+cur);

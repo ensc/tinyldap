@@ -21,7 +21,7 @@ fmt_ldapsearchfilter.o fmt_ldapsearchrequest.o matchstring.o \
 matchprefix.o matchcasestring.o matchcaseprefix.o \
 scan_ldapmodifyrequest.o scan_ldapaddrequest.o bstrlen.o bstrfirst.o \
 bstrstart.o free_ldapadl.o free_ldappal.o free_ldapsearchfilter.o \
-scan_ldapsearchfilterstring.o
+scan_ldapsearchfilterstring.o free_ldapsearchresultentry.o
 
 ldif.a: ldif_parse.o ldap_match_mapped.o
 
@@ -42,7 +42,7 @@ endif
 ifneq ($(DIET),)
 LIBS+=-llatin1
 else
-LIBS+=-lcrypto
+LIBS+=-lcrypto -lcrypt
 endif
 
 %.o: %.c

@@ -4,7 +4,7 @@
 
 int scan_ldapsearchfilterstring(const char* src,struct Filter** f) {
   char* s=(char*)src;
-  if (!(*f=malloc(sizeof(struct Filter)))) goto error;
+  if (!(*f=calloc(sizeof(struct Filter),1))) goto error;
   if (*s!='(') goto error;
   switch (*(++s)) {
   case '&': ++s; (*f)->type=AND;
@@ -47,6 +47,7 @@ substring:
 	  while (*s!=')') {
 	    int i,j;
 	    struct Substring* substring=malloc(sizeof(struct Substring));
+	    if (!substring) goto error;
 	    substring->s.s=s;
 	    i=str_chr(s,')');
 	    j=str_chr(s,'*');
@@ -67,6 +68,7 @@ substring:
 	  j=str_chr(s,'*');
 	  if (i>j) {
 	    struct Substring* substring=malloc(sizeof(struct Substring));
+	    if (!substring) goto error;
 	    (*f)->type=SUBSTRING;
 	    substring->substrtype=prefix;
 	    substring->s.s=s;

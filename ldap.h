@@ -154,6 +154,8 @@ void free_ldapsearchrequest(struct SearchRequest* s);
 void free_ldapmodifyrequest(struct ModifyRequest* m);
 /* does not free a itself */
 void free_ldapaddrequest(struct AddRequest * a);
+/* does not free e itself */
+void free_ldapsearchresultentry(struct SearchResultEntry* e);
 
 
 #endif
