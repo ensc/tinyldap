@@ -1,8 +1,10 @@
+#ifndef INCLUDE
 #include <unistd.h>
 #include <stdio.h>
 #include "mmap.h"
 #include "asn1.h"
 #include "ldap.h"
+#endif
 
 /* this is some sort of protocol analyzer.  You give it a file name with
  * a network dump of an LDAP correspondence, and it will try to parse it
@@ -78,6 +80,7 @@ mergesub:
   }
 }
 
+#ifndef INCLUDE
 int main(int argc,char* argv[]) {
 #if 1
   unsigned long size;
@@ -225,3 +228,4 @@ int main(int argc,char* argv[]) {
 #endif
   return 0;
 }
+#endif

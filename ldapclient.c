@@ -1,9 +1,15 @@
 #include <unistd.h>
+#include <stdio.h>
 #include "byte.h"
 #include "buffer.h"
+#include "asn1.h"
 #include "ldap.h"
 #include "socket.h"
 #include "ip4.h"
+#include "str.h"
+
+#define INCLUDE
+#include "t2.c"
 
 #define BUFSIZE 8192
 
@@ -67,12 +73,45 @@ usage:
     sr.attributes=&adl;
     len=fmt_ldapsearchrequest(buf+100,&sr);
     {
-      int tmp=fmt_ldapmessage(buf,++messageid,SearchRequest,len);
+      int tmp=fmt_ldapmessage(0,++messageid,SearchRequest,len);
       fmt_ldapmessage(buf+100-tmp,messageid,SearchRequest,len);
       write(sock,buf+100-tmp,len+tmp);
+    }
+    {
+      char buf[8192];	/* arbitrary limit, bad! */
+      int len=0,tmp,tmp2;
+      char* max;
+      struct SearchResultEntry sre;
+      for (;;) {
+	long slen,mid,op;
+	tmp=read(sock,buf+len,sizeof(buf)-len);
+	len+=tmp;
+	if ((tmp2=scan_ldapmessage(buf,buf+len,&mid,&op,&slen)))
+	  if (op==SearchResultEntry) {
+	    max=buf+slen+tmp2;
+	    break;
+	  }
+      }
+      if ((tmp=scan_ldapsearchresultentry(buf+tmp2,max,&sre))) {
+	struct PartialAttributeList* pal=sre.attributes;
+	printf("objectName \"%.*s\"\n",(int)sre.objectName.l,sre.objectName.s);
+	while (pal) {
+	  struct AttributeDescriptionList* adl=pal->values;
+	  printf("  %.*s:",(int)pal->type.l,pal->type.s);
+	  while (adl) {
+	    printf("%.*s",(int)adl->a.l,adl->a.s);
+	    if (adl->next) printf(", ");
+	    adl=adl->next;
+	  }
+	  printf("\n");
+	  pal=pal->next;
+	}
+      } else
+	puts("punt!");
     }
   } else {
     buffer_putsflush(buffer_2,"ldapbind failed\n");
     return 2;
   }
+  return 0;
 }
