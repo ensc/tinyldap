@@ -32,7 +32,10 @@ All integers are stored LITTLE ENDIAN.
 /* indices_offset points here */
   uint32_t record_index[record_count];
   struct {
-    uint32_t index_type;  /* 0 == sorted array of pointers, rest reserved */
+    uint32_t index_type;  /* 0 == sorted array of pointers,
+			     1 == sorted array of (pointer,record number) tuples,
+			          faster but twice as large
+			     rest reserved */
     uint32_t next;        /* offset of next index */
     /* for index_type==0: */
     uint32_t indexed_attribute; /* offset of attribute name */

@@ -14,8 +14,14 @@ tinyldap now supports an external database representation with indexes.
 Use "parse" to create the file "data" from an LDIF file called
 "exp.ldif" (I can't give you my test data, sorry).  Then use "addindex"
 to add indexes if you like.  To make an index case insentive (and the
-corresponding attribute, too), give a third argument to addindex (e.g.
-"./addindex data sn i"; in case I extend this later, stick with "i").
+corresponding attribute, too), pass an "i" in third command line
+argument to addindex (e.g.  "./addindex data sn i").  addindex also
+supports a second index type, where the offset table also contains the
+record number (will save run time, but the index is twice as large).  To
+enable it, pass a "f" in the third command line argument.  So, to have a
+fast case-insensitive index, use "if" or "fi" as third argument to
+addindex.
+
 Use "dumpidx" to have the contents of data displayed on screen.
 tinyldap has been modified to use data instead of the in-memory linked
 list.

@@ -94,8 +94,13 @@ int main(int argc,char* argv[]) {
       case 0:
 	buffer_puts(buffer_1,"sorted table");
 	break;
+      case 1:
+	buffer_puts(buffer_1,"sorted table with record pointer");
+	break;
       default:
-	buffer_puts(buffer_1,"unknown");
+	buffer_puts(buffer_1,"unknown (");
+	buffer_putulong(buffer_1,index_type);
+	buffer_puts(buffer_1,")");
 	break;
       }
       buffer_puts(buffer_1,"\nnext: ");
