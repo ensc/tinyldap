@@ -14,7 +14,7 @@
 #endif
 
 #define verbose 0
-#define debug 0
+#define debug 1
 
 char* map;
 long filelen;
@@ -28,7 +28,7 @@ uint32 dn_ofs,objectClass_ofs;
 
 #define BUFSIZE 8192
 
-#if (verbose != 0)
+#if (debug != 0)
 /* debugging support functions, adapted from t2.c */
 static void printava(struct AttributeValueAssertion* a,const char* rel) {
   buffer_puts(buffer_2,"[");

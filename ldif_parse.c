@@ -3,6 +3,7 @@
 #include <open.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include "mduptab.h"
 #include "mstorage.h"
 #include "str.h"
@@ -29,6 +30,30 @@ static void addattribute(struct ldaprec** l,long name,long val) {
       exit(1);
     }
   }
+}
+
+/* "ou=fnord; O=fefe; c=de" -> "ou=fnord,o=fefe,c=de" */
+/* returns the length of the new string */
+static int normalize_dn(char* dest,const char* src,int len) {
+  int makelower=1;
+  char* orig=dest;
+  while (len) {
+    if (*src==';' || *src==',') {
+      *dest=',';
+      while (len>1 && src[1]==' ') { ++src; --len; }
+      makelower=1;
+    } else {
+      if (makelower)
+	*dest=tolower(*src);
+      else
+	*dest=*src;
+      if (*dest=='=') makelower=0;
+    }
+    ++dest;
+    ++src;
+    --len;
+  }
+  return dest-orig;
 }
 
 static int parserec(buffer* b, struct ldaprec** l) {
@@ -69,6 +94,9 @@ lookagain:
 
 	if (tmp==objectClass) {
 	  if ((val=mduptab_add(&classes,buf+i))<0) goto nomem;
+	} else if (tmp==dn) {
+	  char* newdn=alloca(n-i+1);
+	  if ((val=mstorage_add(&stringtable,newdn,normalize_dn(newdn,buf+i,n-i+1)))<0) goto nomem;
 	} else
 	  if ((val=mstorage_add(&stringtable,buf+i,n-i+1))<0) goto nomem;
 	addattribute(l,tmp,val);
@@ -89,6 +117,9 @@ lookagain:
 #if 1
     if (tmp==objectClass) {
       if ((val=mduptab_add(&classes,buf+i))<0) goto nomem;
+    } else if (tmp==dn) {
+      char* newdn=alloca(n-i+1);
+      if ((val=mstorage_add(&stringtable,newdn,normalize_dn(newdn,buf+i,n-i+1)))<0) goto nomem;
     } else
       if ((val=mstorage_add(&stringtable,buf+i,n-i+1))<0) goto nomem;
     addattribute(l,tmp,val);

@@ -12,11 +12,19 @@ mstorage_t idx;
 char* map;
 
 int compar(const void* a,const void* b) {
-  return strcmp(map+*(uint32*)a,map+*(uint32*)b);
+  int i;
+  if ((i=strcmp(map+*(uint32*)a,map+*(uint32*)b)))
+    return i;
+  else
+    return *(uint32*)b-*(uint32*)a;
 }
 
 int compari(const void* a,const void* b) {
-  return strcasecmp(map+*(uint32*)a,map+*(uint32*)b);
+  int i;
+  if ((i=strcasecmp(map+*(uint32*)a,map+*(uint32*)b)))
+    return i;
+  else
+    return *(uint32*)b-*(uint32*)a;
 }
 
 int main(int argc,char* argv[]) {

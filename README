@@ -11,11 +11,17 @@ some simple forms of SearchRequest, and it can even answer simple
 queries.
 
 tinyldap now supports an external database representation with indexes.
-However, the indexes are not used yet by tinyldap.  It still iterates
-through all records.  Use "parse" to create the file "data" from an LDIF
-file called "exp.ldif" (I can't give you my test data, sorry).  Then use
-"addindex" to add indexes if you like.  Use "dumpidx" to have the
-contents of data displayed on screen.  tinyldap has been modified to use
-data instead of the in-memory linked list.
+Use "parse" to create the file "data" from an LDIF file called
+"exp.ldif" (I can't give you my test data, sorry).  Then use "addindex"
+to add indexes if you like.  To make an index case insentive (and the
+corresponding attribute, too), give a third argument to addindex (e.g.
+"./addindex data sn i"; in case I extend this later, stick with "i").
+Use "dumpidx" to have the contents of data displayed on screen.
+tinyldap has been modified to use data instead of the in-memory linked
+list.
 
 Do _not_ add an index for objectClass!  It will not work!
+
+parse will now normalize dn before writing it to the index.  That means
+that the attribute names in dn are lowercased, ';' is converted to ','
+and spaces after ';' or ',' are removed.
