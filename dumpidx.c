@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include "buffer.h"
 #include "mmap.h"
 #include "uint32.h"
@@ -105,11 +106,13 @@ int main(int argc,char* argv[]) {
       }
       buffer_puts(buffer_1,"\nnext: ");
       buffer_putulong(buffer_1,next);
-      if (index_type==0) {
+      if (index_type<=1) {
 	buffer_puts(buffer_1,"\nattribute: ");
 	buffer_puts(buffer_1,map+indexed_attribute);
       }
-      buffer_puts(buffer_1,"\n");
+      buffer_puts(buffer_1,"\nsize: ");
+      buffer_putulong(buffer_1,(next-ofs)/1024);
+      buffer_puts(buffer_1," KiB\n");
       ofs=next;
     }
   }
