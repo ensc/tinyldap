@@ -1,0 +1,8 @@
+# root@fefe.de can do everything
+acl dn:cn=root,o=fefe,c=de * +rwdR;
+# noone can read userPassword
+acl * * userPassword -r;
+# but everyone can authenticate using it
+acl * self +a;
+# admins at fefe.de can write in their tree
+acl dn:*ou=admin,o=fefe,c=de dn:*,o=fefe,c=de +rwdR;

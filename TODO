@@ -25,3 +25,5 @@ Think about a shared calendar in LDAP.  Using ISO date format and
 ordered matching it can be done.  Design tinyldap so this actually
 scales.  How would conflict detection and resolution be done?
 Think about an iCal frontend.
+
+Make tinyldap a good back-end for blogs and message boards.

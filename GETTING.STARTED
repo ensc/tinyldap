@@ -68,8 +68,3 @@ it runs, you can use ldapclient to query a specific record:
   objectName "cn=Felix von Leitner,o=fefe,c=de"
     mail:felix-tinyldap@fefe.de
 
-ldapclient is quite a stupid client.  It can only ask for specific
-records, for example.  LDAP also defines complex queries like AND and OR
-compound queries or substring searches.  tinyldap answers those, but to
-ask those you should install openldap and use the ldapsearch tool that
-comes with it.
