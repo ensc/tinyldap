@@ -1,4 +1,4 @@
-#DEBUG=1
+DEBUG=1
 
 all: t1 t2 parse dumpidx addindex bindrequest tinyldap tinyldap_standalone tinyldap_debug ldapclient ldapclient_str # t
 
@@ -15,7 +15,8 @@ scan_ldapstring.o scan_ldapsearchfilter.o scan_ldapsearchrequest.o \
 freefilter.o freeava.o scan_ldapava.o fmt_ldapsearchresultentry.o \
 fmt_ldapstring.o freepal.o scan_ldapsearchresultentry.o \
 fmt_ldapresult.o fmt_ldappal.o fmt_ldapadl.o fmt_ldapava.o \
-fmt_ldapsearchfilter.o fmt_ldapsearchrequest.o matchstring.o
+fmt_ldapsearchfilter.o fmt_ldapsearchrequest.o matchstring.o \
+matchprefix.o
 
 ldif.a: ldif_parse.o ldap_match.o ldap_match_mapped.o
 

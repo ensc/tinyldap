@@ -25,7 +25,8 @@ All integers are stored LITTLE ENDIAN.
   char string_table[size_of_string_table];
   uint32_t attribute_names[attribute_count];
   uint32_t attribute_flags[attribute_count];  /* 1: match case insensitively */
-  uint32_t records[record_count][];
+  uint32_t records[record_count][];  /* in the same order as the records
+                                        are physically on disk */
 /* indices_offset points here */
   uint32_t record_index[record_count];
   struct {

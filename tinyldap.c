@@ -23,16 +23,17 @@ uint32 record_set_length;
 
 #define BUFSIZE 8192
 
+/* find out whether this filter can be accelerated with the indices */
 static int indexable(struct Filter* f) {
   struct Filter* y=f->x;
-  if (!f) return 1;
+  if (!f) return 0;
   switch (f->type) {
   case AND:
     while (y) {
-      if (!indexable(y)) return 0;
+      if (indexable(y)) return 1;
       y=y->next;
     }
-    return 1;
+    return 0;
   case OR:
     while (y) {
       if (!indexable(y)) return 0;
@@ -67,6 +68,18 @@ static int indexable(struct Filter* f) {
   }
 }
 
+/* each record can have more than one attribute with the same name, i.e.
+ * two email addresses.  Thus, the index can't just be a sorted list of
+ * pointers the records (because a record with two email addresses needs
+ * to be in the index twice, once for each email address).  So our index
+ * is a sorted list of pointers to the attributes.  Thus, a look-up in
+ * the index does not yield the record but the attribute.  We need to be
+ * able to find the record for a given attribute.  To do that, we
+ * exploit the fact that the strings in the string table are in the same
+ * order as the records, so we can do a binary search over the record
+ * table to find the record with the attribute.  This does not work for
+ * objectClass, because the classes are stored in a different string
+ * table to remove duplicates. */
 /* find record given a data pointer */
 static uint32 findrec(uint32 dat) {
   uint32* records=(uint32*)(map+indices_offset);
@@ -77,17 +90,6 @@ static uint32 findrec(uint32 dat) {
     uint32 k,l;
     uint32_unpack(&records[mid],&k);
     uint32_unpack(map+k+8,&l);
-
-#if 0
-    buffer_puts(buffer_2,"findrec: look for ");
-    buffer_putulong(buffer_2,dat);
-    buffer_puts(buffer_2," in record ");
-    buffer_putulong(buffer_2,mid);
-    buffer_puts(buffer_2," @");
-    buffer_putulong(buffer_2,l);
-    buffer_putsflush(buffer_2,".\n");
-#endif
-
     if (l<dat) {
       if (mid<record_count) {
 	uint32_unpack(&records[mid+1],&k);
@@ -108,124 +110,121 @@ static uint32 findrec(uint32 dat) {
   return 0;
 }
 
+/* basic bit-set support: set all bits to zero */
 static inline void emptyset(unsigned long* r) {
   unsigned long i;
   for (i=0; i<record_set_length; ++i) r[i]=0;
 }
 
+/* basic bit-set support: set all bits to zero */
+static inline void fillset(unsigned long* r) {
+  unsigned long i;
+  for (i=0; i<record_set_length; ++i) r[i]=(unsigned long)-1;
+}
+
+/* basic bit-set support: set one bit to 1 */
 static inline void setbit(unsigned long* r,unsigned long bit) {
   r[bit/(8*sizeof(long))] |= (1<<(bit&(8*sizeof(long)-1)));
 }
 
+/* basic bit-set support: see if given bit is set */
 static inline int isset(unsigned long* r,unsigned long bit) {
   return r[bit/(8*sizeof(long))] & (1<<(bit&(8*sizeof(long)-1)));
 }
 
-/* find record given a data pointer */
-static void tagmatches(uint32* index,unsigned int elements,struct string* s,unsigned long* bitfield) {
+/* use index (sorted table of offsets to records) to do a binary search
+ * for all records that match the value in s.  Set the corresponding
+ * bits to 1 in bitfield. */
+static void tagmatches(uint32* index,unsigned int elements,struct string* s,
+		       unsigned long* bitfield,int (*match)(struct string* s,const char* c)) {
   uint32 bottom=0;
   uint32 top=elements;
   emptyset(bitfield);
-
-#if 0
-  {
-    long i,l;
-    for (i=0; i<elements; ++i) {
-      uint32 k;
-      uint32_unpack(&index[i],&k);
-      if ((l=matchstring(s,map+k))==0) {
-	buffer_puts(buffer_2,"found ");
-	buffer_puts(buffer_2,map+k);
-	buffer_putsflush(buffer_2,"\n");
-      }
-      if (i+1<elements) {
-	uint32 m;
-	uint32_unpack(&index[i+1],&m);
-	if (strcmp(map+k,map+m)>0)
-	  buffer_putsflush(buffer_2,"not properly sorted!\n");
-      }
-    }
-  }
-#endif
 
   while ((top>=bottom)) {
     uint32 mid=(top+bottom)/2;
     uint32 k;
     int l;
 
-#if 0
-    buffer_puts(buffer_2,"bottom=");
-    buffer_putulong(buffer_2,bottom);
-    buffer_puts(buffer_2,", mid=");
-    buffer_putulong(buffer_2,mid);
-    buffer_puts(buffer_2,", top=");
-    buffer_putulong(buffer_2,top);
-    buffer_puts(buffer_2,", elements=");
-    buffer_putulong(buffer_2,elements);
-    buffer_putsflush(buffer_2,".\n");
-#endif
-
     uint32_unpack(&index[mid],&k);
-    if ((l=matchstring(s,map+k))==0) {
+    if ((l=match(s,map+k))==0) {
       /* match! */
       uint32 rec;
-      uint32 oldk=k;
+      uint32 m;
       if ((rec=findrec(k)))
 	setbit(bitfield,rec);
       /* there may be multiple matches.
 	* Look before and after mid, too */
-      for (oldk=k; k>0; ) {
-	k-=4;
-	if ((l=matchstring(s,map+k))==0) {
-	  if ((rec=findrec(k)))
+      for (k=mid-1; k>0; --k) {
+	uint32_unpack(&index[k],&m);
+	if ((l=match(s,map+m))==0) {
+	  if ((rec=findrec(m)))
 	    setbit(bitfield,rec);
 	} else break;
       }
-      for (k=oldk; k<elements; ++k) {
-	k+=4;
-	if ((l=matchstring(s,map+k))==0) {
-	  if ((rec=findrec(k)))
+      for (k=mid+1; k<elements; ++k) {
+	uint32_unpack(&index[k],&m);
+	if ((l=match(s,map+m))==0) {
+	  if ((rec=findrec(m)))
 	    setbit(bitfield,rec);
 	} else break;
       }
       return;
     }
-#if 0
-    buffer_puts(buffer_2,"  \"");
-    buffer_put(buffer_2,s->s,s->l);
-    buffer_puts(buffer_2,"\" vs. \"");
-    buffer_puts(buffer_2,map+k);
-    buffer_puts(buffer_2," -> ");
-    buffer_putlong(buffer_2,l);
-    buffer_putsflush(buffer_2,"\n");
-#endif
 
     if (l<0) {
       if (mid)
 	top=mid-1;
       else
-	break;
+	break;	/* since our offsets are unsigned, we need to avoid the -1 case */
     } else
       bottom=mid+1;
   }
 }
 
+/* Use the indices to answer a query with the given filter.
+ * For all matching records, set the corresponding bit to 1 in bitfield.
+ * Note that this match can be approximate.  Before answering, the
+ * matches are verified with ldap_match_mapped, so the index can also
+ * be used if it only helps eliminate some of the possible matches (for
+ * example an AND query where only one of the involved attributes has an
+ * index). */
 static int useindex(struct Filter* f,unsigned long* bitfield) {
   struct Filter* y=f->x;
   if (!f) return 1;
   switch (f->type) {
   case AND:
-    while (y) {
-      if (!indexable(y)) return 0;
-      y=y->next;
+    {
+      unsigned long* tmp=alloca(record_set_length*sizeof(unsigned long));
+      int ok=0;
+      fillset(bitfield);
+      while (y) {
+	if (useindex(y,tmp)) {
+	  unsigned int i;
+	  for (i=0; i<record_set_length; ++i)
+	    bitfield[i] &= tmp[i];
+	  ok=1;
+	}
+	y=y->next;
+      }
+      return ok;
     }
-    return 1;
   case OR:
-    while (y) {
-      if (!indexable(y)) return 0;
-      y=y->next;
+    {
+      unsigned long* tmp=alloca(record_set_length*sizeof(unsigned long));
+      int ok=1;
+      emptyset(bitfield);
+      while (y) {
+	if (useindex(y,tmp)) {
+	  unsigned int i;
+	  for (i=0; i<record_set_length; ++i)
+	    bitfield[i] |= tmp[i];
+	} else
+	  ok=0;
+	y=y->next;
+      }
+      return ok;
     }
-    return 1;
 #if 0
   /* doesn't make much sense to try to speed up negated queries */
   case NOT:
@@ -233,7 +232,22 @@ static int useindex(struct Filter* f,unsigned long* bitfield) {
 #endif
   case SUBSTRING:
     if (f->substrings->substrtype!=prefix) return 0;
-    /* fall through */
+    {
+      uint32 ofs;
+      for (ofs=indices_offset+record_count*4; ofs<(unsigned long)filelen;) {
+	uint32 index_type,next,indexed_attribute;
+	uint32_unpack(map+ofs,&index_type);
+	uint32_unpack(map+ofs+4,&next);
+	uint32_unpack(map+ofs+8,&indexed_attribute);
+	if (index_type==0)
+	  if (!matchstring(&f->ava.desc,map+indexed_attribute)) {
+	    tagmatches((uint32*)(map+ofs+12),(next-ofs-12)/4,&f->substrings->s,bitfield,matchprefix);
+	    return 1;
+	  }
+	ofs=next;
+      }
+    }
+    return 0;
   case EQUAL:
     {
       uint32 ofs;
@@ -244,7 +258,7 @@ static int useindex(struct Filter* f,unsigned long* bitfield) {
 	uint32_unpack(map+ofs+8,&indexed_attribute);
 	if (index_type==0)
 	  if (!matchstring(&f->ava.desc,map+indexed_attribute)) {
-	    tagmatches((uint32*)(map+ofs+12),(next-ofs-12)/4,&f->ava.value,bitfield);
+	    tagmatches((uint32*)(map+ofs+12),(next-ofs-12)/4,&f->ava.value,bitfield,matchstring);
 	    return 1;
 	  }
 	ofs=next;

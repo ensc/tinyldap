@@ -7,6 +7,7 @@ struct string {
 };
 
 int matchstring(struct string* s,const char* c);
+int matchprefix(struct string* s,const char* c);
 
 struct AttributeValueAssertion {
   struct string desc, value;
