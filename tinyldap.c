@@ -13,8 +13,9 @@
 #include <wait.h>
 #endif
 
-static const int verbose=0;
-static const int debug=1;
+#define verbose 0
+#define debug 0
+
 char* map;
 long filelen;
 uint32 magic,attribute_count,record_count,indices_offset,size_of_string_table;
@@ -27,6 +28,7 @@ uint32 dn_ofs,objectClass_ofs;
 
 #define BUFSIZE 8192
 
+#if (verbose != 0)
 /* debugging support functions, adapted from t2.c */
 static void printava(struct AttributeValueAssertion* a,const char* rel) {
   buffer_puts(buffer_2,"[");
@@ -106,6 +108,7 @@ mergesub:
   }
   buffer_flush(buffer_2);
 }
+#endif
 
 /* recursively fill in attrofs and attrflag */
 static void fixup(struct Filter* f) {
@@ -400,6 +403,7 @@ static void answerwith(uint32 ofs,struct SearchRequest* sr,long messageid,int ou
   struct SearchResultEntry sre;
   struct PartialAttributeList** pal=&sre.attributes;
 
+#if (debug != 0)
   if (debug) {
     char* x=map+ofs;
     uint32 j,k;
@@ -428,6 +432,7 @@ static void answerwith(uint32 ofs,struct SearchRequest* sr,long messageid,int ou
     }
     buffer_flush(buffer_2);
   }
+#endif
 
   uint32_unpack(map+ofs+8,&k);
   sre.objectName.s=map+k; sre.objectName.l=strlen(map+k);
@@ -569,6 +574,7 @@ int handle(int in,int out) {
 #endif
 	  if ((tmp=scan_ldapsearchrequest(buf+res,buf+res+len,&sr))) {
 
+#if (debug != 0)
 	    if (debug) {
 	      const char* scopes[]={"baseObject","singleLevel","wholeSubtree"};
 	      const char* alias[]={"neverDerefAliases","derefInSearching","derefFindingBaseObj","derefAlways"};
@@ -588,11 +594,14 @@ int handle(int in,int out) {
 	      printal(sr.attributes);
 	      buffer_putsflush(buffer_2,"\n\n");
 	    }
+#endif
 	    fixup(sr.filter);
 	    if (indexable(sr.filter)) {
 	      unsigned long* result;
 	      unsigned long i;
+#if (debug != 0)
 	      if (debug) buffer_putsflush(buffer_2,"query can be answered with index!\n");
+#endif
 	      record_set_length=(record_count+sizeof(unsigned long)*8-1) / (sizeof(long)*8);
 	      result=alloca(record_set_length*sizeof(unsigned long));
 	      /* Use the index to find matching data.  Put the offsets
