@@ -15,7 +15,7 @@ int scan_ldapbindresponse(const char* src,const char* max,
     errormessage->s=0; errormessage->l=0;
   }
   if (src+res<max) {
-    if (!(tmp=scan_ldapstring(src+res,max,referral))) return 0;
+    if (!(tmp=scan_ldapstring(src+res,max,referral))) return res;
     res+=tmp;
   } else {
     referral->s=0; referral->l=0;

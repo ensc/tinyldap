@@ -7,11 +7,32 @@
 
 #define BUFSIZE 8192
 
+static long messageid=1;
+
+int ldapbind(int sock) {
+  char outbuf[1024];
+  int s=100;
+  int len=fmt_ldapbindrequest(outbuf+s,3,"","");
+  int hlen=fmt_ldapmessage(0,messageid,BindRequest,len);
+  int res;
+  long op,Len,result;
+  struct string matcheddn,errormessage,referral;
+  fmt_ldapmessage(outbuf+s-hlen,messageid,BindRequest,len);
+  if (write(sock,outbuf+s-hlen,len+hlen)!=len+hlen) return 0;;
+  len=read(sock,outbuf,1024);
+  res=scan_ldapmessage(outbuf,outbuf+len,&messageid,&op,&Len);
+  if (!res) return 0;
+  if (op!=BindResponse) return 0;
+  res=scan_ldapbindresponse(outbuf+res,outbuf+res+len,&result,&matcheddn,&errormessage,&referral);
+  if (!res) return 0;
+  if (result) return 0;
+  return 1;
+}
+
 int main() {
   int sock;
   char buf[BUFSIZE];
   int len=0;
-  long messageid=1;
 
   sock=socket_tcp4();
   {
@@ -22,53 +43,30 @@ int main() {
       return 1;
     }
   }
-  {
-    char outbuf[1024];
-    int s=100;
-    int len=fmt_ldapbindrequest(outbuf+s,3,"","");
-    int hlen=fmt_ldapmessage(0,messageid,BindRequest,len);
-    fmt_ldapmessage(outbuf+s-hlen,messageid,BindRequest,len);
-    write(sock,outbuf+s-hlen,len+hlen);
-  }
-  for (;;) {
-    int tmp=read(sock,buf+len,BUFSIZE-len);
-    int res;
-    long messageid,op,Len;
-    if (tmp==0) { write(2,"eof!\n",5); return 0; }
-    if (tmp<1) { write(2,"error!\n",7); return 1; }
-    len+=tmp;
-    res=scan_ldapmessage(buf,buf+len,&messageid,&op,&Len);
-    if (res>0) {
-      buffer_puts(buffer_2,"got message of length ");
-      buffer_putulong(buffer_2,Len);
-      buffer_puts(buffer_2," with id ");
-      buffer_putulong(buffer_2,messageid);
-      buffer_puts(buffer_2,": op ");
-      buffer_putulong(buffer_2,op);
-      buffer_putsflush(buffer_2,".\n");
-      switch (op) {
-      case BindResponse:
-	{
-	  long result;
-	  struct string matcheddn,errormessage,referral;
-	  res=scan_ldapbindresponse(buf+res,buf+res+len,&result,&matcheddn,&errormessage,&referral);
-	  if (res>=0) {
-	    buffer_puts(buffer_2,"bind response: result ");
-	    buffer_putulong(buffer_2,result);
-	    buffer_puts(buffer_2,", matched dn \"");
-	    buffer_put(buffer_2,matcheddn.s,matcheddn.l);
-	    buffer_puts(buffer_2,"\", error message \"");
-	    buffer_put(buffer_2,errormessage.s,errormessage.l);
-	    buffer_puts(buffer_2,"\", referral \"");
-	    buffer_put(buffer_2,referral.s,referral.l);
-	    buffer_putsflush(buffer_2,"\".\n");
-	  }
-	}
-      }
-      if (Len<len) {
-	byte_copyr(buf,len-Len,buf+len);
-	len-=Len;
-      }
+  if (ldapbind(sock)) {
+    struct Filter f;
+    struct AttributeDescriptionList adl;
+    struct SearchRequest sr;
+    f.x=f.next=0;
+    f.type=EQUAL;
+    f.ava.desc.s="sn"; f.ava.desc.l=2;
+    f.ava.value.s="boeke"; f.ava.value.l=5;
+    f.a=&adl;
+    adl.a.s="mail"; adl.a.l=4;
+    adl.next=0;
+    sr.baseObject.s="o=Bundestag, c=de"; sr.baseObject.l=strlen(sr.baseObject.s);
+    sr.scope=wholeSubtree; sr.derefAliases=neverDerefAliases;
+    sr.sizeLimit=sr.timeLimit=sr.typesOnly=0;
+    sr.filter=&f;
+    sr.attributes=&adl;
+    len=fmt_ldapsearchrequest(buf+100,&sr);
+    {
+      int tmp=fmt_ldapmessage(buf,++messageid,SearchRequest,len);
+      fmt_ldapmessage(buf+100-tmp,messageid,SearchRequest,len);
+      write(sock,buf+100-tmp,len+tmp);
     }
+  } else {
+    buffer_putsflush(buffer_2,"ldapbind failed\n");
+    return 2;
   }
 }

@@ -98,7 +98,9 @@ int scan_ldapsearchfilter(const char* src,const char* max,struct Filter** f) {
       break;
     }
   case 7:    /*  present         [7] AttributeDescription, */
-    goto error;
+    if (!(tmp=scan_ldapstring(src+res,nmax,&(*f)->ava.desc))) goto error;
+    res+=tmp;
+    break;
   case 9:    /*  extensibleMatch [9] MatchingRuleAssertion } */
     goto error;
   }

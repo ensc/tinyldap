@@ -1,4 +1,4 @@
-#DEBUG=1
+DEBUG=1
 
 all: t t1 t2 bindrequest tinyldap ldapclient
 
@@ -13,7 +13,8 @@ scan_ldapbindrequest.o scan_ldapbindresponse.o scan_ldapresult.o \
 scan_ldapstring.o scan_ldapsearchfilter.o scan_ldapsearchrequest.o \
 freefilter.o freeava.o scan_ldapava.o fmt_ldapsearchresultentry.o \
 fmt_ldapstring.o freepal.o scan_ldapsearchresultentry.o \
-fmt_ldapresult.o
+fmt_ldapresult.o fmt_ldappal.o fmt_ldapadl.o fmt_ldapava.o \
+fmt_ldapsearchfilter.o fmt_ldapsearchrequest.o
 
 ldif.a: ldif_parse.o ldap_match.o strduptab.o strstorage.o
 

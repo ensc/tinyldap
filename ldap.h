@@ -97,6 +97,9 @@ int fmt_ldapsearchfilter(char* dest,struct Filter* f);
 int fmt_ldapsearchrequest(char* dest,struct SearchRequest* s);
 int fmt_ldapsearchresultentry(char* dest,struct SearchResultEntry* sre);
 int fmt_ldapresult(char* dest,long result,char* matcheddn,char* errormessage,char* referral);
+int fmt_ldappal(char* dest,struct PartialAttributeList* pal);
+int fmt_ldapava(char* dest,struct AttributeValueAssertion* a);
+int fmt_ldapadl(char* dest,struct AttributeDescriptionList* adl);
 
 #define fmt_ldapbindresponse(a,b,c,d,e) fmt_ldapresult(a,b,c,d,e)
 #define fmt_ldapsearchresultdone(a,b,c,d,e) fmt_ldapresult(a,b,c,d,e)
