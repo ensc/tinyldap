@@ -13,6 +13,7 @@
 #include "uint32.h"
 #include "byte.h"
 #include "fmt.h"
+#include "errmsg.h"
 
 /* these are defined in ldif_parse.c.
  * We extern them here so we can initialize them.
@@ -188,6 +189,9 @@ derrout2:
     char dummy[5*4];
     mstorage_add(&stringtable,dummy,5*4);
   }
+
+//  if ((mduptab_adds(&attributes,"*"))<0)
+//    die(1,"out of memory");
 
   ldif_parse(argc<2?"exp.ldif":argv[1]);
   if (!first) {

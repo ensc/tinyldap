@@ -66,6 +66,17 @@ uint32 ldap_find_attr_value(uint32 ofs,uint32 attrofs) {
   return 0;
 }
 
+static inline int matchint(struct Filter* f,const char* t) {
+  int r;
+  if (f->attrflag&1)
+    r=matchcasestring(&f->ava.value,t);
+  else
+    r=matchstring(&f->ava.value,t);
+  if (f->type==EQUAL) return (r!=0);
+  if (f->type==LESSEQUAL) return (r>0);
+  return (r<0);
+}
+
 /* return non-zero if the record matches the search filter */
 int ldap_matchfilter_mapped(uint32 ofs,struct Filter* f) {
   struct Filter* y=f->x;
@@ -88,36 +99,26 @@ int ldap_matchfilter_mapped(uint32 ofs,struct Filter* f) {
   case PRESENT:
     return ldap_match_present(ofs,f->attrofs);
   case EQUAL:
+  case LESSEQUAL:
+  case GREATEQUAL:
     {
       uint32 i,j,k;
       uint32_unpack(map+ofs,&j);
 //      if (!matchstring(&f->ava.desc,"dn")) {
       if (f->attrofs==dn_ofs) {
 	uint32_unpack(map+ofs+8,&k);
-	if (f->attrflag&1) {
-	  if (!matchcasestring(&f->ava.value,map+k)) return 1;
-	} else {
-	  if (!matchstring(&f->ava.value,map+k)) return 1;
-	}
+	return matchint(f,map+k);
 //      } else if (!matchstring(&f->ava.desc,"objectName")) {
       } else if (f->attrofs==objectClass_ofs) {
 	uint32_unpack(map+ofs+12,&k);
-	if (f->attrflag&1) {
-	  if (!matchcasestring(&f->ava.value,map+k)) return 1;
-	} else {
-	  if (!matchstring(&f->ava.value,map+k)) return 1;
-	}
+	if (matchint(f,map+k)) return 1;
       }
       for (i=2; i<j; ++i) {
 	uint32_unpack(map+ofs+i*8,&k);
 //	if (!matchstring(&f->ava.desc,map+k)) {
 	if (f->attrofs==k) {
 	  uint32_unpack(map+ofs+i*8+4,&k);
-	  if (f->attrflag&1) {
-	    if (!matchcasestring(&f->ava.value,map+k)) return 1;
-	  } else {
-	    if (!matchstring(&f->ava.value,map+k)) return 1;
-	  }
+	  if (matchint(f,map+k)) return 1;
 	}
       }
       return 0;
@@ -131,6 +132,7 @@ int ldap_matchfilter_mapped(uint32 ofs,struct Filter* f) {
       if (f->attrofs==dn_ofs) {
 	uint32_unpack(map+ofs+8,&k);
 	if (substringmatch(f->substrings,map+k,f->attrflag&1)) return 1;
+	return 0;
 //      } else if (matchstring(&f->ava.desc,"objectName")) {
       } else if (f->attrofs==objectClass_ofs) {
 	uint32_unpack(map+ofs+12,&k);

@@ -40,7 +40,7 @@ uint32 magic,attribute_count,record_count,indices_offset,size_of_string_table;
 uint32 record_set_length;
 
 /* some pre-looked-up attribute offsets to speed up ldap_match_mapped */
-uint32 dn_ofs,objectClass_ofs,userPassword_ofs;
+uint32 dn_ofs,objectClass_ofs,userPassword_ofs,any_ofs;
 
 #define BUFSIZE 8192
 
@@ -879,16 +879,18 @@ int main() {
   {
     char* x=map+5*4+size_of_string_table;
     unsigned int i;
-    dn_ofs=objectClass_ofs=userPassword_ofs=0;
+    dn_ofs=objectClass_ofs=userPassword_ofs=any_ofs=0;
     for (i=0; i<attribute_count; ++i) {
       uint32 j;
       j=uint32_read(x);
-      if (!strcmp("dn",map+j))
+      if (case_equals("dn",map+j))
 	dn_ofs=j;
       else if (case_equals("objectClass",map+j))
 	objectClass_ofs=j;
       else if (case_equals("userPassword",map+j))
 	userPassword_ofs=j;
+      else if (case_equals("*",map+j))
+	any_ofs=j;
       x+=4;
     }
     if (!dn_ofs || !objectClass_ofs) {
