@@ -12,6 +12,6 @@ int fmt_ldapbindrequest(char* dest,long version,char* name,char* simple) {
   sum+=l; if (dest) dest+=l;
   nlen=str_len(simple);
   l=fmt_asn1string(dest,PRIVATE,PRIMITIVE,0,simple,nlen);
-  if (dest) dest+=l+nlen;
-  return sum+l+nlen;
+  if (dest) dest+=l;
+  return sum+l;
 }
