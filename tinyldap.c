@@ -15,6 +15,7 @@
 #include "ip6.h"
 #include <wait.h>
 #endif
+#include <signal.h>
 
 #define verbose 1
 #define debug 1
@@ -523,7 +524,7 @@ int handle(int in,int out) {
     int res;
     long messageid,op,Len;
     if (tmp==0)
-      if (!len) { return 0; }
+      if (BUFSIZE-len) { return 0; }
     if (tmp<0) { write(2,"error!\n",7); return 1; }
     len+=tmp;
     res=scan_ldapmessage(buf,buf+len,&messageid,&op,&Len);
@@ -771,6 +772,8 @@ int main() {
 #ifdef STANDALONE
   int sock;
 #endif
+
+  signal(SIGPIPE,SIG_IGN);
 
   map=mmap_read("data",&filelen);
   if (!map) {

@@ -96,8 +96,10 @@ usage:
       int len=0,tmp,tmp2;
       char* max;
       struct SearchResultEntry sre;
+      int matches=0;
       for (;;) {
 	long slen,mid,op;
+	len=0;
 	tmp=read(sock,buf+len,sizeof(buf)-len);
 	if (tmp<=0) {
 	  buffer_putsflush(buffer_2,"read error.\n");
@@ -106,9 +108,31 @@ usage:
 	len+=tmp;
 	if ((tmp2=scan_ldapmessage(buf,buf+len,&mid,&op,&slen))) {
 	  max=buf+slen+tmp2;
-	  if (op==SearchResultEntry) break;
-	  if (op==SearchResultDone) {
-	    buffer_putsflush(buffer_2,"no matches.\n");
+	  if (op==SearchResultEntry) {
+	    ++matches;
+	  if ((tmp=scan_ldapsearchresultentry(buf+tmp2,max,&sre))) {
+	    struct PartialAttributeList* pal=sre.attributes;
+	    buffer_puts(buffer_1,"objectName \"");
+	    buffer_put(buffer_1,sre.objectName.s,sre.objectName.l);
+	    buffer_puts(buffer_1,"\"\n");
+	    while (pal) {
+	      struct AttributeDescriptionList* adl=pal->values;
+	      buffer_puts(buffer_1,"  ");
+	      buffer_put(buffer_1,pal->type.s,pal->type.l);
+	      buffer_puts(buffer_1,":");
+	      while (adl) {
+		buffer_put(buffer_1,adl->a.s,adl->a.l);
+		if (adl->next) buffer_puts(buffer_1,", ");
+		adl=adl->next;
+	      }
+	      buffer_putsflush(buffer_1,"\n");
+	      pal=pal->next;
+	    }
+	  } else
+	    buffer_putsflush(buffer_1,"punt!\n");
+	  } else if (op==SearchResultDone) {
+	    if (!matches)
+	      buffer_putsflush(buffer_2,"no matches.\n");
 	    return 0;
 	  } else {
 	    buffer_putsflush(buffer_2,"unexpected response.\n");
@@ -124,26 +148,6 @@ usage:
 	close(fd);
       }
 #endif
-      if ((tmp=scan_ldapsearchresultentry(buf+tmp2,max,&sre))) {
-	struct PartialAttributeList* pal=sre.attributes;
-	buffer_puts(buffer_1,"objectName \"");
-	buffer_put(buffer_1,sre.objectName.s,sre.objectName.l);
-	buffer_puts(buffer_1,"\"\n");
-	while (pal) {
-	  struct AttributeDescriptionList* adl=pal->values;
-	  buffer_puts(buffer_1,"  ");
-	  buffer_put(buffer_1,pal->type.s,pal->type.l);
-	  buffer_puts(buffer_1,":");
-	  while (adl) {
-	    buffer_put(buffer_1,adl->a.s,adl->a.l);
-	    if (adl->next) buffer_puts(buffer_1,", ");
-	    adl=adl->next;
-	  }
-	  buffer_putsflush(buffer_1,"\n");
-	  pal=pal->next;
-	}
-      } else
-	buffer_putsflush(buffer_1,"punt!\n");
     }
   } else {
     buffer_putsflush(buffer_2,"ldapbind failed\n");
