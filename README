@@ -25,3 +25,40 @@ Do _not_ add an index for objectClass!  It will not work!
 parse will now normalize dn before writing it to the index.  That means
 that the attribute names in dn are lowercased, ';' is converted to ','
 and spaces after ';' or ',' are removed.
+
+tinyldap support authentication.  It does not have any real effect yet,
+as tinyldap does not support ACLs, but it can be used to use LDAP for
+password checking.  To use this, you must add an index for "dn".  Most
+programs check by an attribute called "uid", so you should have that as
+well, and put the password into an attribute called "userPassword".  By
+convention, the attribute "homeDirectory" contains $HOME for that user.
+tinyldap support three kinds of passwords here:
+
+  - straight MD5
+    I think I took this scheme from OpenLDAP.  It's just the straight
+    MD5 without salt but expressed as base64 not hex (as md5sum outputs
+    it).  Example:
+    userPassword: {MD5}CY9rzUYh03PK3k6DJie09g==
+    You can use "md5password" (part of the tinyldap distribution) to
+    calculate these passwords.
+
+  - crypt(3)
+    This means you can simply copy the password from /etc/shadow.
+    If your libc supports MD5 passwords in crypt (diet libc does, glibc
+    does, all the free BSDs do; you can know them by the "$1$" at the
+    start), this is actually more secure than the straight MD5 above.
+    However, the ldif and data files are then not portable to tinyldap
+    running on another OS without MD5 support in crypt.  Same goes for
+    blowfish or other obscure algorithms your crypt(3) may or may not
+    support.  Example:
+    userPassword: a4FGJQkF1FYY2
+
+  - plain text password
+    You can also simply put the password in plain text in the ldif.
+    userPassword: test
+    This is NOT advisable, because tinyldap does not support ACLs yet!
+    That means everyone can read everyone's passwords.  The MD5 above
+    provides at least moderate protection.
+
+This code has been tested against pam_ldap and an ldap checkpassword I
+wrote for a customer.
