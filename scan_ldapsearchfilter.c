@@ -44,6 +44,8 @@ int scan_ldapsearchfilter(const char* src,const char* max,struct Filter** f) {
   res+=tmp;
   if (src+res+len>max) goto error;
   if (!(*f=malloc(sizeof(struct Filter)))) goto error;
+  (*f)->next=0;
+  (*f)->x=0;
   (*f)->substrings=0;
   nmax=src+res+len;
   switch ((*f)->type=tag) {
