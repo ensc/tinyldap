@@ -17,3 +17,5 @@ file called "exp.ldif" (I can't give you my test data, sorry).  Then use
 "addindex" to add indexes if you like.  Use "dumpidx" to have the
 contents of data displayed on screen.  tinyldap has been modified to use
 data instead of the in-memory linked list.
+
+Do _not_ add an index for objectClass!  It will not work!

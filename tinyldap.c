@@ -64,6 +64,31 @@ static int indexable(struct Filter* f) {
   }
 }
 
+#define MAXINDEXMATCHES 100
+static uint32 matches[MAXINDEXMATCHES];
+static uint32 matchcounter;
+
+/* find record given a data pointer */
+static uint32 findrec(uint32 dat) {
+  uint32* records=(uint32*)(map+indices_offset);
+  uint32 bottom=0;
+  uint32 top=record_count;
+  while ((top>=bottom)) {
+    uint32 mid=(top+bottom)/2;
+    uint32 k,l;
+    uint32_unpack(&records[mid],&k);
+    uint32_unpack(map+k+8,&l);
+    if (l<dat) {
+      uint32_unpack(map+k,&l);
+      uint32_unpack(map+k+l*8+4,&l);
+      if (l>dat) return k;	/* found! */
+      bottom=mid+1;
+    } else
+      top=mid-1;
+  }
+  return 0;
+}
+
 static void answerwith(uint32 ofs,struct SearchRequest* sr,long messageid,int out) {
   uint32 k;
   struct SearchResultEntry sre;
@@ -237,12 +262,12 @@ int handle(int in,int out) {
 	  }
 #endif
 	  if ((tmp=scan_ldapsearchrequest(buf+res,buf+res+len,&sr))) {
-#if 0
 	    if (indexable(sr.filter)) {
 	      buffer_putsflush(buffer_2,"query is indexable!\n");
-	    } /* else */
-#endif
-	    {
+	      /* Use the index to find matching data.  Put the offsets
+	       * of the matches in a table.  Use findrec to locate
+	       * the records that point to the data. */
+	    } /* else */ {
 	      char* x=map+5*4+size_of_string_table+attribute_count*8;
 	      unsigned long i;
 	      for (i=0; i<record_count; ++i) {
@@ -253,99 +278,6 @@ int handle(int in,int out) {
 		x+=j*8;
 	      }
 	    }
-#ifdef OLD
-	    struct ldaprec* r=first;
-#if 0
-	    buffer_puts(buffer_2,"baseObject: \"");
-	    buffer_put(buffer_2,sr.baseObject.s,sr.baseObject.l);
-	    buffer_putsflush(buffer_2,"\"\n");
-#endif
-	    while (r) {
-#if 0
-	      buffer_puts(buffer_2,"ldap_match(\"");
-	      buffer_puts(buffer_2,r->dn);
-	      buffer_putsflush(buffer_2,"\"\n");
-#endif
-	      if (ldap_match(r,&sr)) {
-		struct SearchResultEntry sre;
-		struct PartialAttributeList** pal=&sre.attributes;
-		sre.objectName.s=r->dn; sre.objectName.l=strlen(r->dn);
-		sre.attributes=0;
-		/* now go through list of requested attributes */
-		{
-		  struct AttributeDescriptionList* adl=sr.attributes;
-		  while (adl) {
-		    const char* val=0;
-		    int i=0;
-#if 0
-		    buffer_puts(buffer_2,"looking for attribute \"");
-		    buffer_put(buffer_2,adl->a.s,adl->a.l);
-		    buffer_putsflush(buffer_2,"\"\n");
-#endif
-		    if (!matchstring(&adl->a,"dn")) val=r->dn; else
-		    if (!matchstring(&adl->a,"cn")) val=r->cn; else
-		    if (!matchstring(&adl->a,"mail")) val=r->mail; else
-		    if (!matchstring(&adl->a,"sn")) val=r->sn; else
-		    for (; i<r->n; ++i) {
-#if 0
-		      buffer_puts(buffer_2,"comparing with \"");
-		      buffer_puts(buffer_2,r->a[i].name);
-		      buffer_putsflush(buffer_2,"\"\n");
-#endif
-		      if (!matchstring(&adl->a,r->a[i].name))
-			val=r->a[i].value;
-		    }
-		    if (val) {
-		      *pal=malloc(sizeof(struct PartialAttributeList));
-		      if (!*pal) {
-nomem:
-			buffer_putsflush(buffer_2,"out of virtual memory!\n");
-			exit(1);
-		      }
-		      (*pal)->type=adl->a;
-		      {
-			struct AttributeDescriptionList** a=&(*pal)->values;
-			while (i<r->n) {
-			  *a=malloc(sizeof(struct AttributeDescriptionList));
-			  if (!*a) goto nomem;
-			  (*a)->a.s=val;
-			  (*a)->a.l=strlen(val);
-			  (*a)->next=0;
-			  for (;i<r->n; ++i)
-			    if (!matchstring(&adl->a,r->a[i].name)) {
-			      val=r->a[i].value;
-			      break;
-			    }
-			}
-		      }
-		      (*pal)->next=0;
-		      pal=&(*pal)->next;
-		    }
-		    adl=adl->next;
-		  }
-		}
-		{
-		  long l=fmt_ldapsearchresultentry(0,&sre);
-		  char *buf=alloca(l+300); /* you never know ;) */
-		  long tmp;
-		  if (verbose) {
-		    buffer_puts(buffer_2,"sre len ");
-		    buffer_putulong(buffer_2,l);
-		    buffer_putsflush(buffer_2,".\n");
-		  }
-		  tmp=fmt_ldapmessage(buf,messageid,SearchResultEntry,l);
-		  fmt_ldapsearchresultentry(buf+tmp,&sre);
-		  write(out,buf,l+tmp);
-		}
-		if (verbose) {
-		  buffer_puts(buffer_2,"found: ");
-		  buffer_puts(buffer_2,r->dn);
-		  buffer_putsflush(buffer_2,"\n");
-		}
-	      }
-	      r=r->next;
-	    }
-#endif
 	  } else {
 	    buffer_putsflush(buffer_2,"couldn't parse search request!\n");
 	    exit(1);
