@@ -51,6 +51,8 @@ extern int (*ldif_parse_callback)(struct ldaprec* l);
 #define PAGE_SIZE 4096
 #endif
 
+extern unsigned long mstorage_increment;
+
 /* for debugging and error messages */
 /* ldaprec is the struct used by ldif_parse.c */
 void dumprec(struct ldaprec* l) {
@@ -147,6 +149,8 @@ int main(int argc,char* argv[]) {
   unsigned long size_of_string_table,indices_offset;
   long offset_stringtable;
   char* map,* dest;
+
+  mstorage_increment=1024*1024;		/* always grow mstorages by 1 additional MiB to reduce mmap overhead */
 
   tempname=alloca(strlen(destname)+10);
   mstorage_init(&record_offsets);

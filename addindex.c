@@ -141,7 +141,7 @@ int main(int argc,char* argv[]) {
 	buffer_putsflush(buffer_2,"could not re-open database file read-write\n");
 	exit(1);
       }
-      ftruncate(fd,filelen+(counted+3)*4*(fastindex+1));
+      ftruncate(fd,filelen+3*4+counted*4*(fastindex+1));
       map=mmap(0,filelen+(counted+3)*4*(fastindex+1),PROT_WRITE,MAP_SHARED,fd,0);
       if (map==(char*)-1) {
 	buffer_putsflush(buffer_2,"could not mmap database file read-write\n");
@@ -149,7 +149,7 @@ int main(int argc,char* argv[]) {
       }
       uint32_pack(map+casesensitive,ignorecase);
       uint32_pack(map+filelen,fastindex);
-      uint32_pack(map+filelen+4,filelen+3*4+(counted)*4*(fastindex+1));
+      uint32_pack(map+filelen+4,filelen+3*4+counted*4*(fastindex+1));
       uint32_pack(map+filelen+8,wanted);
       {
 	char* x=map+filelen+12;

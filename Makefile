@@ -1,4 +1,4 @@
-DEBUG=1
+# DEBUG=1
 
 all: t1 t2 parse dumpidx idx2ldif addindex bindrequest tinyldap \
 tinyldap_standalone tinyldap_debug ldapclient ldapclient_str \

@@ -41,9 +41,9 @@ int main(int argc,char* argv[]) {
   char buf[BUFSIZE];
   int len=0;
 
-  if (argc<5) {
+  if (argc<4) {
 usage:
-    buffer_putsflush(buffer_2,"usage: ldapclient ip baseObject filter foo [bar...]\n");
+    buffer_putsflush(buffer_2,"usage: ldapclient ip baseObject filter [foo...]\n");
     return 0;
   }
   sock=socket_tcp4();
@@ -67,29 +67,35 @@ usage:
       return 1;
     }
     i=4; /* This should be the first index to an attribute argument in argv[] */
-    adl.a.s=argv[i];
-    adl.a.l=str_len(argv[i]);
-    next=&adl;
-    ++i;
-    while (i<argc) {
-      struct AttributeDescriptionList *n;
-      n=malloc(sizeof(struct AttributeDescriptionList));
-      n->a.s=argv[i]; n->a.l=str_len(argv[i]);
-      n->next=0;
-      next->next=n;
-      next=n;
+    if (argc>4) {
+      adl.a.s=argv[i];
+      adl.a.l=str_len(argv[i]);
+      next=&adl;
+      ++i;
+      while (i<argc) {
+	struct AttributeDescriptionList *n;
+	n=malloc(sizeof(struct AttributeDescriptionList));
+	n->a.s=argv[i]; n->a.l=str_len(argv[i]);
+	n->next=0;
+	next->next=n;
+	next=n;
 
-      buffer_puts(buffer_2,"requesting ");
-      buffer_puts(buffer_2,argv[i]);
-      buffer_putnlflush(buffer_2);
+#if 0
+	buffer_puts(buffer_2,"requesting ");
+	buffer_puts(buffer_2,argv[i]);
+	buffer_putnlflush(buffer_2);
+#endif
 
-      i++;
+	i++;
+      }
+      sr.attributes=&adl;
+    } else {
+      sr.attributes=0;
     }
     sr.baseObject.s=argv[2]; sr.baseObject.l=str_len(sr.baseObject.s);
     sr.scope=wholeSubtree; sr.derefAliases=neverDerefAliases;
     sr.sizeLimit=sr.timeLimit=sr.typesOnly=0;
     sr.filter=f;
-    sr.attributes=&adl;
     len=fmt_ldapsearchrequest(buf+100,&sr);
     {
       int tmp=fmt_ldapmessage(0,++messageid,SearchRequest,len);
@@ -151,9 +157,9 @@ nextmessage:
 		    if (!adl) break;
 		  }
 		} while (adl);
-		buffer_putsflush(buffer_1,"\n");
 		pal=pal->next;
 	      }
+	      buffer_putsflush(buffer_1,"\n");
 	      free_ldapsearchresultentry(&sre);
 	    } else
 	      goto copypartialandcontinue;
@@ -170,10 +176,6 @@ nextmessage:
 	    goto nextmessage;
 	  }
 	} else {
-	  if (len-cur>200) {
-	    buffer_putsflush(buffer_2,"nanu?!\n");
-	    tmp2=scan_ldapmessage(buf+cur,buf+len,&mid,&op,&slen);
-	  }
 	  /* copy partial message */
 copypartialandcontinue:
 	  byte_copy(buf,len-cur,buf+cur);

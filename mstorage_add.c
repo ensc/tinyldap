@@ -14,6 +14,8 @@
 
 #define PAGEMASK ((PAGE_SIZE)-1)
 
+unsigned long mstorage_increment=4*PAGE_SIZE;
+
 /* Sadly, mremap is only available on Linux */
 /* Please petition your congressman^Woperating system vendor to include it! */
 
@@ -43,7 +45,7 @@ long mstorage_add(mstorage_t* p,const char* s,unsigned long n) {
       p->mapped=need;
       p->used=0;
     } else {
-      long need=((p->used+n)|PAGEMASK)+1;
+      long need=((p->used+n)|PAGEMASK)+1+mstorage_increment;
       char* tmp;
 #ifdef MREMAP_MAYMOVE
       tmp=mremap(p->root,p->mapped,need,MREMAP_MAYMOVE);
