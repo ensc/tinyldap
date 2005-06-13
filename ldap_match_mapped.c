@@ -68,6 +68,7 @@ uint32 ldap_find_attr_value(uint32 ofs,uint32 attrofs) {
 
 static inline int matchint(struct Filter* f,const char* t) {
   int r;
+
   if (f->attrflag&1)
     r=matchcasestring(&f->ava.value,t);
   else

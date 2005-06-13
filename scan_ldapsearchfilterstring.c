@@ -14,7 +14,9 @@ scan_filterlist:
       s+=scan_ldapsearchfilterstring(s,&(*f)->x);
       n=&(*f)->x->next;
       while (*s!=')') {
-	s+=scan_ldapsearchfilterstring(s,n);
+	unsigned long l=scan_ldapsearchfilterstring(s,n);
+	if (!l) return 0;
+	s+=l;
 	n=&(*n)->next;
       }
     }

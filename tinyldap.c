@@ -285,16 +285,18 @@ static inline int isset(unsigned long* r,unsigned long bit) {
  * for all records that match the value in s.  Set the corresponding
  * bits to 1 in bitfield. */
 static void tagmatches(uint32* index,unsigned int elements,struct string* s,
-		       unsigned long* bitfield,int (*match)(struct string* s,const char* c),uint32 index_type) {
+		       unsigned long* bitfield,int (*match)(struct string* s,const char* c),
+		       uint32 index_type,enum FilterType ft) {
   uint32 bottom=0;
   uint32 top=elements;
+  uint32 mid,k,m;
+  long rec;
   emptyset(bitfield);
 
   while ((top>=bottom)) {
-    uint32 mid=(top+bottom)/2;
-    uint32 k;
     int l;
 
+    mid=(top+bottom)/2;
     k=uint32_read((char*)(&index[mid]));
 #ifdef DEBUG
     buffer_puts(buffer_2,"match[");
@@ -309,8 +311,6 @@ static void tagmatches(uint32* index,unsigned int elements,struct string* s,
 #endif
     if ((l=match(s,map+k))==0) {
       /* match! */
-      long rec;
-      uint32 m;
 #ifdef DEBUG
       buffer_putsflush(buffer_2,"MATCH!\n");
 #endif
@@ -330,7 +330,7 @@ static void tagmatches(uint32* index,unsigned int elements,struct string* s,
 	* Look before and after mid, too */
       for (k=mid-1; k>0; --k) {
 	m=uint32_read((char*)(&index[k]));
-	if ((l=match(s,map+m))==0) {
+	if ((ft==LESSEQUAL) || (l=match(s,map+m))==0) {
 	  if (index_type==0)
 	    rec=findrec(m);
 	  else if (index_type==1)
@@ -341,7 +341,7 @@ static void tagmatches(uint32* index,unsigned int elements,struct string* s,
       }
       for (k=mid+1; k<elements; ++k) {
 	m=uint32_read((char*)(&index[k]));
-	if ((l=match(s,map+m))==0) {
+	if ((ft==GREATEQUAL) || (l=match(s,map+m))==0) {
 	  if (index_type==0)
 	    rec=findrec(m);
 	  else if (index_type==1)
@@ -366,6 +366,29 @@ static void tagmatches(uint32* index,unsigned int elements,struct string* s,
       buffer_putsflush(buffer_2,"larger!\n"),
 #endif
       bottom=mid+1;
+  }
+  /* not found; we can still have matches if type==LESSEQUAL or
+   * type==GREATEQUAL */
+  if (ft==GREATEQUAL) {
+    for (k=mid; k<elements; ++k) {
+      m=uint32_read((char*)(&index[k]));
+      if (index_type==0)
+	rec=findrec(m);
+      else if (index_type==1)
+	rec=uint32_read((char*)(&index[k+elements]));
+      if (rec>=0)
+	setbit(bitfield,rec);
+    }
+  } else if (ft==LESSEQUAL) {
+    for (k=0; k<=mid; ++k) {
+      m=uint32_read((char*)(&index[k]));
+      if (index_type==0)
+	rec=findrec(m);
+      else if (index_type==1)
+	rec=uint32_read((char*)(&index[k+elements]));
+      if (rec>=0)
+	setbit(bitfield,rec);
+    }
   }
 }
 
@@ -429,7 +452,7 @@ static int useindex(struct Filter* f,unsigned long* bitfield) {
 	if (index_type<=1)
 	  if (!matchstring(&f->ava.desc,map+indexed_attribute)) {
 	    tagmatches((uint32*)(map+ofs+12),(next-ofs-12)/(4<<index_type),&f->substrings->s,bitfield,
-		       f->attrflag&1?matchcaseprefix:matchprefix,index_type);
+		       f->attrflag&1?matchcaseprefix:matchprefix,index_type,f->type);
 	    return 1;
 	  }
 	ofs=next;
@@ -451,6 +474,8 @@ static int useindex(struct Filter* f,unsigned long* bitfield) {
       }
       return 1;
     }
+  case LESSEQUAL:
+  case GREATEQUAL:
   case EQUAL:
     {
       uint32 ofs;
@@ -462,7 +487,7 @@ static int useindex(struct Filter* f,unsigned long* bitfield) {
 	if (index_type<=1)
 	  if (!matchstring(&f->ava.desc,map+indexed_attribute)) {
 	    tagmatches((uint32*)(map+ofs+12),(next-ofs-12)/(4<<index_type),&f->ava.value,bitfield,
-		       f->attrflag&1?matchcasestring:matchstring,index_type);
+		       f->attrflag&1?matchcasestring:matchstring,index_type,f->type);
 	    return 1;
 	  }
 	ofs=next;

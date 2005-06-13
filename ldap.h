@@ -34,10 +34,12 @@ struct Substring {
   struct Substring* next;
 };
 
+enum FilterType {
+  AND=0, OR=1, NOT=2, EQUAL=3, SUBSTRING=4, GREATEQUAL=5, LESSEQUAL=6, PRESENT=7, APPROX=8, EXTENSIBLE=9
+};
+
 struct Filter {
-  enum {
-    AND=0, OR=1, NOT=2, EQUAL=3, SUBSTRING=4, GREATEQUAL=5, LESSEQUAL=6, PRESENT=7, APPROX=8, EXTENSIBLE=9
-  } type;
+  enum FilterType type;
   struct AttributeValueAssertion ava;
   uint32 attrofs; /* offset of attribute name in index */
   uint32 attrflag; /* "case sensitivity" flag from index */
