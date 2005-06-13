@@ -82,6 +82,7 @@ substring:
 	  }
 	}
     }
+    if (*s=='=') ++s;
     (*f)->ava.value.s=s;
     s+=(*f)->ava.value.l=str_chr(s,')');
   }

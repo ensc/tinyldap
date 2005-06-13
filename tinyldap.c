@@ -193,6 +193,8 @@ static int indexable(struct Filter* f) {
     if (f->substrings->substrtype!=prefix) return 0;
     /* fall through */
   case EQUAL:
+  case LESSEQUAL:
+  case GREATEQUAL:
     {
       uint32 ofs;
       for (ofs=indices_offset+record_count*4; ofs<(unsigned long)filelen;) {
@@ -510,16 +512,18 @@ static void answerwith(uint32 ofs,struct SearchRequest* sr,long messageid,int ou
     if (!adl) {
       /* did not ask for any attributes.  send 'em all. */
       /* to do that, construct a list of all attributes */
+
+      /* FIXME!  This adl appears to create a segfault later on */
       uint32 i;
       char* x=map+5*4+size_of_string_table+4;
-      adl=alloca((attribute_count-1)*sizeof(struct AttributeDescriptionList));
+      adl=alloca((attribute_count)*sizeof(struct AttributeDescriptionList));
       for (i=0; i<attribute_count-1; ++i) {
 	uint32 j;
 	uint32_unpack(x,&j);
 	x+=4;
 	adl[i].a.s=map+j;
 	adl[i].a.l=strlen(map+j);
-	adl[i].next=&adl[i+1];
+	adl[i].next=adl+i+1;
       }
       adl[attribute_count-1].next=0;
     }
@@ -758,11 +762,13 @@ found:
 	       * the records that point to the data. */
 	      useindex(sr.filter,result);
 	      for (i=0; i<record_count; ) {
+		unsigned long ni=i+8*sizeof(long);
 		if (!result[i/(8*sizeof(long))]) {
-		  i+=8*sizeof(long);
+		  i=ni;
 		  continue;
 		}
-		for (; i<record_count; ++i) {
+		if (ni>record_count) ni=record_count;
+		for (; i<ni; ++i) {
 		  if (isset(result,i)) {
 		    uint32 j;
 		    uint32_unpack(map+indices_offset+4*i,&j);
@@ -774,6 +780,9 @@ found:
 	    } else {
 	      char* x=map+5*4+size_of_string_table+attribute_count*8;
 	      unsigned long i;
+#if (debug != 0)
+	      if (debug) buffer_putsflush(buffer_2,"query can NOT be answered with index!\n");
+#endif
 	      for (i=0; i<record_count; ++i) {
 		uint32 j;
 		uint32_unpack(x,&j);

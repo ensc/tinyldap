@@ -161,8 +161,10 @@ nextmessage:
 	      }
 	      buffer_putsflush(buffer_1,"\n");
 	      free_ldapsearchresultentry(&sre);
-	    } else
+	    } else {
+	      buffer_putsflush(buffer_2,"goto\n");
 	      goto copypartialandcontinue;
+	    }
 	  } else if (op==SearchResultDone) {
 	    if (!matches)
 	      buffer_putsflush(buffer_2,"no matches.\n");
@@ -174,15 +176,14 @@ nextmessage:
 	  if (max<buf+len) {
 	    cur+=slen+tmp2;
 	    goto nextmessage;
+	  } else {
+	    len=0;
 	  }
 	} else {
 	  /* copy partial message */
 copypartialandcontinue:
 	  byte_copy(buf,len-cur,buf+cur);
 	  len-=cur; cur=0;
-#if 0
-	  buffer_putsflush(buffer_2,"scan_ldapmessage failed!\n");
-#endif
 	}
       }
 
