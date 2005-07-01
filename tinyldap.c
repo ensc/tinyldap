@@ -752,6 +752,7 @@ found:
 	  }
 #endif
 	  if ((tmp=scan_ldapsearchrequest(buf+res,buf+res+len,&sr))) {
+	    unsigned long returned=0;
 
 #if (debug != 0)
 	    if (debug) {
@@ -797,8 +798,11 @@ found:
 		  if (isset(result,i)) {
 		    uint32 j;
 		    uint32_unpack(map+indices_offset+4*i,&j);
-		    if (ldap_match_mapped(j,&sr))
+		    if (ldap_match_mapped(j,&sr)) {
+		      if (sr.sizeLimit && sr.sizeLimit>++returned)
+			break;
 		      answerwith(j,&sr,messageid,out);
+		    }
 		  }
 		}
 	      }
@@ -811,8 +815,11 @@ found:
 	      for (i=0; i<record_count; ++i) {
 		uint32 j;
 		uint32_unpack(x,&j);
-		if (ldap_match_mapped(x-map,&sr))
+		if (ldap_match_mapped(x-map,&sr)) {
+		  if (sr.sizeLimit && sr.sizeLimit>++returned)
+		    break;
 		  answerwith(x-map,&sr,messageid,out);
+		}
 		x+=j*8;
 	      }
 	    }
