@@ -2,7 +2,7 @@ DEBUG=1
 
 all: t1 t2 parse dumpidx idx2ldif addindex bindrequest tinyldap \
 tinyldap_standalone tinyldap_debug ldapclient ldapclient_str \
-md5password mysql2ldif # t6 # t
+md5password mysql2ldif acl # t6 # t
 
 asn1.a: fmt_asn1intpayload.o fmt_asn1length.o fmt_asn1tag.o \
 fmt_asn1int.o fmt_asn1string.o fmt_asn1transparent.o scan_asn1tag.o \
@@ -63,10 +63,14 @@ bindrequest tinyldap tinyldap_standalone tinyldap_debug ldapclient ldapclient_st
 idx2ldif: ldap.a
 
 tinyldap_standalone: tinyldap.c
-	$(DIET) $(CC) $(CFLAGS) -DSTANDALONE -o $@ $^ $(LDFLAGS) -lowfat ${LIBS}
+	$(DIET) $(CC) $(CFLAGS) -DSTANDALONE -o $@ $^ $(LDFLAGS) -lowfat $(LIBS)
 
 tinyldap_debug: tinyldap.c
-	$(DIET) $(CC) $(CFLAGS) -DSTANDALONE -DDEBUG -o $@ $^ $(LDFLAGS) -lowfat ${LIBS}
+	$(DIET) $(CC) $(CFLAGS) -DSTANDALONE -DDEBUG -o $@ $^ $(LDFLAGS) -lowfat $(LIBS)
+
+acl: acl.c ldap.a asn1.a
+	$(DIET) $(CC) $(CFLAGS) -o acl acl.c -I. ldap.a asn1.a -lowfat $(LIBS)
+
 
 .PHONY: clean tar
 clean:

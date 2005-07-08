@@ -1,19 +1,4 @@
-/*
-  tinyldap acl syntax:
-
-    acl login-in-as-dn target-dn attrib
-
-  e.g.
-
-    # root@fefe.de can do everything
-    acl dn:cn=root,o=fefe,c=de * +rwdR;
-    # noone can read userPassword
-    acl * * userPassword -r;
-    # but everyone can authenticate using it
-    acl * self +a;
-    # admins at fefe.de can write in their tree
-    acl dn:*ou=admin,o=fefe,c=de dn:*,o=fefe,c=de +rwdR;
- */
+#define MAIN
 
 #include <buffer.h>
 #include <stralloc.h>
@@ -26,6 +11,7 @@
 #include <mmap.h>
 #include <case.h>
 #include <ldap.h>
+#include <uint32.h>
 
 const char Any[]="*";
 const char Self[]="self";
@@ -40,15 +26,16 @@ enum {
 };
 
 struct assertion {
-  char* filterstring;
+  const char* filterstring;
   struct Filter* f;
   struct assertion* sameas;
 };
 
 struct acl {
-  struct assertion login,target;
-  const char* attrib;
+  struct assertion subject,object;
+  char* attrib;
   uint32 anum;
+  char** attrs;
   unsigned short may,maynot;
   struct acl* next;
 };
@@ -112,9 +99,12 @@ int parseacldn(buffer* in,struct assertion* a) {
     }
   }
   if (x.len+1<x.len) return 0;	/* catch integer overflow */
-  a->filterstring=malloc(x.len+1);
-  byte_copy(a->filterstring,x.len,x.s);
-  a->filterstring[x.len]=0;
+  {
+    char* tmp=malloc(x.len+1);
+    byte_copy(tmp,x.len,x.s);
+    tmp[x.len]=0;
+    a->filterstring=(const char*)tmp;
+  }
 
   if (scan_ldapsearchfilterstring(a->filterstring,&a->f) != x.len) {
     free_ldapsearchfilter(a->f);
@@ -139,6 +129,7 @@ int parseaclattrib(buffer* in,struct acl* a) {
     char c=*buffer_peek(in);
     if (c=='+' || c=='-') {
       a->attrib=Any;
+      a->anum=1;
       return 1;
     }
   }
@@ -149,9 +140,18 @@ int parseaclattrib(buffer* in,struct acl* a) {
   if (!stralloc_0(&x)) return -1;
   if (str_equal(x.s,"*")) {
     a->attrib=Any;
+    a->anum=1;
     return 1;
   }
-  return ((a->attrib=strdup(x.s))?1:-1);
+  if (!(a->attrib=strdup(x.s))) return -1;
+  {
+    unsigned int i,j;
+    j=1;
+    for (i=0; i<x.len; ++i)
+      if (x.s[i]==',') ++j;
+    a->anum=j;
+  }
+  return 1;
 }
 
 int parseaclpermissions(buffer* in,struct acl* a) {
@@ -186,8 +186,8 @@ static int parseacl(buffer* in,struct acl* a) {
       if (r==0 && i==0) return 0;
       parseerror();
     }
-  if ((r=parseacldn(in,&a->login))!=1) return r;
-  if ((r=parseacldn(in,&a->target))!=1) return r;
+  if ((r=parseacldn(in,&a->subject))!=1) return r;
+  if ((r=parseacldn(in,&a->object))!=1) return r;
   if ((r=parseaclattrib(in,a))!=1) return r;
   if ((r=parseaclpermissions(in,a))!=1) return r;
   a->next=0;
@@ -204,12 +204,12 @@ static void optimize(struct acl* a) {
   struct acl* b;
   for (; a; a=a->next)
     for (b=a; b; b=b->next) {
-      fold(&a->login,&b->login);
-      fold(&a->target,&b->target);
-      fold(&a->login,&a->target);
-      fold(&a->login,&b->target);
-      fold(&b->login,&a->target);
-      fold(&b->login,&b->target);
+      fold(&a->subject,&b->subject);
+      fold(&a->object,&b->object);
+      fold(&a->subject,&a->object);
+      fold(&a->subject,&b->object);
+      fold(&b->subject,&a->object);
+      fold(&b->subject,&b->object);
     }
 }
 
@@ -236,130 +236,131 @@ int readacls(const char* filename) {
   return 0;
 }
 
-#if 0
-
-/* given a DN a (logged in as DN b), we need to quickly find out what
- * kind of permissions we have for an attribute c.  To make this extra
- * quick, I'm only comparing DNs if the rule
- *   a) grants or denies the permission I'm interested in (bit test)
- *   b) actually says something about the attribute I'm interested in.
- * To make b) cheap, I'll not actually compare attribute strings, but
- * I'll compare the offset of the attribute name in the mmapped file.
- * The * attribute is represented as 0.  An attribute that is not found
- * in the mmapped file is represented as -1. */
-
-static uint32 acl_map(char* map,char* x,const char* s,unsigned int attribute_count) {
-  unsigned int i;
-  for (i=0; i<attribute_count; ++i) {
-    uint32 j=uint32_read(x+i*4);
-    if (case_equals(s,map+j))
-      return j;
-  }
-  return -1;
-}
-
-void acl_offsets(char* map,unsigned long maplen) {
-  uint32 attribute_count=uint32_read(map+4);
-  uint32 size_of_string_table=uint32_read(map+4*4);
-  uint32 dn_ofs,oc_ofs;
-  char* x=map+5*4+size_of_string_table;
-  unsigned int i;
-  struct acl* a;
-
-  dn_ofs=oc_ofs=0;
-  for (i=0; i<attribute_count; ++i) {
-    uint32 j=uint32_read(x+i*4);
-    if (j>maplen-2) { carp("invalid offset in attribute table"); return; }	/* can't happen */
-    if (case_equals(map+j,"dn"))
-      dn_ofs=j;
-    else if (case_equals(map+j,"objectClass"))
-      oc_ofs=j;
-  }
-
-  for (a=root; a; a=a->next) {
-    a->anum=(uint32)-1;
-    if (a->attrib==Any)
-      a->anum=0;
-    else
-      a->anum=acl_map(map,maplen,x,a->attrib,attribute_count);
-
-    if (a->login.attr==Dn) a->login.where=dn_ofs;
-    else if (case_equals(a->login.attr,"objectClass")) a->login.where=oc_ofs;
-    else a->login.where=acl_map(map,x,a->login.attr,attribute_count);
-
-    if (a->target.attr==Dn) a->target.where=dn_ofs;
-    else if (case_equals(a->target.attr,"objectClass")) a->target.where=oc_ofs;
-    else a->target.where=acl_map(map,x,a->target.attr,attribute_count);
-
-#if 0
-    if (a->anum==-1)
-      printf("no offset found for %s\n",a->attrib);
-    if (a->login.where==-1)
-      printf("no offset found for %s\n",a->login.attr);
-    if (a->target.where==-1)
-      printf("no offset found for %s\n",a->target.attr);
-#endif
+int marshalfilter(stralloc* x,struct assertion* a) {
+  if (a->filterstring==Self)
+    return stralloc_catb(x,Self,5);
+  else {
+    char* tmp;
+    unsigned long l=fmt_ldapsearchfilter(0,a->f);
+    tmp=alloca(l+10);	// you never know
+    if (fmt_ldapsearchfilter(tmp,a->f)!=l) {
+      buffer_putmflush(buffer_2,"internal error!\n");
+      exit(1);
+    }
+    return stralloc_catb(x,tmp,l);
   }
 }
 
-extern uint32 dn_ofs,objectClass_ofs;
-
-int acl_allowed(char* map,unsigned long maplen,const char* logindn,const char* targetdn,uint32 attr,unsigned short wanted) {
+int marshal(char* map,unsigned long filelen) {
+  unsigned long filters,acls,i,j,k;
+  unsigned long filter_offset,acl_offset;
   struct acl* a;
-  struct assertion* l;
+  uint32* F,* A;
+  uint32 attribute_count;
+  uint32 attrtab;
+  static stralloc x;
+  stralloc_copys(&x,"");
+  filters=acls=0;
   for (a=root; a; a=a->next) {
-    if (((a->may|a->maynot)&wanted) &&	/* acl applies to action we want to do */
-        (!a->anum || a->anum==attr)) {	/* acl applies to this attribute */
+    ++acls;
+    if (!a->subject.sameas) ++filters;
+    if (!a->object.sameas) ++filters;
+  }
+  F=malloc(sizeof(*F)*(filters+1));
 
-      l=&a->login; if (l->sameas) l=l->sameas;
+  filter_offset=filelen+(filters+4)*sizeof(*F);	/* 2 uints for index header, 1 uint filters_count, then filter_count+1 uint32 in F */
 
-      /* first, see if logindn matches */
-      if (logindn==0) {
-	/* special case: anonymous bind.
-	 * Do not match if login assertion is not "Any" */
-	if (l->attr != Any) continue;
-      } else if (logindn>=map && logindn<=map+maplen) {
-	uint32 n=uint32_read(logindn);
-	uint32 v=0;
-	if (l->attr != Any) {
-	  v=ldap_find_attr_value(logindn,l->where);
-	  if (v==0) continue;	/* attribute not there, no match */
-	  if (l->what != Any) {
-	    if (l->what[0]=='*') {
-	      /* suffix match */
-	    } else if (l->what[strlen(l->what)-1]=='*') {
-	      /* prefix match */
-	    } else {
-	      /* direct match */
-	      /* TODO XXX FIXME */
-	    }
+  i=0;
+  x.len=0;
+  for (a=root; a; a=a->next) {
+    if (!a->subject.sameas) {
+      F[i]=x.len+filter_offset;
+      ++i;
+      if (!marshalfilter(&x,&a->subject)) {
+nomem:
+	buffer_putmflush(buffer_2,"out of memory!\n");
+	exit(1);
+      }
+    }
+    if (!a->object.sameas) {
+      F[i]=x.len+filter_offset;
+      ++i;
+      if (!marshalfilter(&x,&a->object)) goto nomem;
+    }
+  }
+  attribute_count=uint32_read(map+4);
+  attrtab=5*4+uint32_read(map+16);
+  /* here we need to have each attribute mentioned in any ACL
+   * point to the proper offset in the data file.  But what if an ACL
+   * mentions an attribute that never occurs in any of the records?  In
+   * that case, we insert a small "string table" between the filters and
+   * the ACLs.  To make it possible to skip over it, the offset table of
+   * the filters has one more element, which points to the start of the
+   * ACLs. */
+  for (a=root; a; a=a->next) {
+    unsigned int l=0;
+    if (!(a->attrs=malloc(a->anum*sizeof(*a->attrs))))
+      goto nomem;
+    a->attrs[l]=a->attrib; ++l;
+    for (k=0; a->attrib[k]; ++k)
+      if (a->attrib[k]==',') {
+	a->attrib[k]=0;
+	a->attrs[l]=a->attrib+k+1;
+      }
+    if (a->attrib!=Self && a->attrib!=Any)
+      for (k=0; k<a->anum; ++k) {
+	int found=0;
+	for (j=0; j<attribute_count; ++j) {
+	  if (!strcmp(map+uint32_read(map+attrtab+j*4),a->attrs[k])) {
+	    a->attrs[k]=map+uint32_read(map+attrtab+j*4);
+	    found=1;
+	    break;
 	  }
 	}
-      } else
-	die(1,"unhandled case: logindn outside map");
-    }
-
-#if 0
-struct assertion {
-  const char* attr;
-  uint32 where;
-  const char* what;
-  struct assertion* sameas;
-};
-#endif
-
+	if (!found) {
+	  /* warning: evil kludge ahead!  We assume that the sum of the
+	   * lengths of the new attributes plus the ACLs is smaller than
+	   * the address where mmap mapped the file. */
+	  char* tmp=a->attrs[k];
+	  a->attrs[k]=map+filelen+
+		      2*4+		/* index_type and next */
+		      (filters+2)*4+	/* filters_count plus (filter_count+1)+uint32 */
+		      x.len;
+	  if (!stralloc_cats(&x,tmp)) goto nomem;
+	}
+      }
   }
+
+  /* 32-bit align */
+  {
+    unsigned int align=(-(x.len&3))&3;
+    if (!stralloc_catb(&x,"\0\0\0",align)) goto nomem;
+  }
+  F[i]=x.len+filter_offset;
+
+  /* now the ACLs */
+
+  A=malloc(sizeof(*A)*acls);
+  if (!A) goto nomem;
+  acl_offset=F[i]+(acls+1)*sizeof(*A);
+
+  /* FIXME, TODO */
 }
 
-#endif
-
 #ifdef MAIN
-int main() {
+int main(int argc,char* argv[]) {
   unsigned long filelen;
-  char* map=mmap_read("data",&filelen);
+  char* map=mmap_read(argc>1?argv[1]:"data",&filelen);
+
+  if (filelen<5*4 || uint32_read(map)!=0xfefe1da9) {
+    buffer_putmflush(buffer_2,"not a valid tinyldap data file!\n");
+    exit(0);
+  }
 
   if (readacls("acls")==-1) die(1,"readacls failed");
 //  acl_offsets(map,filelen);
+
+  marshal(map,filelen);
   return 0;
 }
 #endif

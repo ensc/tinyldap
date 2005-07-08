@@ -4,6 +4,7 @@
 #include <sys/fcntl.h>
 #include <string.h>
 #include <strings.h>
+#include <errno.h>
 #include "buffer.h"
 #include "mmap.h"
 #include "uint32.h"
@@ -51,6 +52,10 @@ int main(int argc,char* argv[]) {
     if (strchr(argv[3],'f')) fastindex=1;
   }
   map=mmap_read(filename,&filelen);
+  if (!map) {
+    buffer_putmflush(buffer_2,"could not open `",filename,"': ",strerror(errno),"\n");
+    return 1;
+  }
   uint32_unpack(map,&magic);
   if (magic!=0xfefe1da9) {
     buffer_putsflush(buffer_2,"file format not recognized!  Invalid magic!\n");

@@ -21,6 +21,25 @@ ACLs can have some redundancy in them, so we want to find filter strings
 in ACLs that are the same, and then only evaluate them once.  So we need
 to write the ACLs to disk like this:
 
-  uint32 filters;
-  uint32 offsets_to_filters_in_scan_ldapsearchfilter_format[filters];
+first the filters:
+
+  uint32 filters_count;
+  uint32 offsets_to_filters_in_scan_ldapsearchfilter_format[filter_count+1];
+  // the last pointer points after the marshalled filters
+
+then each filter marshalled as readable by scan_ldapsearchfilter (or "self"):
+
+  [...]
+
+then the ACLs:
+
+  uint32 acl_count;
+  uint32 offsets_to_acls[acl_count];
+
+then for each acl:
+
+  uint32 subject_filter, object_filter;    // index in above filters array
+  uint16 may,maynot;                       // bit fields for +rw-d
+  uint32 attributes[];                     // 0 terminated
+
 
