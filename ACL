@@ -23,4 +23,4 @@ to write the ACLs to disk like this:
 
   uint32 filters;
   uint32 offsets_to_filters_in_scan_ldapsearchfilter_format[filters];
-  
+
