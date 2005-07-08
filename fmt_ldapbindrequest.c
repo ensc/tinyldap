@@ -3,9 +3,9 @@
 #include "ldap.h"
 #include "str.h"
 
-int fmt_ldapbindrequest(char* dest,long version,char* name,char* simple) {
-  int l,sum;
-  int nlen=str_len(name);
+unsigned int fmt_ldapbindrequest(char* dest,long version,char* name,char* simple) {
+  unsigned int l,sum;
+  unsigned int nlen=str_len(name);
   sum=l=fmt_asn1INTEGER(dest,version);
   if (dest) dest+=l;
   l=fmt_asn1OCTETSTRING(dest,name,nlen);

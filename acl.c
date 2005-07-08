@@ -25,6 +25,7 @@
 #include <byte.h>
 #include <mmap.h>
 #include <case.h>
+#include <ldap.h>
 
 const char Any[]="*";
 const char Self[]="self";
@@ -39,9 +40,8 @@ enum {
 };
 
 struct assertion {
-  const char* attr;
-  uint32 where;
-  const char* what;
+  char* filterstring;
+  struct Filter* f;
   struct assertion* sameas;
 };
 
@@ -83,47 +83,44 @@ int skipws(buffer* in) {
 }
 
 int parseacldn(buffer* in,struct assertion* a) {
-  int r;
+  int r,l;
   /* possible forms:
 	*	-> "dn", Any
         dn:*foo -> "dn", "*foo" */
+  byte_zero(a,sizeof(*a));
   a->sameas=0;
   if ((r=skipws(in))!=1) return r;
   stralloc_zero(&x);
-  do {
-    r=buffer_get_token_sa(in,&x," \t",2);
-    if (r!=1) return r;
-    if (x.len>0 && x.s[x.len-1]=='\\') {
-      x.s[--x.len]=' ';
-      continue;
+  l=0;
+  for (;;) {
+    char tmp;
+    r=buffer_getc(in,&tmp);
+    if (r!=1) return 0;
+    if (!stralloc_append(&x,&tmp)) return 0;
+    if (tmp=='(') ++l;
+    if (tmp==')') {
+      --l;
+      if (l==0) break;
     }
-  } while (x.len==0);
-  stralloc_chop(&x);
-  if (!stralloc_0(&x)) return -1;
-  r=byte_chr(x.s,x.len,':');
-  if (x.s[r]==':') {
-    x.s[r]=0;
-    if (str_equal(x.s,"dn")) {
-      a->attr=Dn;
-      a->what=strdup(x.s+r+1);
-      if (!a->what) return -1;
-    } else {
-      a->attr=malloc(x.len);
-      if (!a->attr) return -1;
-      byte_copy((char*)a->attr,x.len,x.s);
-      a->what=a->attr+r+1;
+    if (stralloc_equals(&x,"*")) {
+      a->filterstring=Any;
+      return 1;
     }
-  } else {
-    a->attr=Dn;
-    if (str_equal(x.s,"*"))
-      a->what=Any;
-    else if (str_equal(x.s,"self"))
-      a->what=Self;
-    else {
-      a->what=strdup(x.s);
-      if (!a->what) return -1;
+    if (stralloc_equals(&x,"self")) {
+      a->filterstring=Self;
+      return 1;
     }
   }
+  if (x.len+1<x.len) return 0;	/* catch integer overflow */
+  a->filterstring=malloc(x.len+1);
+  byte_copy(a->filterstring,x.len,x.s);
+  a->filterstring[x.len]=0;
+
+  if (scan_ldapsearchfilterstring(a->filterstring,&a->f) != x.len) {
+    free_ldapsearchfilter(a->f);
+    return 0;
+  }
+
   return 1;
 }
 
@@ -199,9 +196,8 @@ static int parseacl(buffer* in,struct acl* a) {
 
 static void fold(struct assertion* a,struct assertion* b) {
   if (a->sameas || b->sameas) return;
-  if (a->attr==b->attr || str_equal(a->attr,b->attr))
-    if (a->what==b->what || str_equal(a->what,b->what))
-      b->sameas=a;
+  if (!strcmp(a->filterstring,b->filterstring))
+    b->sameas=a;
 }
 
 static void optimize(struct acl* a) {
@@ -239,6 +235,8 @@ int readacls(const char* filename) {
 
   return 0;
 }
+
+#if 0
 
 /* given a DN a (logged in as DN b), we need to quickly find out what
  * kind of permissions we have for an attribute c.  To make this extra
@@ -353,14 +351,6 @@ struct assertion {
   }
 }
 
-#if 0
-void dumpacls() {
-  struct acl* a;
-  for (a=root; a; a=a->next) {
-    printf("\n--=[ record at %p ]=--\n",a);
-    printf("%s=%s %s=%s %s\n",a->login.attr,a->login.what,a->target.attr,a->target.what,a->attrib);
-  }
-}
 #endif
 
 #ifdef MAIN
@@ -369,8 +359,7 @@ int main() {
   char* map=mmap_read("data",&filelen);
 
   if (readacls("acls")==-1) die(1,"readacls failed");
-//  dumpacls();
-  acl_offsets(map,filelen);
+//  acl_offsets(map,filelen);
   return 0;
 }
 #endif

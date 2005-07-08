@@ -1,0 +1,26 @@
+ACLs are:
+
+  acl subject object attributes access;
+
+subject and object are LDAP search filter expressions.
+attributes is a comma separates list of attributes.
+access says what accesses are allowed or disallowed in a chmod-like
+syntax.
+
+As an abbreviation, you can use '*' to mean '(objectClass=*)' for
+subject or object, and you can use '*' to mean 'all attributes' in
+attributes.
+
+Example:
+
+  acl (dn=cn=root,o=fefe,c=de) (objectClass=*) * +rwdR
+
+
+
+ACLs can have some redundancy in them, so we want to find filter strings
+in ACLs that are the same, and then only evaluate them once.  So we need
+to write the ACLs to disk like this:
+
+  uint32 filters;
+  uint32 offsets_to_filters_in_scan_ldapsearchfilter_format[filters];
+  

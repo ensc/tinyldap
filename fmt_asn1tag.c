@@ -2,7 +2,7 @@
 
 /* write int in least amount of bytes, return number of bytes */
 /* as used in ASN.1 tags */
-int fmt_asn1tag(char* dest,enum asn1_tagclass tc,enum asn1_tagtype tt,unsigned long l) {
+unsigned int fmt_asn1tag(char* dest,enum asn1_tagclass tc,enum asn1_tagtype tt,unsigned long l) {
   /* encoding is either l%128 or (0x1f,...) */
   int needed=(sizeof l)*7/8;
   int i;

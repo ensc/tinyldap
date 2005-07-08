@@ -1,8 +1,8 @@
 #include "asn1.h"
 #include "ldap.h"
 
-int fmt_ldapsearchresultentry(char* dest,struct SearchResultEntry* sre) {
-  int l,sum=0;
+unsigned int fmt_ldapsearchresultentry(char* dest,struct SearchResultEntry* sre) {
+  unsigned int l,sum=0;
   sum=fmt_ldapstring(dest,&sre->objectName);
   if (dest) dest+=sum;
   l=fmt_asn1SEQUENCE(dest,fmt_ldappal(0,sre->attributes));

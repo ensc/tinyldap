@@ -1,7 +1,7 @@
 #include "asn1.h"
 #include "ldap.h"
 
-int fmt_ldappal(char* dest,struct PartialAttributeList* pal) {
+unsigned int fmt_ldappal(char* dest,struct PartialAttributeList* pal) {
 //  int l,l2,sum;
   long sum,l,l2;
   if (!pal) return 0;

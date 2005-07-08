@@ -1,8 +1,8 @@
 #include "asn1.h"
 #include "byte.h"
 
-int fmt_asn1transparent(char* dest,enum asn1_tagclass tc,enum asn1_tagtype tt,enum asn1_tag tag,unsigned long l) {
-  int len,tmp;
+unsigned int fmt_asn1transparent(char* dest,enum asn1_tagclass tc,enum asn1_tagtype tt,enum asn1_tag tag,unsigned long l) {
+  unsigned int len,tmp;
   /* first the tag */
   len=fmt_asn1tag(dest,tc,tt,tag);
   tmp=fmt_asn1length(dest?dest+len:dest,l);

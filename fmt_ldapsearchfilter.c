@@ -27,7 +27,7 @@ int fmt_ldapsubstring(char* dest,struct Substring* s) {
   return sum;
 }
 
-int fmt_ldapsearchfilter(char* dest,struct Filter* f) {
+unsigned int fmt_ldapsearchfilter(char* dest,struct Filter* f) {
   long sum=0,tmp;
   if (!f)
     return 0;

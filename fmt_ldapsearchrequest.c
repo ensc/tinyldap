@@ -1,7 +1,7 @@
 #include "asn1.h"
 #include "ldap.h"
 
-int fmt_ldapsearchrequest(char* dest,struct SearchRequest* sr) {
+unsigned int fmt_ldapsearchrequest(char* dest,struct SearchRequest* sr) {
   int l,sum=0;
   sum=fmt_ldapstring(dest,&sr->baseObject);
   if (dest) dest+=sum;

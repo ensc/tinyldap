@@ -25,10 +25,10 @@ static int doit(char* dest,struct AttributeDescriptionList* adl,int seq) {
   return sum;
 }
 
-int fmt_ldapadl(char* dest,struct AttributeDescriptionList* adl) {
+unsigned int fmt_ldapadl(char* dest,struct AttributeDescriptionList* adl) {
   return doit(dest,adl,1);
 }
 
-int fmt_ldapavl(char* dest,struct AttributeDescriptionList* adl) {
+unsigned int fmt_ldapavl(char* dest,struct AttributeDescriptionList* adl) {
   return doit(dest,adl,0);
 }

@@ -102,7 +102,8 @@ scan_ldapbindresponse.o: scan_ldapbindresponse.c asn1.h ldap.h
 scan_ldapmessage.o: scan_ldapmessage.c asn1.h ldap.h
 scan_ldapsearchfilter.o: scan_ldapsearchfilter.c asn1.h ldap.h
 scan_ldapsearchrequest.o: scan_ldapsearchrequest.c asn1.h ldap.h
-scan_ldapstring.o: scan_ldapstring.c
+scan_ldapstring.o: scan_ldapstring.c asn1.h ldap.h
+scan_ldapresult.o: scan_ldapresult.c asn1.h ldap.h
 
 ldif_parse.o: ldif_parse.c strduptab.h strstorage.h ldif.h
 
