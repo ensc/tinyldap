@@ -34,7 +34,9 @@ All integers are stored LITTLE ENDIAN.
   struct {
     uint32_t index_type;  /* 0 == sorted array of pointers,
 			     1 == sorted array of (pointer,record number) tuples,
-			          faster but twice as large
+			          faster but twice as large; this is actually saved
+				  as two arrays, one for the pointers and one for
+				  the numbers, for cache performance reasons.
 			     rest reserved */
     uint32_t next;        /* offset of next index */
     /* for index_type==0: */
