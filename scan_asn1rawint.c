@@ -1,6 +1,6 @@
 #include "asn1.h"
 
-int scan_asn1rawint(const char* src,const char* max,unsigned int len,long* l) {
+unsigned int scan_asn1rawint(const char* src,const char* max,unsigned int len,long* l) {
   unsigned int i,j;
   long m;
   if (*src<0) m=-1; else m=0;

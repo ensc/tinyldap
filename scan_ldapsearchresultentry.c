@@ -2,8 +2,8 @@
 #include "asn1.h"
 #include "ldap.h"
 
-int scan_ldapsearchresultentry(const char* src,const char* max,struct SearchResultEntry* sre) {
-  int res,tmp;
+unsigned int scan_ldapsearchresultentry(const char* src,const char* max,struct SearchResultEntry* sre) {
+  unsigned int res,tmp;
   long oslen; /* outer sequence length */
   struct PartialAttributeList** a=&sre->attributes;
   *a=0;

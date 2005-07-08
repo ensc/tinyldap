@@ -2,9 +2,9 @@
 #include "asn1.h"
 #include "ldap.h"
 
-int scan_ldapsearchrequest(const char* src,const char* max,
+unsigned int scan_ldapsearchrequest(const char* src,const char* max,
 			 struct SearchRequest* s) {
-  int res,tmp;
+  unsigned int res,tmp;
   unsigned long etmp;
   s->attributes=0;
   s->filter=0;

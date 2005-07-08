@@ -2,9 +2,13 @@
 #include "ldap.h"
 #include "str.h"
 
-int scan_ldapsearchfilterstring(const char* src,struct Filter** f) {
+unsigned int scan_ldapsearchfilterstring(const char* src,struct Filter** f) {
   char* s=(char*)src;
   if (!(*f=calloc(sizeof(struct Filter),1))) goto error;
+  if (s[0]=='*' && (s[1]==0 || s[1]=='(')) {
+    int i=scan_ldapsearchfilterstring("(objectClass=*)",f);
+    if (i) return 1;
+  }
   if (*s!='(') goto error;
   switch (*(++s)) {
   case '&': ++s; (*f)->type=AND;

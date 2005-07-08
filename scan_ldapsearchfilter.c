@@ -30,11 +30,11 @@
                 dnAttributes    [4] BOOLEAN DEFAULT FALSE }
 */
 
-int scan_ldapsearchfilter(const char* src,const char* max,struct Filter** f) {
+unsigned int scan_ldapsearchfilter(const char* src,const char* max,struct Filter** f) {
   enum asn1_tagclass tc;
   enum asn1_tagtype tt;
   unsigned long tag,len;
-  int res;
+  unsigned int res;
   unsigned int tmp;
   const char* nmax;
   *f=0;

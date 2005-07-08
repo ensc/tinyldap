@@ -17,8 +17,8 @@
                 vals    SET OF AttributeValue }
 #endif
 
-int scan_ldapmodifyrequest(const char* src,const char* max,struct ModifyRequest* m) {
-  int res,tmp;
+unsigned int scan_ldapmodifyrequest(const char* src,const char* max,struct ModifyRequest* m) {
+  unsigned int res,tmp;
   long oslen; /* outer sequence length */
   struct Modification* last=0;
   m->m.next=0;

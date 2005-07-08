@@ -1,9 +1,9 @@
 #include "asn1.h"
 #include "ldap.h"
 
-int scan_ldapmessage(const char* src,const char* max,
+unsigned int scan_ldapmessage(const char* src,const char* max,
 		     unsigned long* messageid,unsigned long* op,unsigned long* len) {
-  int res,tmp;
+  unsigned int res,tmp;
   if (!(res=scan_asn1SEQUENCE(src,max,len))) goto error;
   if (!(tmp=scan_asn1INTEGER(src+res,max,(long*)messageid))) goto error;
   res+=tmp;

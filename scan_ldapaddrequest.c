@@ -15,8 +15,8 @@
                 vals    SET OF AttributeValue }
 #endif
 
-int scan_ldapaddrequest(const char* src,const char* max,struct AddRequest* a) {
-  int res,tmp;
+unsigned int scan_ldapaddrequest(const char* src,const char* max,struct AddRequest* a) {
+  unsigned int res,tmp;
   long oslen; /* outer sequence length */
   struct Addition* last=0;
   a->a.next=0;

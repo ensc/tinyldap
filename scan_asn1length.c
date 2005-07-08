@@ -1,6 +1,6 @@
 #include "asn1.h"
 
-int scan_asn1length(const char* src,const char* max,unsigned long* length) {
+unsigned int scan_asn1length(const char* src,const char* max,unsigned long* length) {
   const char* orig=src;
   if (src>max) return 0;
 /* If the highest bit of the first byte is clear, the byte is the length.
