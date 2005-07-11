@@ -29,6 +29,7 @@ int fmt_ldapsubstring(char* dest,struct Substring* s) {
 
 unsigned int fmt_ldapsearchfilter(char* dest,struct Filter* f) {
   long sum=0,tmp;
+  long savesum;
   if (!f)
     return 0;
   switch (f->type) {
@@ -56,15 +57,16 @@ unsigned int fmt_ldapsearchfilter(char* dest,struct Filter* f) {
   default: return 0;
   }
 
+  savesum=sum;
   if(f->next) {
     if (dest) sum+=fmt_ldapsearchfilter(dest+sum,f->next); 
     else sum+=fmt_ldapsearchfilter(dest,f->next);
-  }	
+  }
 
-  tmp=fmt_asn1length(0,sum);
+  tmp=fmt_asn1length(0,savesum);
   if (!dest) return sum+tmp+1;
   if (dest) byte_copyr(dest+tmp+1,sum,dest);
   fmt_asn1tag(dest,PRIVATE,CONSTRUCTED,f->type);
-  fmt_asn1length(dest+1,sum);
+  fmt_asn1length(dest+1,savesum);
   return sum+tmp+1;
 }
