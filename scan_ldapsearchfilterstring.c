@@ -67,6 +67,7 @@ substring:
 	    }
 	    substring->next=(*f)->substrings;
 	    (*f)->substrings=substring;
+	    if (*s==0) goto error;
 	  }
 	} else {
 	  int i,j;
@@ -91,6 +92,7 @@ substring:
     if (*s=='=') ++s;
     (*f)->ava.value.s=s;
     s+=(*f)->ava.value.l=str_chr(s,')');
+    if (*s!=')') return 0;
   }
   return s-src+1;
 error:
