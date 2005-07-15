@@ -143,6 +143,7 @@ unsigned int fmt_ldapava(char* dest,struct AttributeValueAssertion* a);
 unsigned int fmt_ldapadl(char* dest,struct AttributeDescriptionList* adl);
 unsigned int fmt_ldapavl(char* dest,struct AttributeDescriptionList* adl);
 unsigned int fmt_ldapmodifyrequest(char* dest,struct ModifyRequest* m);
+unsigned int fmt_ldapsearchfilterstring(char* dest,struct Filter* f);
 
 #define fmt_ldapbindresponse(a,b,c,d,e) fmt_ldapresult(a,b,c,d,e)
 #define fmt_ldapsearchresultdone(a,b,c,d,e) fmt_ldapresult(a,b,c,d,e)

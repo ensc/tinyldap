@@ -1,3 +1,4 @@
+#define _FILE_OFFSET_BITS 64
 #define MAIN
 
 #include <buffer.h>
@@ -11,11 +12,15 @@
 #include <mmap.h>
 #include <case.h>
 #include <ldap.h>
+#include <uint16.h>
 #include <uint32.h>
+#include <open.h>
+#include <unistd.h>
 
 const char Any[]="*";
 const char Self[]="self";
 const char Dn[]="dn";
+uint32 any_ofs;
 
 enum {
   acl_read = 1,
@@ -28,6 +33,7 @@ enum {
 struct assertion {
   const char* filterstring;
   struct Filter* f;
+  uint32 idx;
   struct assertion* sameas;
 };
 
@@ -128,7 +134,7 @@ int parseaclattrib(buffer* in,struct acl* a) {
   {
     char c=*buffer_peek(in);
     if (c=='+' || c=='-') {
-      a->attrib=Any;
+      a->attrib=(char*)Any;
       a->anum=1;
       return 1;
     }
@@ -139,7 +145,7 @@ int parseaclattrib(buffer* in,struct acl* a) {
   stralloc_chop(&x);
   if (!stralloc_0(&x)) return -1;
   if (str_equal(x.s,"*")) {
-    a->attrib=Any;
+    a->attrib=(char*)Any;
     a->anum=1;
     return 1;
   }
@@ -195,6 +201,7 @@ static int parseacl(buffer* in,struct acl* a) {
 }
 
 static void fold(struct assertion* a,struct assertion* b) {
+  if (a==b) return;
   if (a->sameas || b->sameas) return;
   if (!strcmp(a->filterstring,b->filterstring))
     b->sameas=a;
@@ -221,7 +228,7 @@ int readacls(const char* filename) {
   int r;
   root=0; next=&root;
   if (buffer_mmapread(&b,filename)==-1) return -1;
-  while ((r=parseacl(&b,&a))!=-1) {
+  while ((r=parseacl(&b,&a))==1) {
     *next=malloc(sizeof(struct acl));
     if (!*next) diesys(1,"malloc");
     **next=a;
@@ -251,21 +258,39 @@ int marshalfilter(stralloc* x,struct assertion* a) {
   }
 }
 
-int marshal(char* map,unsigned long filelen) {
+int marshal(char* map,unsigned long filelen,const char* filename) {
   unsigned long filters,acls,i,j,k;
   unsigned long filter_offset,acl_offset;
   struct acl* a;
   uint32* F,* A;
   uint32 attribute_count;
   uint32 attrtab;
-  static stralloc x;
+  static stralloc x,y;
+  int fd=open_append(filename);
+
+  if (fd==-1)
+    diesys(1,"could not open file `",filename,"' for writing");
+
   stralloc_copys(&x,"");
+  stralloc_copys(&y,"");
   filters=acls=0;
   for (a=root; a; a=a->next) {
     ++acls;
-    if (!a->subject.sameas) ++filters;
-    if (!a->object.sameas) ++filters;
+    if (!a->subject.sameas) {
+      a->subject.idx=filters;
+      ++filters;
+    }
+    if (!a->object.sameas) {
+      a->object.idx=filters;
+      ++filters;
+    }
   }
+
+  buffer_putulong(buffer_1,acls);
+  buffer_puts(buffer_1," ACLs with ");
+  buffer_putulong(buffer_1,filters);
+  buffer_putsflush(buffer_1," filters.\n");
+
   F=malloc(sizeof(*F)*(filters+1));
 
   filter_offset=filelen+(filters+4)*sizeof(*F);	/* 2 uints for index header, 1 uint filters_count, then filter_count+1 uint32 in F */
@@ -297,38 +322,49 @@ nomem:
    * the ACLs.  To make it possible to skip over it, the offset table of
    * the filters has one more element, which points to the start of the
    * ACLs. */
-  for (a=root; a; a=a->next) {
-    unsigned int l=0;
-    if (!(a->attrs=malloc(a->anum*sizeof(*a->attrs))))
-      goto nomem;
-    a->attrs[l]=a->attrib; ++l;
-    for (k=0; a->attrib[k]; ++k)
-      if (a->attrib[k]==',') {
-	a->attrib[k]=0;
-	a->attrs[l]=a->attrib+k+1;
-      }
-    if (a->attrib!=Self && a->attrib!=Any)
-      for (k=0; k<a->anum; ++k) {
-	int found=0;
-	for (j=0; j<attribute_count; ++j) {
-	  if (!strcmp(map+uint32_read(map+attrtab+j*4),a->attrs[k])) {
-	    a->attrs[k]=map+uint32_read(map+attrtab+j*4);
-	    found=1;
-	    break;
+  {
+    int anyused=0;
+
+    for (a=root; a; a=a->next) {
+      unsigned int l=0;
+      if (!(a->attrs=malloc(a->anum*sizeof(*a->attrs))))
+	goto nomem;
+      a->attrs[l]=a->attrib; ++l;
+      if (a->attrib!=Any) {
+	for (k=0; a->attrib[k]; ++k)
+	  if (a->attrib[k]==',') {
+	    a->attrib[k]=0;
+	    a->attrs[l]=a->attrib+k+1;
+	  }
+	for (k=0; k<a->anum; ++k) {
+	  int found=0;
+	  for (j=0; j<attribute_count; ++j) {
+	    if (!strcmp(map+uint32_read(map+attrtab+j*4),a->attrs[k])) {
+	      a->attrs[k]=map+uint32_read(map+attrtab+j*4);
+	      found=1;
+	      break;
+	    }
+	  }
+	  if (!found) {
+	    /* warning: evil kludge ahead!  We assume that the sum of the
+	    * lengths of the new attributes plus the ACLs is smaller than
+	    * the address where mmap mapped the file. */
+	    char* tmp=a->attrs[k];
+  //	  buffer_putmflush(buffer_1,"adding attribute ",a->attrs[k],"\n");
+	    a->attrs[k]=map+filelen+
+			2*4+		/* index_type and next */
+			(filters+2)*4+	/* filters_count plus (filter_count+1)*uint32 */
+			x.len;
+	    if (!stralloc_catb(&x,tmp,strlen(tmp)+1)) goto nomem;
 	  }
 	}
-	if (!found) {
-	  /* warning: evil kludge ahead!  We assume that the sum of the
-	   * lengths of the new attributes plus the ACLs is smaller than
-	   * the address where mmap mapped the file. */
-	  char* tmp=a->attrs[k];
-	  a->attrs[k]=map+filelen+
-		      2*4+		/* index_type and next */
-		      (filters+2)*4+	/* filters_count plus (filter_count+1)+uint32 */
-		      x.len;
-	  if (!stralloc_cats(&x,tmp)) goto nomem;
-	}
-      }
+      } else anyused=1;
+    }
+    if (anyused) {
+      any_ofs=filelen+2*4+(filters+2)*4+x.len;
+//      printf("filelen is %d, filters is %d, x.len is %d -> anyofs is %d\n",filelen,filters,x.len,any_ofs);
+      if (!stralloc_catb(&x,Any,2)) goto nomem;
+    }
   }
 
   /* 32-bit align */
@@ -344,13 +380,98 @@ nomem:
   if (!A) goto nomem;
   acl_offset=F[i]+(acls+1)*sizeof(*A);
 
-  /* FIXME, TODO */
+  i=0;
+  for (a=root; a; a=a->next) {
+    char tmp[4];
+    unsigned int j;
+    A[i]=y.len; ++i;
+    if (!stralloc_readyplus(&y,12)) goto nomem;
+    if (a->subject.sameas)
+      uint32_pack(tmp,a->subject.sameas->idx);
+    else
+      uint32_pack(tmp,a->subject.idx);
+    stralloc_catb(&y,tmp,4);
+    if (a->object.sameas)
+      uint32_pack(tmp,a->object.sameas->idx);
+    else
+      uint32_pack(tmp,a->object.idx);
+    stralloc_catb(&y,tmp,4);
+    uint16_pack(tmp,a->may);
+    stralloc_catb(&y,tmp,2);
+    uint16_pack(tmp,a->maynot);
+    stralloc_catb(&y,tmp,2);
+    if (a->attrib==Any) {
+      uint32_pack(tmp,any_ofs);
+      if (!stralloc_catb(&y,tmp,4)) goto nomem;
+    } else {
+      for (j=0; j<a->anum; ++j) {
+	if (a->attrs[j]==Any)
+	buffer_putmflush(buffer_1,a->attrs[j],"\n");
+	uint32_pack(tmp,a->attrs[j]-map);
+	if (!stralloc_catb(&y,tmp,4)) goto nomem;
+      }
+    }
+    uint32_pack(tmp,0);
+    if (!stralloc_catb(&y,tmp,4)) goto nomem;
+  }
+
+  /* 32-bit align */
+  {
+    unsigned int align=(-(y.len&3))&3;
+    if (!stralloc_catb(&y,"\0\0\0",align)) goto nomem;
+  }
+
+  {
+    char tmp[8];
+    unsigned long i;
+    uint32 fixup;
+    /* write index header:
+     *   uint32 index_type (2 in this case);
+     *   uint32 offset_of_next_header; */
+    uint32_pack(tmp,2);
+    uint32_pack(tmp+4,filelen+
+		      8+		/* index header */
+		      4+		/* uint32 filters_count; */
+		      4*(filters+1)+	/* uint32 offsets_to_filters_in_scan_ldapsearchfilter_format[filter_count+1]; */
+		      x.len+		/* marshalled filters */
+		      4+		/* uint32 acl_count */
+		      4*acls+		/* uint32 offsets_to_acls[acl_count]; */
+		      y.len);		/* marshalled acls */
+    if (write(fd,tmp,8)!=8) {
+shortwrite:
+      ftruncate(fd,filelen);
+      close(fd);
+      diesys(1,"short write");
+    }
+    /* uint32 filter_count */
+    uint32_pack(tmp,filters);
+    if (write(fd,tmp,4)!=4) goto shortwrite;
+    /* uint32 offsets_to_filters_in_scan_ldapsearchfilter_format[filter_count+1]; */
+    for (i=0; i<filters+1; ++i)
+      uint32_pack(F+i,F[i]);
+    if (write(fd,F,(filters+1)*4) != (ssize_t)((filters+1)*4)) goto shortwrite;
+    /* write marshalled filter data */
+    if (write(fd,x.s,x.len) != (ssize_t)x.len) goto shortwrite;
+    /* uint32 acl_count */
+    uint32_pack(tmp,acls);
+    if (write(fd,tmp,4)!=4) goto shortwrite;
+    /* uint32 offsets_to_acls[acl_count] */
+    fixup=lseek(fd,0,SEEK_CUR)+acls*4;
+    for (i=0; i<acls; ++i)
+      uint32_pack(A+i,A[i]+fixup);
+    if (write(fd,A,acls*4) != (ssize_t)(acls*4)) goto shortwrite;
+    /* write marshalled acl data */
+    if (write(fd,y.s,y.len) != (ssize_t)y.len) goto shortwrite;
+  }
+  close(fd);
+  return 0;
 }
 
 #ifdef MAIN
 int main(int argc,char* argv[]) {
   unsigned long filelen;
-  char* map=mmap_read(argc>1?argv[1]:"data",&filelen);
+  char* filename=argc>1?argv[1]:"data";
+  char* map=mmap_read(filename,&filelen);
 
   if (filelen<5*4 || uint32_read(map)!=0xfefe1da9) {
     buffer_putmflush(buffer_2,"not a valid tinyldap data file!\n");
@@ -360,7 +481,7 @@ int main(int argc,char* argv[]) {
   if (readacls("acls")==-1) die(1,"readacls failed");
 //  acl_offsets(map,filelen);
 
-  marshal(map,filelen);
+  marshal(map,filelen,filename);
   return 0;
 }
 #endif

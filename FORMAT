@@ -37,11 +37,17 @@ All integers are stored LITTLE ENDIAN.
 			          faster but twice as large; this is actually saved
 				  as two arrays, one for the pointers and one for
 				  the numbers, for cache performance reasons.
+			     2 == ACL data
 			     rest reserved */
     uint32_t next;        /* offset of next index */
     /* for index_type==0: */
     uint32_t indexed_attribute; /* offset of attribute name */
     uint32_t record_offsets[record_count];
+    /* for index_type==1: */
+    uint32_t indexed_attribute;
+    uint32_t record_offsets[record_count];
+    uint32_t record_number[record_count];
+    /* for index_type==2 see file "ACL" */
   }
 
 The indices are at the end to make it possible to add more indices.

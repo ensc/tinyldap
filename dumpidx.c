@@ -98,6 +98,9 @@ int main(int argc,char* argv[]) {
       case 1:
 	buffer_puts(buffer_1,"sorted table with record pointer");
 	break;
+      case 2:
+	buffer_puts(buffer_1,"acl data");
+	break;
       default:
 	buffer_puts(buffer_1,"unknown (");
 	buffer_putulong(buffer_1,index_type);

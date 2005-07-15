@@ -2,7 +2,7 @@ DEBUG=1
 
 all: t1 t2 parse dumpidx idx2ldif addindex bindrequest tinyldap \
 tinyldap_standalone tinyldap_debug ldapclient ldapclient_str \
-md5password mysql2ldif acl # t6 # t
+md5password mysql2ldif acl dumpacls # t6 # t
 
 asn1.a: fmt_asn1intpayload.o fmt_asn1length.o fmt_asn1tag.o \
 fmt_asn1int.o fmt_asn1string.o fmt_asn1transparent.o scan_asn1tag.o \
@@ -21,7 +21,8 @@ fmt_ldapsearchfilter.o fmt_ldapsearchrequest.o matchstring.o \
 matchprefix.o matchcasestring.o matchcaseprefix.o \
 scan_ldapmodifyrequest.o scan_ldapaddrequest.o bstrlen.o bstrfirst.o \
 bstrstart.o free_ldapadl.o free_ldappal.o free_ldapsearchfilter.o \
-scan_ldapsearchfilterstring.o free_ldapsearchresultentry.o
+scan_ldapsearchfilterstring.o free_ldapsearchresultentry.o \
+fmt_ldapsearchfilterstring.o
 
 ldif.a: ldif_parse.o ldap_match_mapped.o
 
@@ -61,6 +62,7 @@ t6: storage.a
 tinyldap tinyldap_standalone tinyldap_debug: ldif.a auth.a
 bindrequest tinyldap tinyldap_standalone tinyldap_debug ldapclient ldapclient_str: ldap.a asn1.a
 idx2ldif: ldap.a
+dumpacls: ldap.a asn1.a
 
 tinyldap_standalone: tinyldap.c
 	$(DIET) $(CC) $(CFLAGS) -DSTANDALONE -o $@ $^ $(LDFLAGS) -lowfat $(LIBS)
