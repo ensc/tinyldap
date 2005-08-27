@@ -23,6 +23,8 @@
 #endif
 #include "case.h"
 #include <signal.h>
+#include "uint16.h"
+#include "acl.h"
 
 #ifdef DEBUG
 #define verbose 1
@@ -32,15 +34,212 @@
 #define debug 0
 #endif
 
-char* map;
-long filelen;
+/* basic operation: the whole data file is mmapped read-only at the beginning and stays there. */
+char* map;	/* where the file is mapped */
+long filelen;	/* how many bytes are mapped (the whole file) */
 uint32 magic,attribute_count,record_count,indices_offset,size_of_string_table;
+		/* these are the first values from the file, see the file "FORMAT"
+		 * basic counts and offsets needed to calculate the positions of
+		 * the data structures in the file. */
+
+
+/* We do queries with indexes by evaluating all the filters (subexpressions) that can be
+ * answered with an index, and then getting a bit vector, one bit for each record. */
 
 /* how many longs are needed to have one bit for each record? */
 uint32 record_set_length;
 
 /* some pre-looked-up attribute offsets to speed up ldap_match_mapped */
 uint32 dn_ofs,objectClass_ofs,userPassword_ofs,any_ofs;
+
+
+
+/* to avoid string compares, we don't work with char* but with uint32 (offsets within
+ * the mmapped file) whenever it's about values that will be mentioned in the file, such
+ * as attribute names.  So, for each filter we get sent, we look up the attributes in the
+ * file, so we have the offsets to save the strcmp later.
+ * In the same step, we also get the attribute flags.  tinyldap does not have LDAP
+ * schemas, so it does not know which attributes are case sensitive and which aren't.  So,
+ * this is saved in a flag, which is currently set by addindex when a case insensitive
+ * index is created. */
+
+/* This routine is called when we got a Filter and now want to look up the offsets for
+ * each attribute mentioned in it */
+
+/* recursively fill in attrofs and attrflag */
+static void fixup(struct Filter* f) {
+  if (!f) return;
+  switch (f->type) {
+  case EQUAL:
+  case SUBSTRING:
+  case GREATEQUAL:
+  case LESSEQUAL:
+  case PRESENT:
+  case APPROX:
+    {
+      char* x=map+5*4+size_of_string_table;
+      unsigned int i;
+      f->attrofs=f->attrflag=0;
+      for (i=0; i<attribute_count; ++i) {
+	uint32 j=uint32_read(x);
+	if (!matchcasestring(&f->ava.desc,map+j)) {
+	  f->attrofs=j;
+	  uint32_unpack(x+attribute_count*4,&f->attrflag);
+	  break;
+	}
+	x+=4;
+      }
+      if (!f->attrofs) {
+	buffer_puts(buffer_2,"cannot find attribute \"");
+	buffer_put(buffer_2,f->ava.desc.s,f->ava.desc.l);
+	buffer_putsflush(buffer_2,"\"!\n");
+      }
+    }
+  case AND:
+  case OR:
+  case NOT:
+    if (f->x) fixup(f->x);
+  default:
+    break;
+  }
+  if (f->next) fixup(f->next);
+}
+
+
+
+
+
+
+
+
+#if 0
+            _                                    _
+  __ _  ___| |  ___ _   _ _ __  _ __   ___  _ __| |_
+ / _` |/ __| | / __| | | | '_ \| '_ \ / _ \| '__| __|
+| (_| | (__| | \__ \ |_| | |_) | |_) | (_) | |  | |_
+ \__,_|\___|_| |___/\__,_| .__/| .__/ \___/|_|   \__|
+                         |_|   |_|
+#endif
+
+uint32 filters,acls;		/* number of filters and acls in the ACL section of the data file */
+uint32 filtertab,acltab;	/* offsets of the filter and acl table in the data file */
+char* acl_ec_subjects;		/* if the n'th byte here is nonzero, then the current subject
+				   (the dn the user is logged in as) matches the n'th filter, i.e.
+				   the ACLs with this subject need to be applied. */
+struct Filter** Filters;
+char Self[]="self";
+char Any[]="*";
+uint32 authenticated_as;
+
+struct acl {
+  uint32 subject,object;	/* index of filter for subject,object */
+  uint16 may,maynot;
+  uint32 attrs;
+  uint32 Attrs[1];
+};
+
+struct acl** Acls;
+
+static void load_acls() {
+  uint32 ofs;
+  uint32 acl_ofs;
+  acl_ofs=0;
+  for (ofs=indices_offset+record_count*4; ofs<(unsigned long)filelen;) {
+    uint32 index_type,next;
+    uint32_unpack(map+ofs,&index_type);
+    uint32_unpack(map+ofs+4,&next);
+    if (index_type==2) { acl_ofs=ofs; break; }
+    if (next<ofs || next>filelen) {
+kaputt:
+      buffer_putsflush(buffer_1,"broken data file!\n");
+      exit(1);
+    }
+    ofs=next;
+  }
+  filters=acls=0; acl_ec_subjects=0;
+  if (acl_ofs) {
+    uint32 i;
+    ofs=acl_ofs+8;
+    filters=uint32_read(map+ofs);
+    acl_ec_subjects=malloc(2*filters);
+    filtertab=ofs+4;
+    ofs=filtertab+filters*4;
+    if (ofs<filtertab) goto kaputt;
+    Filters=malloc(sizeof(Filters[0])*filters);
+    if (!Filters) goto kaputt;
+    for (i=0; i<filters; ++i) {
+      struct Filter* f;
+      ofs=uint32_read(map+filtertab+i*4);
+      if (ofs<filtertab || ofs>filelen) goto kaputt;
+      if (byte_equal(map+ofs,4,"self"))
+	f=(struct Filter*)Self;
+      else if (byte_equal(map+ofs,2,"*"))
+	f=(struct Filter*)Any;
+      else if (scan_ldapsearchfilter(map+ofs,map+filelen,&f)!=0) {
+	fixup(f);
+	if (debug) {
+	  unsigned long l=fmt_ldapsearchfilterstring(0,f);
+	  char* buf=malloc(l+23);
+	  if (!buf) goto kaputt;
+	  buf[fmt_ldapsearchfilterstring(buf,f)]=0;
+	  free(buf);
+	}
+      } else goto kaputt;
+      Filters[i]=f;
+    }
+    ofs=uint32_read(map+filtertab+filters*4);
+    if (ofs<filtertab || ofs>filelen-4) goto kaputt;
+    acls=uint32_read(map+ofs);
+    acltab=ofs+4;
+    Acls=malloc(sizeof(Acls[0])*acls);
+    if (!Acls) goto kaputt;
+    for (i=0; i<acls; ++i) {
+      uint32 j;
+      uint32 tmp,cnt;
+      ofs=uint32_read(map+acltab+i*4);
+      if (ofs>filelen-16) goto kaputt;
+      cnt=0;
+      for (tmp=ofs+12; tmp<filelen; tmp+=4) {
+	uint32 j=uint32_read(map+tmp);
+	if (j>tmp) goto kaputt;
+	if (!j) break;
+	++cnt;
+      }
+      Acls[i]=malloc(sizeof(struct acl)+cnt*sizeof(uint32));
+      if (!Acls[i]) goto kaputt;
+      Acls[i]->subject=uint32_read(map+ofs);
+      Acls[i]->object=uint32_read(map+ofs+4);
+      Acls[i]->may=uint16_read(map+ofs+8);
+      Acls[i]->maynot=uint16_read(map+ofs+10);
+      Acls[i]->attrs=cnt;
+
+      tmp=ofs+12;
+      for (j=0; j<cnt; ++j) {
+	uint32 x;
+	Acls[i]->Attrs[j]=x=uint32_read(map+tmp+4*j);
+	if (any_ofs==0 && map[x]=='*' && map[x+1]==0) any_ofs=x;
+      }
+    }
+  }
+  if (acls) {
+    uint32 i;
+    for (i=0; i<filters; ++i)
+      acl_ec_subjects[i]=(Filters[i]==(struct Filter*)Any);
+  }
+}
+
+/* End of ACL code */
+
+
+
+#if 0
+     _      _                                 _
+  __| | ___| |__  _   _  __ _    ___ ___   __| | ___
+ / _` |/ _ \ '_ \| | | |/ _` |  / __/ _ \ / _` |/ _ \
+| (_| |  __/ |_) | |_| | (_| | | (_| (_) | (_| |  __/
+ \__,_|\___|_.__/ \__,_|\__, |  \___\___/ \__,_|\___|
+                        |___/
+#endif
 
 #define BUFSIZE 8192
 
@@ -126,44 +325,16 @@ mergesub:
 }
 #endif
 
-/* recursively fill in attrofs and attrflag */
-static void fixup(struct Filter* f) {
-  if (!f) return;
-  switch (f->type) {
-  case EQUAL:
-  case SUBSTRING:
-  case GREATEQUAL:
-  case LESSEQUAL:
-  case PRESENT:
-  case APPROX:
-    {
-      char* x=map+5*4+size_of_string_table;
-      unsigned int i;
-      f->attrofs=f->attrflag=0;
-      for (i=0; i<attribute_count; ++i) {
-	uint32 j=uint32_read(x);
-	if (!matchcasestring(&f->ava.desc,map+j)) {
-	  f->attrofs=j;
-	  uint32_unpack(x+attribute_count*4,&f->attrflag);
-	  break;
-	}
-	x+=4;
-      }
-      if (!f->attrofs) {
-	buffer_puts(buffer_2,"cannot find attribute \"");
-	buffer_put(buffer_2,f->ava.desc.s,f->ava.desc.l);
-	buffer_putsflush(buffer_2,"\"!\n");
-      }
-    }
-  case AND:
-  case OR:
-  case NOT:
-    if (f->x) fixup(f->x);
-  default:
-    break;
-  }
-  if (f->next) fixup(f->next);
-}
+
+
+
+#if 0
+ _           _                           _
+(_)_ __   __| | _____  __   ___ ___   __| | ___
+| | '_ \ / _` |/ _ \ \/ /  / __/ _ \ / _` |/ _ \
+| | | | | (_| |  __/>  <  | (_| (_) | (_| |  __/
+|_|_| |_|\__,_|\___/_/\_\  \___\___/ \__,_|\___|
+#endif
 
 /* find out whether this filter can be accelerated with the indices */
 static int indexable(struct Filter* f) {
@@ -214,21 +385,23 @@ static int indexable(struct Filter* f) {
   }
 }
 
-/* each record can have more than one attribute with the same name, i.e.
- * two email addresses.  Thus, the index can't just be a sorted list of
- * pointers the records (because a record with two email addresses needs
- * to be in the index twice, once for each email address).  So our index
- * is a sorted list of pointers to the attributes.  Thus, a look-up in
- * the index does not yield the record but the attribute.  We need to be
- * able to find the record for a given attribute.  To do that, we
- * exploit the fact that the strings in the string table are in the same
- * order as the records, so we can do a binary search over the record
- * table to find the record with the attribute.  This does not work for
- * objectClass, because the classes are stored in a different string
- * table to remove duplicates. */
+/* each record can have more than one attribute with the same name, i.e.  two email
+ * addresses.  Thus, the index can't just be a sorted list of pointers the records
+ * (because a record with two email addresses needs to be in the index twice, once for
+ * each email address).  So our index is a sorted list of pointers to the attributes.
+ * Thus, a look-up in the index does not yield the record but the attribute.  We need to
+ * be able to find the record for a given attribute.  To do that, we exploit the fact that
+ * the strings in the string table are in the same order as the records, so we can do a
+ * binary search over the record table to find the record with the attribute.  This does
+ * not work for objectClass, because the classes are stored in a different string table to
+ * remove duplicates. */
 
-/* this kludge is only necessary for index type 0.  Index type 1 also
- * saves the record number. */
+/* Yes, this is an evil kludge to keep index size small.  However, it turned out that it
+ * also dominated lookup time for a relatively minor index size reduction.  So index type
+ * 1 was added (flag f to addindex), which does not need this.  The benefit is so big that
+ * tinyldap will drop support for type 0 indices sooner or later.  Type 1 indexes are
+ * twice as large, and save the record number besides each index entry. */
+
 /* find record given a data pointer */
 static long findrec(uint32 dat) {
   uint32* records=(uint32*)(map+indices_offset);
@@ -259,13 +432,13 @@ static long findrec(uint32 dat) {
   return -1;
 }
 
-/* basic bit-set support: set all bits to zero */
+/* basic bit-set support: set all bits to 0 */
 static inline void emptyset(unsigned long* r) {
   unsigned long i;
   for (i=0; i<record_set_length; ++i) r[i]=0;
 }
 
-/* basic bit-set support: set all bits to zero */
+/* basic bit-set support: set all bits to 1 */
 static inline void fillset(unsigned long* r) {
   unsigned long i;
   for (i=0; i<record_set_length; ++i) r[i]=(unsigned long)-1;
@@ -499,6 +672,20 @@ static int useindex(struct Filter* f,unsigned long* bitfield) {
   }
 }
 
+
+
+#if 0
+                                                                 _
+  __ _ _   _  ___ _ __ _   _    __ _ _ __  _____      _____ _ __(_)_ __   __ _
+ / _` | | | |/ _ \ '__| | | |  / _` | '_ \/ __\ \ /\ / / _ \ '__| | '_ \ / _` |
+| (_| | |_| |  __/ |  | |_| | | (_| | | | \__ \\ V  V /  __/ |  | | | | | (_| |
+ \__, |\__,_|\___|_|   \__, |  \__,_|_| |_|___/ \_/\_/ \___|_|  |_|_| |_|\__, |
+    |_|                |___/                                             |___/
+#endif
+
+/* this routine is called for each record matched the query.  It basically puts together
+ * an answer LDAP message from the record and the list of attributes the other side said
+ * it wanted to have. */
 static void answerwith(uint32 ofs,struct SearchRequest* sr,long messageid,int out) {
   struct SearchResultEntry sre;
   struct PartialAttributeList** pal=&sre.attributes;
@@ -529,6 +716,9 @@ static void answerwith(uint32 ofs,struct SearchRequest* sr,long messageid,int ou
   }
 #endif
 
+  if (acls)
+    byte_zero(acl_ec_subjects+filters,filters);
+
   sre.objectName.l=bstrlen(sre.objectName.s=map+uint32_read(map+ofs+8));
   sre.attributes=0;
   /* now go through list of requested attributes */
@@ -555,49 +745,95 @@ static void answerwith(uint32 ofs,struct SearchRequest* sr,long messageid,int ou
     while (adl) {
       const char* val=0;
       uint32 i=2,j;
-      uint32_unpack(map+ofs,&j);
-#if 0
-      buffer_puts(buffer_2,"looking for attribute \"");
-      buffer_put(buffer_2,adl->a.s,adl->a.l);
-      buffer_putsflush(buffer_2,"\"\n");
-#endif
-      if (!matchstring(&adl->a,"dn")) val=sre.objectName.s; else
-      if (!matchstring(&adl->a,"objectClass"))
-	val=map+uint32_read(map+ofs+12);
-      else {
-	for (; i<j; ++i)
-	  if (!matchstring(&adl->a,map+uint32_read(map+ofs+i*8))) {
-	    val=map+uint32_read(map+ofs+i*8+4);
-	    ++i;
-	    break;
+      int ok=acls?0:1;
+
+      for (j=0; j<acls; ++j) {
+	/* does the ACL subject apply? */
+	if (!acl_ec_subjects[Acls[j]->subject]) continue;
+	/* does the ACL even apply to read operations? */
+	if ((Acls[j]->may | Acls[j]->maynot) & acl_read) {
+	  uint32 k;
+	  if (acl_ec_subjects[filters+Acls[j]->object]==-1) continue;
+	  if (acl_ec_subjects[filters+Acls[j]->object]==0) {
+	    int match=0;
+	    if (Filters[Acls[j]->object]==(struct Filter*)Any)
+	      match=1;
+	    else if (Filters[Acls[j]->object]==(struct Filter*)Self)
+	      match=(ofs==authenticated_as);
+	    else
+	      match=(ldap_matchfilter_mapped(ofs,Filters[Acls[j]->object]));
+	    if (match)
+	      acl_ec_subjects[filters+Acls[j]->object]=1;
+	    else {
+	      acl_ec_subjects[filters+Acls[j]->object]=-1;
+	      continue;
+	    }
 	  }
-      }
-      if (val) {
-	*pal=malloc(sizeof(struct PartialAttributeList));
-	if (!*pal) {
-nomem:
-	  buffer_putsflush(buffer_2,"out of virtual memory!\n");
-	  exit(1);
+	  for (k=0; k<Acls[j]->attrs; ++k) {
+	    if (Acls[j]->Attrs[k]==any_ofs || !matchstring(&adl->a,map+Acls[j]->Attrs[k])) {
+	      if (Acls[j]->may&acl_read) {
+#if 0
+		printf("acl %u allowed serving attribute \"%.*s\"\n",j,(int)adl->a.l,adl->a.s);
+#endif
+		ok=1;
+	      } else {
+#if 0
+		printf("acl %u disallowed serving attribute \"%.*s\"\n",j,(int)adl->a.l,adl->a.s);
+#endif
+		ok=-1;
+	      }
+	      break;
+	    }
+	  }
 	}
-	(*pal)->type=adl->a;
-	{
-	  struct AttributeDescriptionList** a=&(*pal)->values;
-add_attribute:
-	  *a=malloc(sizeof(struct AttributeDescriptionList));
-	  if (!*a) goto nomem;
-	  (*a)->a.s=bstrfirst(val);
-	  (*a)->a.l=bstrlen(val);
-	  for (;i<j; ++i)
+	if (ok) break;
+      }
+      if (ok==1) {
+
+	uint32_unpack(map+ofs,&j);
+#if 0
+	buffer_puts(buffer_2,"looking for attribute \"");
+	buffer_put(buffer_2,adl->a.s,adl->a.l);
+	buffer_putsflush(buffer_2,"\"\n");
+#endif
+	if (!matchstring(&adl->a,"dn")) val=sre.objectName.s; else
+	if (!matchstring(&adl->a,"objectClass"))
+	  val=map+uint32_read(map+ofs+12);
+	else {
+	  for (; i<j; ++i)
 	    if (!matchstring(&adl->a,map+uint32_read(map+ofs+i*8))) {
 	      val=map+uint32_read(map+ofs+i*8+4);
 	      ++i;
-	      a=&(*a)->next;
-	      goto add_attribute;
+	      break;
 	    }
-	  (*a)->next=0;
 	}
-	(*pal)->next=0;
-	pal=&(*pal)->next;
+	if (val) {
+	  *pal=malloc(sizeof(struct PartialAttributeList));
+	  if (!*pal) {
+  nomem:
+	    buffer_putsflush(buffer_2,"out of virtual memory!\n");
+	    exit(1);
+	  }
+	  (*pal)->type=adl->a;
+	  {
+	    struct AttributeDescriptionList** a=&(*pal)->values;
+  add_attribute:
+	    *a=malloc(sizeof(struct AttributeDescriptionList));
+	    if (!*a) goto nomem;
+	    (*a)->a.s=bstrfirst(val);
+	    (*a)->a.l=bstrlen(val);
+	    for (;i<j; ++i)
+	      if (!matchstring(&adl->a,map+uint32_read(map+ofs+i*8))) {
+		val=map+uint32_read(map+ofs+i*8+4);
+		++i;
+		a=&(*a)->next;
+		goto add_attribute;
+	      }
+	    (*a)->next=0;
+	  }
+	  (*pal)->next=0;
+	  pal=&(*pal)->next;
+	}
       }
       adl=adl->next;
     }
@@ -618,6 +854,31 @@ add_attribute:
   free_ldappal(sre.attributes);
 }
 
+
+#if 0
+ _     _       _       _                _   _     _
+| |__ (_) __ _| |__   | | _____   _____| | | | __| | __ _ _ __
+| '_ \| |/ _` | '_ \  | |/ _ \ \ / / _ \ | | |/ _` |/ _` | '_ \
+| | | | | (_| | | | | | |  __/\ V /  __/ | | | (_| | (_| | |_) |
+|_| |_|_|\__, |_| |_| |_|\___| \_/ \___|_| |_|\__,_|\__,_| .__/
+         |___/                                           |_|
+#endif
+
+/* This is the high level LDAP handling code.  It reads queries from the socket at in, and
+ * then writes the answers to out.  Normally in == out, but they are separate here so this
+ * can also be called with in=stdin and out=stdout. */
+
+/* a standard LDAP session looks like this:
+ *   1. connect to server
+ *   2. send a BindRequest
+ *      get back a BindResponse
+ *   3. send a SearchRequest
+ *      get back n SearchResultEntries
+ *      get back a SearchResultDone
+ *   4. send an UnbindRequest
+ *   5. close
+ * tinyldap does not complain if you don't unbind before hanging up.
+ */
 int handle(int in,int out) {
   int len;
   char buf[BUFSIZE];
@@ -626,7 +887,7 @@ int handle(int in,int out) {
     int res;
     long messageid,op,Len;
     if (tmp==0)
-      if (BUFSIZE-len) { return 0; }
+      if (BUFSIZE-len) { close(in); if (in!=out) close(out); return 0; }
     if (tmp<0) { write(2,"error!\n",7); return 1; }
     len+=tmp;
     res=scan_ldapmessage(buf,buf+len,&messageid,&op,&Len);
@@ -700,9 +961,10 @@ authfailure:
 		  }
 		  for (; i<record_count; ++i) {
 		    if (isset(result,i)) {
-		      uint32 j;
+		      uint32 j,authdn;
 		      const char* c;
 		      uint32_unpack(map+indices_offset+4*i,&j);
+		      uint32_unpack(map+j+8,&authdn);
 		      if (!(j=ldap_find_attr_value(j,userPassword_ofs))) {
 			buffer_putsflush(buffer_2,"no userPassword attribute found, bind failed!\n");
 			goto authfailure;
@@ -717,6 +979,7 @@ authfailure:
 #endif
 		      if (check_password(c,&password)) {
 			done=1;
+			authenticated_as=authdn;
 			goto found;
 		      }
 		    }
@@ -937,6 +1200,14 @@ found:
   }
 }
 
+#if 0
+                 _
+ _ __ ___   __ _(_)_ __
+| '_ ` _ \ / _` | | '_ \
+| | | | | | (_| | | | | |
+|_| |_| |_|\__,_|_|_| |_|
+#endif
+
 int main(int argc,char* argv[]) {
 #ifdef STANDALONE
   int sock;
@@ -970,8 +1241,6 @@ int main(int argc,char* argv[]) {
 	objectClass_ofs=j;
       else if (case_equals("userPassword",map+j))
 	userPassword_ofs=j;
-      else if (case_equals("*",map+j))
-	any_ofs=j;
       x+=4;
     }
     if (!dn_ofs || !objectClass_ofs) {
@@ -979,6 +1248,8 @@ int main(int argc,char* argv[]) {
       return 0;
     }
   }
+
+  load_acls();
 
 #if 0
   ldif_parse("exp.ldif");
@@ -1037,3 +1308,6 @@ again:
 #endif
   return 0;
 }
+
+/* vim:tw=90:
+ */

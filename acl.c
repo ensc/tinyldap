@@ -22,13 +22,7 @@ const char Self[]="self";
 const char Dn[]="dn";
 uint32 any_ofs;
 
-enum {
-  acl_read = 1,
-  acl_write = 2,
-  acl_auth = 4,
-  acl_delete = 8,
-  acl_rendn = 16,
-};
+#include "acl.h"
 
 struct assertion {
   const char* filterstring;
@@ -202,22 +196,39 @@ static int parseacl(buffer* in,struct acl* a) {
 
 static void fold(struct assertion* a,struct assertion* b) {
   if (a==b) return;
-  if (a->sameas || b->sameas) return;
-  if (!strcmp(a->filterstring,b->filterstring))
-    b->sameas=a;
+#if 0
+  printf("fold \"%s\" \"%s\"\n",a->filterstring,b->filterstring);
+#endif
+  if (b->sameas || a->sameas) return;
+  if (!strcmp(a->filterstring,b->filterstring)) {
+    a->sameas=b;
+#if 0
+    printf("  -> folded!\n");
+#endif
+  }
 }
 
 static void optimize(struct acl* a) {
+  struct acl* origa=a;
   struct acl* b;
   for (; a; a=a->next)
-    for (b=a; b; b=b->next) {
+    for (b=origa; b!=a; b=b->next) {
       fold(&a->subject,&b->subject);
       fold(&a->object,&b->object);
-      fold(&a->subject,&a->object);
       fold(&a->subject,&b->object);
       fold(&b->subject,&a->object);
       fold(&b->subject,&b->object);
+      fold(&a->subject,&a->object);
     }
+
+#if 0
+  for (a=origa; a; a=a->next) {
+    if (a->subject.sameas && a->subject.sameas->sameas)
+      puts("ARGH 1!");
+    if (a->object.sameas && a->object.sameas->sameas)
+      puts("ARGH 2!");
+  }
+#endif
 }
 
 static struct acl* root;
@@ -246,6 +257,8 @@ int readacls(const char* filename) {
 int marshalfilter(stralloc* x,struct assertion* a) {
   if (a->filterstring==Self)
     return stralloc_catb(x,Self,5);
+  if (a->filterstring==Any)
+    return stralloc_catb(x,Any,2);
   else {
     char* tmp;
     unsigned long l=fmt_ldapsearchfilter(0,a->f);
@@ -306,11 +319,13 @@ nomem:
 	buffer_putmflush(buffer_2,"out of memory!\n");
 	exit(1);
       }
+//      printf("marshalled \"%s\" to %ld\n",a->subject.filterstring,F[i-1]);
     }
     if (!a->object.sameas) {
       F[i]=x.len+filter_offset;
       ++i;
       if (!marshalfilter(&x,&a->object)) goto nomem;
+//      printf("marshalled \"%s\" to %ld\n",a->object.filterstring,F[i-1]);
     }
   }
   attribute_count=uint32_read(map+4);
@@ -448,7 +463,7 @@ shortwrite:
     if (write(fd,tmp,4)!=4) goto shortwrite;
     /* uint32 offsets_to_filters_in_scan_ldapsearchfilter_format[filter_count+1]; */
     for (i=0; i<filters+1; ++i)
-      uint32_pack(F+i,F[i]);
+      uint32_pack((char*)(F+i),F[i]);
     if (write(fd,F,(filters+1)*4) != (ssize_t)((filters+1)*4)) goto shortwrite;
     /* write marshalled filter data */
     if (write(fd,x.s,x.len) != (ssize_t)x.len) goto shortwrite;
@@ -458,7 +473,7 @@ shortwrite:
     /* uint32 offsets_to_acls[acl_count] */
     fixup=lseek(fd,0,SEEK_CUR)+acls*4;
     for (i=0; i<acls; ++i)
-      uint32_pack(A+i,A[i]+fixup);
+      uint32_pack((char*)(A+i),A[i]+fixup);
     if (write(fd,A,acls*4) != (ssize_t)(acls*4)) goto shortwrite;
     /* write marshalled acl data */
     if (write(fd,y.s,y.len) != (ssize_t)y.len) goto shortwrite;
@@ -485,3 +500,4 @@ int main(int argc,char* argv[]) {
   return 0;
 }
 #endif
+

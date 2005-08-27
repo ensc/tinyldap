@@ -6,3 +6,5 @@ acl * * userPassword -r;
 acl * self * +a;
 # admins at fefe.de can write in their tree
 acl (dn=*ou=admin,o=fefe,c=de) (dn=*,o=fefe,c=de) * +rwdR;
+# everyone can read everything else
+acl * * * +r;

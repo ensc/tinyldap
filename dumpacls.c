@@ -58,7 +58,7 @@ kaputt:
 	buffer_puts(buffer_1,": ");
 	if (byte_equal(map+ofs,4,"self"))
 	  buffer_puts(buffer_1,"self");
-	else if (byte_equal(map+ofs,3,"any"))
+	else if (byte_equal(map+ofs,2,"*"))
 	  buffer_puts(buffer_1,"any");
 	else if (scan_ldapsearchfilter(map+ofs,map+filelen,&f)!=0) {
 	  unsigned long l=fmt_ldapsearchfilterstring(0,f);
