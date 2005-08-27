@@ -27,3 +27,14 @@ scales.  How would conflict detection and resolution be done?
 Think about an iCal frontend.
 
 Make tinyldap a good back-end for blogs and message boards.
+
+
+
+
+
+The ACL checks need to include the attributes in the filter of the
+query.  Right now, if there is a read ACL prohibiting reading of "sn",
+one could still query all records with (sn=Fnord).
+
+Also, the attribute value list should be fixed up so there are no string
+compares in the attribute check in the acl and normal answers.
