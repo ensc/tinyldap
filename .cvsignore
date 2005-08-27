@@ -19,3 +19,6 @@ ldap-capture
 server
 md5password
 t6
+acl
+acls
+dumpacls
