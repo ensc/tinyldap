@@ -1,6 +1,4 @@
-#ifdef __FreeBSD__
 #include <sys/types.h>
-#endif
 #ifdef __dietlibc__
 #include <md5.h>
 #else

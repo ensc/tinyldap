@@ -1,4 +1,5 @@
-DEBUG=1
+#DEBUG=1
+#COVERAGE=1
 
 all: t1 t2 parse dumpidx idx2ldif addindex bindrequest tinyldap \
 tinyldap_standalone tinyldap_debug ldapclient ldapclient_str \
@@ -40,6 +41,11 @@ ifneq ($(DEBUG),)
 DIET=/opt/diet/bin/diet
 CFLAGS=-pipe -I. -Wall -W -g
 endif
+ifeq ($(COVERAGE),1)
+DIET=
+CFLAGS=-pipe -I. -g -fprofile-arcs -ftest-coverage
+endif
+
 ifneq ($(DIET),)
 LIBS+=-llatin1
 else
@@ -78,7 +84,8 @@ acl: acl.c ldap.a asn1.a
 clean:
 	rm -f t t[1-9] *.[ao] bindrequest tinyldap ldapclient data \
 parse tinyldap_standalone tinyldap_debug ldapclient_str addindex \
-dumpidx idx2ldif md5password *.da *.bbg *.bb *.gcov gmon.out
+dumpidx idx2ldif md5password *.da *.bbg *.bb *.gcov gmon.out *.gcda \
+*.gcno
 
 tar: clean
 	cd ..; tar cvvf tinyldap.tar.bz2 tinyldap --use=bzip2 --exclude capture --exclude CVS --exclude exp.ldif --exclude polyp* --exclude rfc*

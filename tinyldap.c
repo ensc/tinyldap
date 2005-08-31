@@ -27,6 +27,7 @@
 #include "acl.h"
 
 #ifdef DEBUG
+#include <sys/poll.h>
 #define verbose 1
 #define debug 1
 #else
@@ -740,7 +741,7 @@ static void answerwith(uint32 ofs,struct SearchRequest* sr,long messageid,int ou
 	adl[i].a.l=strlen(map+j);
 	adl[i].next=adl+i+1;
       }
-      adl[attribute_count-1].next=0;
+      adl[attribute_count-2].next=0;
     }
     while (adl) {
       const char* val=0;
@@ -886,8 +887,12 @@ int handle(int in,int out) {
     int tmp=read(in,buf+len,BUFSIZE-len);
     int res;
     long messageid,op,Len;
-    if (tmp==0)
-      if (BUFSIZE-len) { close(in); if (in!=out) close(out); return 0; }
+    if (tmp==0) {
+      close(in);
+      if (in!=out) close(out); 
+      return 0;
+//      if (BUFSIZE-len) { return 0; }
+    }
     if (tmp<0) { write(2,"error!\n",7); return 1; }
     len+=tmp;
     res=scan_ldapmessage(buf,buf+len,&messageid,&op,&Len);
@@ -1289,6 +1294,12 @@ again:
       exit(1);
     }
 #ifdef DEBUG
+    {
+      struct pollfd p;
+      p.fd=0;
+      p.events=POLLIN;
+      if (poll(&p,1,1)==1) return;
+    }
     handle(asock,asock);
     goto again;
 //    exit(0);
