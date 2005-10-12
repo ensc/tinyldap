@@ -9,6 +9,7 @@
 #include "mmap.h"
 #include "uint32.h"
 #include "mstorage.h"
+#include <errmsg.h>
 
 mstorage_t idx;
 char* map;
@@ -30,6 +31,7 @@ int compari(const void* a,const void* b) {
 }
 
 int main(int argc,char* argv[]) {
+  enum { SORTEDTABLE, HASHTABLE } mode;
   long filelen;
   char* filename=argv[1];
   uint32 magic,attribute_count,record_count,indices_offset,size_of_string_table;
@@ -38,29 +40,29 @@ int main(int argc,char* argv[]) {
 
   ignorecase=fastindex=0;
 
+  errmsg_iam("addindex");
   mstorage_init(&idx);
 
   if (argc<3) {
-    buffer_putsflush(buffer_2,"usage: ./addindex filename attribute [i][f]\n"
+    buffer_putsflush(buffer_2,"usage: ./addindex filename attribute [i][f][h]\n"
 		     "if i is present, make index case insensitive.\n"
-		     "if f is present, make index twice as large, but quicker.\n");
+		     "if f is present, make index twice as large, but quicker.\n"
+		     "if h is present, make it a hash index (only accelerates direct lookups)\n");
     return 1;
   }
 
+  mode=SORTEDTABLE;
   if (argc>3) {
     if (strchr(argv[3],'i')) ignorecase=1;
     if (strchr(argv[3],'f')) fastindex=1;
+    if (strchr(argv[3],'h')) mode=HASHTABLE;
   }
   map=mmap_read(filename,&filelen);
-  if (!map) {
-    buffer_putmflush(buffer_2,"could not open `",filename,"': ",strerror(errno),"\n");
-    return 1;
-  }
+  if (!map)
+    diesys(111,"Could not open \"",filename,"\"");
   uint32_unpack(map,&magic);
-  if (magic!=0xfefe1da9) {
-    buffer_putsflush(buffer_2,"file format not recognized!  Invalid magic!\n");
-    return 1;
-  }
+  if (magic!=0xfefe1da9)
+    die(111,"File format not recognized (invalid magic)!\n");
   uint32_unpack(map+4,&attribute_count);
   uint32_unpack(map+2*4,&record_count);
   uint32_unpack(map+3*4,&indices_offset);
@@ -80,24 +82,18 @@ int main(int argc,char* argv[]) {
 //	buffer_putsflush(buffer_2,"found attribute!\n");
 	wanted=j; casesensitive=x+attribute_count*4-map;
 	uint32_unpack(map+casesensitive,&j);
-	if (j) {
-	  buffer_putsflush(buffer_2,"case sensitivity flag is nonzero?!\n");
-	  return 1;
-	}
+	if (j)
+	  die(1,"Case sensitivity flag is nonzero!?");
       }
       x+=4;
     }
-    if (!wanted) {
-      buffer_putsflush(buffer_2,"that attribute is not in the database!\n");
-      return 1;
-    }
-    if (!dn || !objectClass) {
-      buffer_putsflush(buffer_2,"dn or objectClass not found!\n");
-      return 1;
-    }
+    if (!wanted)
+      die(1,"That attribute is not in the database.");
+    if (!dn || !objectClass)
+      die(1,"dn or objectClass not found.");
   }
 
-  {
+  if (mode==SORTEDTABLE) {
     uint32 i,counted=0;
     char* x=map+5*4+size_of_string_table+attribute_count*8;
     for (i=0; i<record_count; ++i) {
@@ -142,16 +138,12 @@ int main(int argc,char* argv[]) {
     munmap(map,filelen);
     {
       int fd=open(filename,O_RDWR);
-      if (fd<0) {
-	buffer_putsflush(buffer_2,"could not re-open database file read-write\n");
-	exit(1);
-      }
+      if (fd<0)
+	diesys(111,"Could not re-open database file read-write");
       ftruncate(fd,filelen+3*4+counted*4*(fastindex+1));
       map=mmap(0,filelen+(counted+3)*4*(fastindex+1),PROT_WRITE,MAP_SHARED,fd,0);
-      if (map==(char*)-1) {
-	buffer_putsflush(buffer_2,"could not mmap database file read-write\n");
-	exit(1);
-      }
+      if (map==(char*)-1)
+	diesys(111,"Could not mmap database file read-write");
       uint32_pack(map+casesensitive,ignorecase);
       uint32_pack(map+filelen,fastindex);
       uint32_pack(map+filelen+4,filelen+3*4+counted*4*(fastindex+1));
@@ -176,6 +168,8 @@ int main(int argc,char* argv[]) {
 	}
       }
     }
-  }
+  } else if (mode==HASHTABLE) {
+  } else
+    die(1,"invalid index type requested");
   return 0;
 }

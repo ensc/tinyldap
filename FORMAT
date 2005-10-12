@@ -38,6 +38,7 @@ All integers are stored LITTLE ENDIAN.
 				  as two arrays, one for the pointers and one for
 				  the numbers, for cache performance reasons.
 			     2 == ACL data
+			     3 == hash index (only useful for dn)
 			     rest reserved */
     uint32_t next;        /* offset of next index */
     /* for index_type==0: */
@@ -48,6 +49,18 @@ All integers are stored LITTLE ENDIAN.
     uint32_t record_offsets[record_count];
     uint32_t record_number[record_count];
     /* for index_type==2 see file "ACL" */
+    /* for index_type==3: */
+    uint32_t indexed_attribute;
+    uint32_t hash_table_size;	/* in uint32_t, not in bytes! */
+    uint32_t hash_table[hash_table_size];
+    uint32_t lists[];
+      /* if a hash table entry is 0, return not found. */
+      /* if a hash table entry points to before this index, there is
+       * exactly one record matching this hash, and the offset points
+       * there. */
+      /* if a hash table entry points somewhere in lists, there were
+       * hash collisions;  The first uint32_t at the offset is the
+       * length of the list, the rest are the offsets of the records */
   }
 
 The indices are at the end to make it possible to add more indices.

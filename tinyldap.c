@@ -465,6 +465,7 @@ static void tagmatches(uint32* index,unsigned int elements,struct string* s,
   uint32 top=elements;
   uint32 mid,k,m;
   long rec;
+  rec=0;
   emptyset(bitfield);
 
   while ((top>=bottom)) {
@@ -1298,7 +1299,7 @@ again:
       struct pollfd p;
       p.fd=0;
       p.events=POLLIN;
-      if (poll(&p,1,1)==1) return;
+      if (poll(&p,1,1)==1) return 0;
     }
     handle(asock,asock);
     goto again;
