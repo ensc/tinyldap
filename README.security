@@ -1,0 +1,8 @@
+tinyldap trusts the binary data file on disk.
+There are numerous ways to make tinyldap crash or loop endlessly if an
+attacker can hex edit the data file.
+
+Other than that, tinyldap does not trust anyone :-)
+
+tinyldap can (and should) be run as non-root, via tcpserver, in a chroot
+jail.

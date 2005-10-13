@@ -374,7 +374,7 @@ static int indexable(struct Filter* f) {
 	index_type=uint32_read(map+ofs);
 	next=uint32_read(map+ofs+4);
 	indexed_attribute=uint32_read(map+ofs+8);
-	if (index_type<=1)
+	if (index_type<=1 || (index_type==3 && f->type==EQUAL))
 	  if (!matchstring(&f->ava.desc,map+indexed_attribute))
 	    return 1;
 	ofs=next;
@@ -567,6 +567,28 @@ static void tagmatches(uint32* index,unsigned int elements,struct string* s,
   }
 }
 
+uint32 hash(const unsigned char* c,unsigned long keylen) {
+  unsigned long h=0;
+  unsigned long i;
+  for (i=0; i<keylen; ++i) {
+    /* from djb's cdb */
+    h += (h<<5);
+    h ^= c[i];
+  }
+  return (uint32)h;
+}
+
+uint32 hash_tolower(const unsigned char* c,unsigned long keylen) {
+  unsigned long h=0;
+  unsigned long i;
+  for (i=0; i<keylen; ++i) {
+    /* from djb's cdb */
+    h += (h<<5);
+    h ^= tolower(c[i]);
+  }
+  return (uint32)h;
+}
+
 /* Use the indices to answer a query with the given filter.
  * For all matching records, set the corresponding bit to 1 in bitfield.
  * Note that this match can be approximate.  Before answering, the
@@ -577,6 +599,37 @@ static void tagmatches(uint32* index,unsigned int elements,struct string* s,
 static int useindex(struct Filter* f,unsigned long* bitfield) {
   struct Filter* y=f->x;
   if (!f) return 1;
+  if (f->type==EQUAL) {		/* prefer a hash index if there is one */
+    uint32 ofs;
+    for (ofs=indices_offset+record_count*4; ofs<(unsigned long)filelen;) {
+      uint32 index_type,next,indexed_attribute;
+      index_type=uint32_read(map+ofs);
+      next=uint32_read(map+ofs+4);
+      indexed_attribute=uint32_read(map+ofs+8);
+      if (index_type==3)
+	if (!matchstring(&f->ava.desc,map+indexed_attribute)) {
+	  uint32 hashtabsize=uint32_read(map+ofs+12);
+	  uint32 hashtab=ofs+16;
+	  uint32 hashval=hash(f->ava.value.s,f->ava.value.l);
+	  uint32 hashofs=uint32_read(map+hashtab+(hashval%hashtabsize)*4);
+	  if (hashofs==0) return 1;
+	  if (hashofs<ofs)
+	    /* direct hit */
+	    setbit(bitfield,hashofs);
+	  else {
+	    uint32 n=uint32_read(map+hashofs);
+	    hashofs+=4;
+	    while (n) {
+	      setbit(bitfield,uint32_read(map+hashofs));
+	      hashofs+=4;
+	      --n;
+	    }
+	  }
+	  return 1;
+	}
+      ofs=next;
+    }
+  }
   switch (f->type) {
   case AND:
     {

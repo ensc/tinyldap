@@ -101,6 +101,9 @@ int main(int argc,char* argv[]) {
       case 2:
 	buffer_puts(buffer_1,"acl data");
 	break;
+      case 3:
+	buffer_puts(buffer_1,"hash table");
+	break;
       default:
 	buffer_puts(buffer_1,"unknown (");
 	buffer_putulong(buffer_1,index_type);
@@ -109,7 +112,7 @@ int main(int argc,char* argv[]) {
       }
       buffer_puts(buffer_1,"\nnext: ");
       buffer_putulong(buffer_1,next);
-      if (index_type<=1) {
+      if (index_type<=1 || index_type==3) {
 	buffer_puts(buffer_1,"\nattribute: ");
 	buffer_puts(buffer_1,map+indexed_attribute);
       }
