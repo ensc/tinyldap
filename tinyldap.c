@@ -599,6 +599,7 @@ uint32 hash_tolower(const unsigned char* c,unsigned long keylen) {
 static int useindex(struct Filter* f,unsigned long* bitfield) {
   struct Filter* y=f->x;
   if (!f) return 1;
+
   if (f->type==EQUAL) {		/* prefer a hash index if there is one */
     uint32 ofs;
     for (ofs=indices_offset+record_count*4; ofs<(unsigned long)filelen;) {
@@ -610,7 +611,7 @@ static int useindex(struct Filter* f,unsigned long* bitfield) {
 	if (!matchstring(&f->ava.desc,map+indexed_attribute)) {
 	  uint32 hashtabsize=uint32_read(map+ofs+12);
 	  uint32 hashtab=ofs+16;
-	  uint32 hashval=hash(f->ava.value.s,f->ava.value.l);
+	  uint32 hashval=f->attrflag&1?hash_tolower(f->ava.value.s,f->ava.value.l):hash(f->ava.value.s,f->ava.value.l);
 	  uint32 hashofs=uint32_read(map+hashtab+(hashval%hashtabsize)*4);
 	  if (hashofs==0) return 1;
 	  if (hashofs<ofs)
@@ -630,6 +631,7 @@ static int useindex(struct Filter* f,unsigned long* bitfield) {
       ofs=next;
     }
   }
+
   switch (f->type) {
   case AND:
     {
