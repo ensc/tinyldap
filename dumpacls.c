@@ -8,7 +8,6 @@
 #include "byte.h"
 
 int main(int argc,char* argv[]) {
-  int verbose=0;
   unsigned long filelen;
   char* fn=argc<2?"data":argv[1];
   char* map=mmap_read(fn,&filelen);
@@ -31,7 +30,7 @@ int main(int argc,char* argv[]) {
     uint32 ofs,next;
     acl_ofs=0;
     for (ofs=indices_offset+record_count*4; ofs<(unsigned long)filelen;) {
-      uint32 index_type,next,indexed_attribute;
+      uint32 index_type;
       uint32_unpack(map+ofs,&index_type);
       uint32_unpack(map+ofs+4,&next);
       if (index_type==2) { acl_ofs=ofs; break; }

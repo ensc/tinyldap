@@ -86,7 +86,7 @@ int main(int argc,char* argv[]) {
   unsigned long size;
 //  char* ldapsequence=mmap_read("req",&size);
   char* ldapsequence=mmap_read(argc>1?argv[1]:"/tmp/ldap/127.000.000.001.00389-127.000.000.001.38433",&size);
-  long messageid, op, len;
+  unsigned long messageid, op, len;
   int res;
   unsigned long done=0;
   while (done<size) {
@@ -97,7 +97,7 @@ int main(int argc,char* argv[]) {
     case BindRequest:
       puts("  >> BindRequest <<");
       {
-	long version,method;
+	unsigned long version,method;
 	struct string name;
 	int tmp;
 	printf("scan_ldapbindrequest: %d\n",tmp=scan_ldapbindrequest(ldapsequence+done+res,ldapsequence+done+res+len,&version,&name,&method));
@@ -105,7 +105,7 @@ int main(int argc,char* argv[]) {
 	if (method==0) {
 	  enum asn1_tagclass tc;
 	  enum asn1_tagtype tt;
-	  long tag;
+	  unsigned long tag;
 	  if (scan_asn1string(ldapsequence+done+res+tmp,ldapsequence+size,&tc,&tt,&tag,&name.s,&name.l) &&
 	      tc==PRIVATE && tt==PRIMITIVE && tag==0)
 	    printf("simple \"%.*s\"\n",(int)name.l,name.s);
@@ -182,7 +182,7 @@ int main(int argc,char* argv[]) {
     case SearchResultDone:
       puts("  >> SearchResultDone <<");
       {
-	long result;
+	unsigned long result;
 	struct string matcheddn,errormessage,referral;
 	printf("scan_ldapresult: %d\n",
 	       scan_ldapresult(ldapsequence+done+res,ldapsequence+done+res+len,

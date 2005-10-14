@@ -2,7 +2,7 @@
 
 unsigned int scan_asn1STRING(const char* src,const char* max,const char** s,unsigned long* l) {
   unsigned int tmp;
-  long tag;
+  unsigned long tag;
   enum asn1_tagclass tc;
   enum asn1_tagtype tt;
   if ((tmp=scan_asn1string(src,max,&tc,&tt,&tag,s,l)))

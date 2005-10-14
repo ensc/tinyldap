@@ -15,7 +15,7 @@
 
 #define BUFSIZE 8192
 
-static long messageid=1;
+static unsigned long messageid=1;
 
 static int ldapbind(int sock) {
   char outbuf[1024];
@@ -23,7 +23,7 @@ static int ldapbind(int sock) {
   int len=fmt_ldapbindrequest(outbuf+s,3,"","");
   int hlen=fmt_ldapmessage(0,messageid,BindRequest,len);
   int res;
-  long op,Len,result;
+  unsigned long op,Len,result;
   struct string matcheddn,errormessage,referral;
   fmt_ldapmessage(outbuf+s-hlen,messageid,BindRequest,len);
   if (write(sock,outbuf+s-hlen,len+hlen)!=len+hlen) return 0;;
@@ -48,6 +48,7 @@ int main(int argc,char* argv[]) {
     ++me;
   else
     me=argv[0];
+  n=1;
   if ((bench=!strcmp(me,"ldapbench"))) {
     n=atoi(getenv("NUM"));
     buffer_putsflush(buffer_2,"benchmark mode\n");
@@ -58,7 +59,6 @@ usage:
     buffer_putsflush(buffer_2,"usage: ldapclient ip baseObject filter [foo...]\n");
     return 0;
   }
-  if (!bench) n=1;
   for (durchlauf=0; durchlauf<n; ++durchlauf) {
     sock=socket_tcp4();
     {
@@ -125,7 +125,7 @@ usage:
 	int matches=0;
 	len=0;
 	for (;;) {
-	  long slen,mid,op;
+	  unsigned long slen,mid,op;
 	  int cur=0;
 
 	  tmp=read(sock,buf+len,sizeof(buf)-len);

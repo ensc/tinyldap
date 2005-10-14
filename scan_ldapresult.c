@@ -1,7 +1,7 @@
 #include "asn1.h"
 #include "ldap.h"
 
-unsigned int scan_ldapresult(const char* src,const char* max,long* result,
+unsigned int scan_ldapresult(const char* src,const char* max,unsigned long* result,
 		    struct string* matcheddn,struct string* errormessage,
 		    struct string* referral) {
   unsigned int res,tmp;

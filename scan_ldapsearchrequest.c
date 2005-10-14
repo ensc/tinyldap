@@ -6,6 +6,7 @@ unsigned int scan_ldapsearchrequest(const char* src,const char* max,
 			 struct SearchRequest* s) {
   unsigned int res,tmp;
   unsigned long etmp;
+  signed long ltmp;
   s->attributes=0;
   s->filter=0;
   if (!(res=scan_ldapstring(src,max,&s->baseObject))) goto error;
@@ -13,9 +14,11 @@ unsigned int scan_ldapsearchrequest(const char* src,const char* max,
   if (etmp>2) goto error; s->scope=etmp; res+=tmp;
   if (!(tmp=scan_asn1ENUMERATED(src+res,max,&etmp))) goto error;
   if (etmp>3) goto error; s->derefAliases=etmp; res+=tmp;
-  if (!(tmp=scan_asn1INTEGER(src+res,max,&s->sizeLimit))) goto error;
+  if (!(tmp=scan_asn1INTEGER(src+res,max,&ltmp)) || ltmp<0) goto error;
+  s->sizeLimit=(unsigned long)ltmp;
   res+=tmp;
-  if (!(tmp=scan_asn1INTEGER(src+res,max,&s->timeLimit))) goto error;
+  if (!(tmp=scan_asn1INTEGER(src+res,max,&ltmp)) || ltmp<0) goto error;
+  s->timeLimit=(unsigned long)ltmp;
   res+=tmp;
   if (!(tmp=scan_asn1BOOLEAN(src+res,max,&s->typesOnly))) goto error;
   res+=tmp;

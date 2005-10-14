@@ -17,7 +17,7 @@
 
 unsigned int scan_ldapaddrequest(const char* src,const char* max,struct AddRequest* a) {
   unsigned int res,tmp;
-  long oslen; /* outer sequence length */
+  unsigned long oslen; /* outer sequence length */
   struct Addition* last=0;
   a->a.next=0;
   if (!(res=scan_ldapstring(src,max,&a->entry))) goto error;
@@ -27,7 +27,7 @@ unsigned int scan_ldapaddrequest(const char* src,const char* max,struct AddReque
   max=src+res+oslen;
   if (src+res>=max) goto error;		/* need at least one record */
   do {
-    long islen;
+    unsigned long islen;
     if (last) {
       struct Addition* cur;
       if (!(cur=malloc(sizeof(struct Addition)))) 
@@ -48,7 +48,7 @@ unsigned int scan_ldapaddrequest(const char* src,const char* max,struct AddReque
 
     /* scan set of AttributeValue: */
     {
-      long set_len;
+      unsigned long set_len;
       const char* set_max;
       struct AttributeDescriptionList* ilast=0;
       if (!(tmp=scan_asn1SET(src+res,max,&set_len))) {

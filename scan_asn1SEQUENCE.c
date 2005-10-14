@@ -2,7 +2,7 @@
 
 unsigned int scan_asn1SEQUENCE(const char* src,const char* max,unsigned long* len) {
   unsigned int res,tmp;
-  long tag;
+  unsigned long tag;
   enum asn1_tagclass tc;
   enum asn1_tagtype tt;
   if (!(res=scan_asn1tag(src,max,&tc,&tt,&tag))) return 0;

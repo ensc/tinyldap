@@ -25,6 +25,7 @@
 #include <signal.h>
 #include "uint16.h"
 #include "acl.h"
+#include <ctype.h>
 
 #ifdef DEBUG
 #include <sys/poll.h>
@@ -37,7 +38,7 @@
 
 /* basic operation: the whole data file is mmapped read-only at the beginning and stays there. */
 char* map;	/* where the file is mapped */
-long filelen;	/* how many bytes are mapped (the whole file) */
+unsigned long filelen;	/* how many bytes are mapped (the whole file) */
 uint32 magic,attribute_count,record_count,indices_offset,size_of_string_table;
 		/* these are the first values from the file, see the file "FORMAT"
 		 * basic counts and offsets needed to calculate the positions of
@@ -106,6 +107,28 @@ static void fixup(struct Filter* f) {
   if (f->next) fixup(f->next);
 }
 
+static void fixupadl(struct AttributeDescriptionList* a) {
+  while (a) {
+    char* x=map+5*4+size_of_string_table;
+    unsigned int i;
+    a->attrofs=0;
+    for (i=0; i<attribute_count; ++i) {
+      uint32 j=uint32_read(x);
+      if (!matchcasestring(&a->a,map+j)) {
+	a->attrofs=j;
+	break;
+      }
+      x+=4;
+    }
+    if (!a->attrofs) {
+      buffer_puts(buffer_2,"cannot find attribute \"");
+      buffer_put(buffer_2,a->a.s,a->a.l);
+      buffer_putsflush(buffer_2,"\"!\n");
+    }
+    a=a->next;
+  }
+}
+
 
 
 
@@ -145,7 +168,7 @@ static void load_acls() {
   uint32 ofs;
   uint32 acl_ofs;
   acl_ofs=0;
-  for (ofs=indices_offset+record_count*4; ofs<(unsigned long)filelen;) {
+  for (ofs=indices_offset+record_count*4; ofs<filelen;) {
     uint32 index_type,next;
     uint32_unpack(map+ofs,&index_type);
     uint32_unpack(map+ofs+4,&next);
@@ -369,7 +392,7 @@ static int indexable(struct Filter* f) {
   case GREATEQUAL:
     {
       uint32 ofs;
-      for (ofs=indices_offset+record_count*4; ofs<(unsigned long)filelen;) {
+      for (ofs=indices_offset+record_count*4; ofs<filelen;) {
 	uint32 index_type,next,indexed_attribute;
 	index_type=uint32_read(map+ofs);
 	next=uint32_read(map+ofs+4);
@@ -602,7 +625,7 @@ static int useindex(struct Filter* f,unsigned long* bitfield) {
 
   if (f->type==EQUAL) {		/* prefer a hash index if there is one */
     uint32 ofs;
-    for (ofs=indices_offset+record_count*4; ofs<(unsigned long)filelen;) {
+    for (ofs=indices_offset+record_count*4; ofs<filelen;) {
       uint32 index_type,next,indexed_attribute;
       index_type=uint32_read(map+ofs);
       next=uint32_read(map+ofs+4);
@@ -611,7 +634,7 @@ static int useindex(struct Filter* f,unsigned long* bitfield) {
 	if (!matchstring(&f->ava.desc,map+indexed_attribute)) {
 	  uint32 hashtabsize=uint32_read(map+ofs+12);
 	  uint32 hashtab=ofs+16;
-	  uint32 hashval=f->attrflag&1?hash_tolower(f->ava.value.s,f->ava.value.l):hash(f->ava.value.s,f->ava.value.l);
+	  uint32 hashval=f->attrflag&1?hash_tolower((unsigned char*)f->ava.value.s,f->ava.value.l):hash((unsigned char*)f->ava.value.s,f->ava.value.l);
 	  uint32 hashofs=uint32_read(map+hashtab+(hashval%hashtabsize)*4);
 	  if (hashofs==0) return 1;
 	  if (hashofs<ofs)
@@ -674,7 +697,7 @@ static int useindex(struct Filter* f,unsigned long* bitfield) {
     if (f->substrings->substrtype!=prefix) return 0;
     {
       uint32 ofs;
-      for (ofs=indices_offset+record_count*4; ofs<(unsigned long)filelen;) {
+      for (ofs=indices_offset+record_count*4; ofs<filelen;) {
 	uint32 index_type,next,indexed_attribute;
 	index_type=uint32_read(map+ofs);
 	next=uint32_read(map+ofs+4);
@@ -709,7 +732,7 @@ static int useindex(struct Filter* f,unsigned long* bitfield) {
   case EQUAL:
     {
       uint32 ofs;
-      for (ofs=indices_offset+record_count*4; ofs<(unsigned long)filelen;) {
+      for (ofs=indices_offset+record_count*4; ofs<filelen;) {
 	uint32 index_type,next,indexed_attribute;
 	index_type=uint32_read(map+ofs);
 	next=uint32_read(map+ofs+4);
@@ -795,6 +818,7 @@ static void answerwith(uint32 ofs,struct SearchRequest* sr,long messageid,int ou
 	x+=4;
 	adl[i].a.s=map+j;
 	adl[i].a.l=strlen(map+j);
+	adl[i].attrofs=j;
 	adl[i].next=adl+i+1;
       }
       adl[attribute_count-2].next=0;
@@ -827,7 +851,8 @@ static void answerwith(uint32 ofs,struct SearchRequest* sr,long messageid,int ou
 	    }
 	  }
 	  for (k=0; k<Acls[j]->attrs; ++k) {
-	    if (Acls[j]->Attrs[k]==any_ofs || !matchstring(&adl->a,map+Acls[j]->Attrs[k])) {
+/*	    if (Acls[j]->Attrs[k]==any_ofs || !matchstring(&adl->a,map+Acls[j]->Attrs[k])) { */
+	    if (Acls[j]->Attrs[k]==any_ofs || adl->attrofs==Acls[j]->Attrs[k]) {
 	      if (Acls[j]->may&acl_read) {
 #if 0
 		printf("acl %u allowed serving attribute \"%.*s\"\n",j,(int)adl->a.l,adl->a.s);
@@ -845,8 +870,8 @@ static void answerwith(uint32 ofs,struct SearchRequest* sr,long messageid,int ou
 	}
 	if (ok) break;
       }
-      if (ok==1) {
 
+      if (ok==1) {
 	uint32_unpack(map+ofs,&j);
 #if 0
 	buffer_puts(buffer_2,"looking for attribute \"");
@@ -858,7 +883,8 @@ static void answerwith(uint32 ofs,struct SearchRequest* sr,long messageid,int ou
 	  val=map+uint32_read(map+ofs+12);
 	else {
 	  for (; i<j; ++i)
-	    if (!matchstring(&adl->a,map+uint32_read(map+ofs+i*8))) {
+/*	    if (!matchstring(&adl->a,map+uint32_read(map+ofs+i*8))) { */
+	    if (adl->attrofs == uint32_read(map+ofs+i*8)) {
 	      val=map+uint32_read(map+ofs+i*8+4);
 	      ++i;
 	      break;
@@ -867,20 +893,22 @@ static void answerwith(uint32 ofs,struct SearchRequest* sr,long messageid,int ou
 	if (val) {
 	  *pal=malloc(sizeof(struct PartialAttributeList));
 	  if (!*pal) {
-  nomem:
+nomem:
 	    buffer_putsflush(buffer_2,"out of virtual memory!\n");
 	    exit(1);
 	  }
 	  (*pal)->type=adl->a;
 	  {
-	    struct AttributeDescriptionList** a=&(*pal)->values;
-  add_attribute:
+	    struct AttributeDescriptionList** a;
+	    a=&(*pal)->values;
+add_attribute:
 	    *a=malloc(sizeof(struct AttributeDescriptionList));
 	    if (!*a) goto nomem;
 	    (*a)->a.s=bstrfirst(val);
 	    (*a)->a.l=bstrlen(val);
 	    for (;i<j; ++i)
-	      if (!matchstring(&adl->a,map+uint32_read(map+ofs+i*8))) {
+/*	      if (!matchstring(&adl->a,map+uint32_read(map+ofs+i*8))) { */
+	      if (adl->attrofs == uint32_read(map+ofs+i*8)) {
 		val=map+uint32_read(map+ofs+i*8+4);
 		++i;
 		a=&(*a)->next;
@@ -937,12 +965,12 @@ static void answerwith(uint32 ofs,struct SearchRequest* sr,long messageid,int ou
  * tinyldap does not complain if you don't unbind before hanging up.
  */
 int handle(int in,int out) {
-  int len;
+  unsigned int len;
   char buf[BUFSIZE];
   for (len=0;;) {
     int tmp=read(in,buf+len,BUFSIZE-len);
     int res;
-    long messageid,op,Len;
+    unsigned long messageid,op,Len;
     if (tmp==0) {
       close(in);
       if (in!=out) close(out); 
@@ -965,7 +993,7 @@ int handle(int in,int out) {
       switch (op) {
       case BindRequest:
 	{
-	  long version,method;
+	  unsigned long version,method;
 	  struct string name;
 	  int tmp;
 	  tmp=scan_ldapbindrequest(buf+res,buf+res+len,&version,&name,&method);
@@ -1100,6 +1128,7 @@ found:
 	    }
 #endif
 	    fixup(sr.filter);
+	    fixupadl(sr.attributes);
 	    if (indexable(sr.filter)) {
 	      unsigned long* result;
 	      unsigned long i;

@@ -281,7 +281,7 @@ int ldif_parse(const char* filename) {
   } else {
     fd=open_read(filename);
     if (fd<0) return 1;
-    buffer_init(&in,read,fd,buf,sizeof buf);
+    buffer_init(&in,(void*)read,fd,buf,sizeof buf);
     tmp=&in;
   }
   dn=mduptab_adds(&attributes,"dn");

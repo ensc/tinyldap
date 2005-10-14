@@ -80,7 +80,7 @@ unsigned int scan_ldapsearchfilter(const char* src,const char* max,struct Filter
     break;
   case 4:    /*  substrings      [4] SubstringFilter, */
     {
-      long len2;
+      unsigned long len2;
       if (!(tmp=scan_ldapstring(src+res,nmax,&(*f)->ava.desc))) goto error;
       res+=tmp;
       if (!(tmp=scan_asn1SEQUENCE(src+res,nmax,&len2))) goto error;

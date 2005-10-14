@@ -161,7 +161,7 @@ int main(int argc,char* argv[]) {
     goto derrout2;
   }
 
-  buffer_init(&rbuf,write,rfd,recbuf,sizeof recbuf);
+  buffer_init(&rbuf,(void*)write,rfd,recbuf,sizeof recbuf);
 
   ldif_parse_callback=ldif_callback;
 
@@ -175,7 +175,7 @@ derrout2:
     return 1;
   }
 
-  buffer_init(&outbuf,write,fd,buf,sizeof buf);
+  buffer_init(&outbuf,(void*)write,fd,buf,sizeof buf);
 
   mduptab_init(&attributes);
   mduptab_init(&classes);
@@ -249,7 +249,7 @@ writeerror:
 
     buffer_flush(&rbuf);
     if (lseek(rfd,0,SEEK_SET)!=0) diesys(1,"lseek failed");
-    buffer_init(&rbuf,read,rfd,recbuf,sizeof recbuf);
+    buffer_init(&rbuf,(void*)read,rfd,recbuf,sizeof recbuf);
 
     for (i=0; i<record_count; ++i) {
       char convbuf[8];

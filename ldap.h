@@ -19,6 +19,7 @@ struct AttributeValueAssertion {
 
 struct AttributeDescriptionList {
   struct string a;
+  uint32 attrofs;
   struct AttributeDescriptionList *next;
 };
 
@@ -124,7 +125,7 @@ unsigned int scan_ldapava(const char* src,const char* max,struct AttributeValueA
 unsigned int scan_ldapsearchfilter(const char* src,const char* max,struct Filter** f);
 unsigned int scan_ldapsearchrequest(const char* src,const char* max,struct SearchRequest* s);
 unsigned int scan_ldapsearchresultentry(const char* src,const char* max,struct SearchResultEntry* sre);
-unsigned int scan_ldapresult(const char* src,const char* max,long* result,
+unsigned int scan_ldapresult(const char* src,const char* max,unsigned long* result,
 		    struct string* matcheddn,struct string* errormessage,
 		    struct string* referral);
 unsigned int scan_ldapmodifyrequest(const char* src,const char* max,struct ModifyRequest* m);

@@ -117,7 +117,7 @@ int parse_ldif(const char* filename) {
   int fd=open_read(filename);
   buffer in;
   if (fd<0) return 1;
-  buffer_init(&in,read,fd,buf,sizeof buf);
+  buffer_init(&in,(void*)read,fd,buf,sizeof buf);
   dn=strduptab_add(&tags,"dn");
   mail=strduptab_add(&tags,"mail");
   sn=strduptab_add(&tags,"sn");
