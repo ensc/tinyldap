@@ -63,12 +63,12 @@ unsigned int scan_ldapaddrequest(const char* src,const char* max,struct AddReque
         if (ilast) {
           struct AttributeDescriptionList* x;
           if (!(x=malloc(sizeof(struct AttributeDescriptionList)))) goto error;
-          x->next=0; 
           ilast->next=x;
           ilast = ilast->next;
         } else {
           ilast=&last->vals;
         }
+	ilast->next=0;
         if (!(tmp=scan_ldapstring(src+res,max,&ilast->a))) 
           goto error;
         res+=tmp;

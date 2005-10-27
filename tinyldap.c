@@ -1152,7 +1152,7 @@ found:
 		    uint32 j;
 		    uint32_unpack(map+indices_offset+4*i,&j);
 		    if (ldap_match_mapped(j,&sr)) {
-		      if (sr.sizeLimit && sr.sizeLimit>++returned)
+		      if (sr.sizeLimit && sr.sizeLimit<=++returned)
 			break;
 		      answerwith(j,&sr,messageid,out);
 		    }
@@ -1169,7 +1169,7 @@ found:
 		uint32 j;
 		uint32_unpack(x,&j);
 		if (ldap_match_mapped(x-map,&sr)) {
-		  if (sr.sizeLimit && sr.sizeLimit>++returned)
+		  if (sr.sizeLimit && sr.sizeLimit<=++returned)
 		    break;
 		  answerwith(x-map,&sr,messageid,out);
 		}
@@ -1235,7 +1235,6 @@ found:
 //          buffer_putsflush(buffer_2,"AddRequest!\n");
           if ((tmp=scan_ldapaddrequest(buf+res,buf+res+len,&ar))) {
 	    /* TODO: do something with the add request ;-) */
-	    free_ldapaddrequest(&ar);
 	  } else {
 	    buffer_putsflush(buffer_2,"couldn't parse add request!\n");
 	    exit(1);
@@ -1255,6 +1254,8 @@ found:
 	      }
 	    }
 	  }
+
+	  free_ldapaddrequest(&ar);
 
 	  {
 	      char outbuf[1024];
