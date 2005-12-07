@@ -2,6 +2,7 @@
 #include "asn1.h"
 #include "ldap.h"
 #include "buffer.h"
+#include "byte.h"
 
 #if 0
         AddRequest ::= [APPLICATION 8] SEQUENCE {
@@ -19,7 +20,7 @@ unsigned int scan_ldapaddrequest(const char* src,const char* max,struct AddReque
   unsigned int res,tmp;
   unsigned long oslen; /* outer sequence length */
   struct Addition* last=0;
-  a->a.next=0;
+  byte_zero(a,sizeof(*a));
   if (!(res=scan_ldapstring(src,max,&a->entry))) goto error;
   if (!(tmp=scan_asn1SEQUENCE(src+res,max,&oslen))) goto error;
   res+=tmp;
@@ -30,19 +31,19 @@ unsigned int scan_ldapaddrequest(const char* src,const char* max,struct AddReque
     unsigned long islen;
     if (last) {
       struct Addition* cur;
-      if (!(cur=malloc(sizeof(struct Addition)))) 
+      if (!(cur=malloc(sizeof(struct Addition))))
         goto error;
-      last->next=cur; 
+      last->next=cur;
       last=cur;
     } else {
       last=&a->a;
     }
     last->next=0;
-    if (!(tmp=scan_asn1SEQUENCE(src+res,max,&islen))) 
+    if (!(tmp=scan_asn1SEQUENCE(src+res,max,&islen)))
       goto error;
     res+=tmp;
     /* scan AttributeDescription: */
-    if (!(tmp=scan_ldapstring(src+res,max,&last->AttributeDescription))) 
+    if (!(tmp=scan_ldapstring(src+res,max,&last->AttributeDescription)))
       goto error;
     res+=tmp;
 
@@ -69,7 +70,7 @@ unsigned int scan_ldapaddrequest(const char* src,const char* max,struct AddReque
           ilast=&last->vals;
         }
 	ilast->next=0;
-        if (!(tmp=scan_ldapstring(src+res,max,&ilast->a))) 
+        if (!(tmp=scan_ldapstring(src+res,max,&ilast->a)))
           goto error;
         res+=tmp;
       }

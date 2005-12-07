@@ -152,7 +152,7 @@ int ldap_matchfilter_mapped(uint32 ofs,struct Filter* f) {
     }
     break;
   default:
-    write(2,"unsupported query type\n",4);
+    write(2,"unsupported query type\n",23);
     return 0;
   }
   return 1;

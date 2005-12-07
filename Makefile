@@ -23,7 +23,7 @@ matchprefix.o matchcasestring.o matchcaseprefix.o \
 scan_ldapmodifyrequest.o scan_ldapaddrequest.o bstrlen.o bstrfirst.o \
 bstrstart.o free_ldapadl.o free_ldappal.o free_ldapsearchfilter.o \
 scan_ldapsearchfilterstring.o free_ldapsearchresultentry.o \
-fmt_ldapsearchfilterstring.o
+fmt_ldapsearchfilterstring.o ldap_match_sre.o
 
 ldif.a: ldif_parse.o ldap_match_mapped.o
 
@@ -146,3 +146,5 @@ scan_ldapsearchfilterstring.o: scan_ldapsearchfilterstring.c ldap.h
 scan_ldapsearchrequest.o: scan_ldapsearchrequest.c asn1.h ldap.h
 scan_ldapsearchresultentry.o: scan_ldapsearchresultentry.c asn1.h ldap.h
 scan_ldapstring.o: scan_ldapstring.c asn1.h ldap.h
+
+ldap_match_sre.o: ldap_match_sre.c ldap.h

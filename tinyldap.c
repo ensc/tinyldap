@@ -26,6 +26,8 @@
 #include "uint16.h"
 #include "acl.h"
 #include <ctype.h>
+#include <assert.h>
+#include <fcntl.h>
 
 #ifdef DEBUG
 #include <sys/poll.h>
@@ -456,40 +458,71 @@ static long findrec(uint32 dat) {
   return -1;
 }
 
+#define RANGECHECK 1
+
+struct bitfield {
+  unsigned long* bits;
+#ifdef RANGECHECK
+  unsigned long n;
+#endif
+  unsigned long first,last;
+};
+
 /* basic bit-set support: set all bits to 0 */
-static inline void emptyset(unsigned long* r) {
+static inline void emptyset(struct bitfield* b) {
   unsigned long i;
-  for (i=0; i<record_set_length; ++i) r[i]=0;
+#ifdef RANGECHECK
+  b->n=
+#endif
+    b->first=record_count;
+  b->last=0;
+  for (i=0; i<record_set_length; ++i) b->bits[i]=0;
 }
 
 /* basic bit-set support: set all bits to 1 */
-static inline void fillset(unsigned long* r) {
+static inline void fillset(struct bitfield* b) {
   unsigned long i;
-  for (i=0; i<record_set_length; ++i) r[i]=(unsigned long)-1;
+  b->first=0;
+#ifdef RANGECHECK
+  b->n=
+#endif
+  b->last=record_count;
+  for (i=0; i<record_set_length; ++i) b->bits[i]=(unsigned long)-1;
 }
 
 /* basic bit-set support: set one bit to 1 */
-static inline void setbit(unsigned long* r,unsigned long bit) {
-  r[bit/(8*sizeof(long))] |= (1<<(bit&(8*sizeof(long)-1)));
+static inline void setbit(struct bitfield* b,unsigned long bit) {
+#ifdef RANGECHECK
+  if (bit<=b->n) {
+#endif
+    if (bit<b->first) b->first=bit;
+    if (bit>b->last) b->last=bit;
+    b->bits[bit/(8*sizeof(long))] |= (1<<(bit&(8*sizeof(long)-1)));
+#ifdef RANGECHECK
+  }
+#endif
 }
 
 /* basic bit-set support: see if given bit is set */
-static inline int isset(unsigned long* r,unsigned long bit) {
-  return r[bit/(8*sizeof(long))] & (1<<(bit&(8*sizeof(long)-1)));
+static inline int isset(struct bitfield* b,unsigned long bit) {
+#ifdef RANGECHECK
+  if (bit>b->n) return 0;
+#endif
+  return b->bits[bit/(8*sizeof(long))] & (1<<(bit&(8*sizeof(long)-1)));
 }
 
 /* use index (sorted table of offsets to records) to do a binary search
  * for all records that match the value in s.  Set the corresponding
  * bits to 1 in bitfield. */
 static void tagmatches(uint32* index,unsigned int elements,struct string* s,
-		       unsigned long* bitfield,int (*match)(struct string* s,const char* c),
+		       struct bitfield* b,int (*match)(struct string* s,const char* c),
 		       uint32 index_type,enum FilterType ft) {
   uint32 bottom=0;
   uint32 top=elements;
   uint32 mid,k,m;
   long rec;
   rec=0;
-  emptyset(bitfield);
+  emptyset(b);
 
   while ((top>=bottom)) {
     int l;
@@ -523,7 +556,7 @@ static void tagmatches(uint32* index,unsigned int elements,struct string* s,
 	return;
       }
       if (rec>=0)
-	setbit(bitfield,rec);
+	setbit(b,rec);
       /* there may be multiple matches.
 	* Look before and after mid, too */
       for (k=mid-1; k>0; --k) {
@@ -534,7 +567,7 @@ static void tagmatches(uint32* index,unsigned int elements,struct string* s,
 	  else if (index_type==1)
 	    rec=uint32_read((char*)(&index[k+elements]));
 	  if (rec>=0)
-	    setbit(bitfield,rec);
+	    setbit(b,rec);
 	} else break;
       }
       for (k=mid+1; k<elements; ++k) {
@@ -545,7 +578,7 @@ static void tagmatches(uint32* index,unsigned int elements,struct string* s,
 	  else if (index_type==1)
 	    rec=uint32_read((char*)(&index[k+elements]));
 	  if (rec>=0)
-	    setbit(bitfield,rec);
+	    setbit(b,rec);
 	} else break;
       }
       return;
@@ -575,7 +608,7 @@ static void tagmatches(uint32* index,unsigned int elements,struct string* s,
       else if (index_type==1)
 	rec=uint32_read((char*)(&index[k+elements]));
       if (rec>=0)
-	setbit(bitfield,rec);
+	setbit(b,rec);
     }
   } else if (ft==LESSEQUAL) {
     for (k=0; k<=mid; ++k) {
@@ -585,7 +618,7 @@ static void tagmatches(uint32* index,unsigned int elements,struct string* s,
       else if (index_type==1)
 	rec=uint32_read((char*)(&index[k+elements]));
       if (rec>=0)
-	setbit(bitfield,rec);
+	setbit(b,rec);
     }
   }
 }
@@ -619,7 +652,7 @@ uint32 hash_tolower(const unsigned char* c,unsigned long keylen) {
  * be used if it only helps eliminate some of the possible matches (for
  * example an AND query where only one of the involved attributes has an
  * index). */
-static int useindex(struct Filter* f,unsigned long* bitfield) {
+static int useindex(struct Filter* f,struct bitfield* b) {
   struct Filter* y=f->x;
   if (!f) return 1;
 
@@ -639,12 +672,12 @@ static int useindex(struct Filter* f,unsigned long* bitfield) {
 	  if (hashofs==0) return 1;
 	  if (hashofs<ofs)
 	    /* direct hit */
-	    setbit(bitfield,hashofs);
+	    setbit(b,hashofs);
 	  else {
 	    uint32 n=uint32_read(map+hashofs);
 	    hashofs+=4;
 	    while (n) {
-	      setbit(bitfield,uint32_read(map+hashofs));
+	      setbit(b,uint32_read(map+hashofs));
 	      hashofs+=4;
 	      --n;
 	    }
@@ -658,14 +691,21 @@ static int useindex(struct Filter* f,unsigned long* bitfield) {
   switch (f->type) {
   case AND:
     {
-      unsigned long* tmp=alloca(record_set_length*sizeof(unsigned long));
+      struct bitfield tmp;
       int ok=0;
-      fillset(bitfield);
+      tmp.bits=alloca(record_set_length*sizeof(unsigned long));
+      if (y) {
+	useindex(y,b);
+	y=y->next;
+      } else
+	fillset(b);
       while (y) {
-	if (useindex(y,tmp)) {
+	if (useindex(y,&tmp)) {
 	  unsigned int i;
 	  for (i=0; i<record_set_length; ++i)
-	    bitfield[i] &= tmp[i];
+	    b->bits[i] &= tmp.bits[i];
+	  if (tmp.first>b->first) b->first=tmp.first;
+	  if (tmp.last<b->last) b->last=tmp.last;
 	  ok=1;
 	}
 	y=y->next;
@@ -674,14 +714,21 @@ static int useindex(struct Filter* f,unsigned long* bitfield) {
     }
   case OR:
     {
-      unsigned long* tmp=alloca(record_set_length*sizeof(unsigned long));
+      struct bitfield tmp;
       int ok=1;
-      emptyset(bitfield);
+      tmp.bits=alloca(record_set_length*sizeof(unsigned long));
+      if (y) {
+	useindex(y,b);
+	y=y->next;
+      } else
+	emptyset(b);
       while (y) {
-	if (useindex(y,tmp)) {
+	if (useindex(y,&tmp)) {
 	  unsigned int i;
 	  for (i=0; i<record_set_length; ++i)
-	    bitfield[i] |= tmp[i];
+	    b->bits[i] |= tmp.bits[i];
+	  if (tmp.first<b->first) b->first=tmp.first;
+	  if (tmp.last>b->last) b->last=tmp.last;
 	} else
 	  ok=0;
 	y=y->next;
@@ -704,7 +751,7 @@ static int useindex(struct Filter* f,unsigned long* bitfield) {
 	indexed_attribute=uint32_read(map+ofs+8);
 	if (index_type<=1)
 	  if (!matchstring(&f->ava.desc,map+indexed_attribute)) {
-	    tagmatches((uint32*)(map+ofs+12),(next-ofs-12)/(4<<index_type),&f->substrings->s,bitfield,
+	    tagmatches((uint32*)(map+ofs+12),(next-ofs-12)/(4<<index_type),&f->substrings->s,b,
 		       f->attrflag&1?matchcaseprefix:matchprefix,index_type,f->type);
 	    return 1;
 	  }
@@ -719,10 +766,10 @@ static int useindex(struct Filter* f,unsigned long* bitfield) {
        * we pretend it's indexed */
       char* x=map+5*4+size_of_string_table+attribute_count*8;
       unsigned long i;
-      emptyset(bitfield);
+      emptyset(b);
       for (i=0; i<record_count; ++i) {
 	if (ldap_match_present(x-map,f->attrofs))
-	  setbit(bitfield,i);
+	  setbit(b,i);
 	x+=uint32_read(x)*8;
       }
       return 1;
@@ -739,7 +786,7 @@ static int useindex(struct Filter* f,unsigned long* bitfield) {
 	indexed_attribute=uint32_read(map+ofs+8);
 	if (index_type<=1)
 	  if (!matchstring(&f->ava.desc,map+indexed_attribute)) {
-	    tagmatches((uint32*)(map+ofs+12),(next-ofs-12)/(4<<index_type),&f->ava.value,bitfield,
+	    tagmatches((uint32*)(map+ofs+12),(next-ofs-12)/(4<<index_type),&f->ava.value,b,
 		       f->attrflag&1?matchcasestring:matchstring,index_type,f->type);
 	    return 1;
 	  }
@@ -762,6 +809,49 @@ static int useindex(struct Filter* f,unsigned long* bitfield) {
  \__, |\__,_|\___|_|   \__, |  \__,_|_| |_|___/ \_/\_/ \___|_|  |_|_| |_|\__, |
     |_|                |___/                                             |___/
 #endif
+
+static int checkacl(uint32 ofs,uint32 attrofs,unsigned long operation,struct SearchResultEntry* sre) {
+  uint32_t j;
+  for (j=0; j<acls; ++j) {
+    /* does the ACL subject apply? */
+    if (!acl_ec_subjects[Acls[j]->subject]) continue;
+    /* does the ACL even apply to the wanted operation? */
+    if ((Acls[j]->may | Acls[j]->maynot) & operation) {
+      uint32 k;
+      if (acl_ec_subjects[filters+Acls[j]->object]==-1) continue;
+      if (acl_ec_subjects[filters+Acls[j]->object]==0) {
+	int match=0;
+	if (Filters[Acls[j]->object]==(struct Filter*)Any)
+	  match=1;
+	else if (Filters[Acls[j]->object]==(struct Filter*)Self)
+	  match=(ofs==authenticated_as);
+	else if (ofs)
+	  match=ldap_matchfilter_mapped(ofs,Filters[Acls[j]->object]);
+	else if (sre)
+	  match=ldap_matchfilter_sre(sre,Filters[Acls[j]->object]);
+	else
+	  match=-1;
+	if (match)
+	  acl_ec_subjects[filters+Acls[j]->object]=1;
+	else {
+	  acl_ec_subjects[filters+Acls[j]->object]=-1;
+	  continue;
+	}
+      }
+      for (k=0; k<Acls[j]->attrs; ++k) {
+/*	    if (Acls[j]->Attrs[k]==any_ofs || !matchstring(&adl->a,map+Acls[j]->Attrs[k])) { */
+	if (Acls[j]->Attrs[k]==any_ofs || attrofs==Acls[j]->Attrs[k]) {
+	  if (Acls[j]->may&operation)
+	    return 1;
+	  else
+	    return -1;
+	  break;
+	}
+      }
+    }
+  }
+  return 0;
+}
 
 /* this routine is called for each record matched the query.  It basically puts together
  * an answer LDAP message from the record and the list of attributes the other side said
@@ -799,8 +889,11 @@ static void answerwith(uint32 ofs,struct SearchRequest* sr,long messageid,int ou
   if (acls)
     byte_zero(acl_ec_subjects+filters,filters);
 
+  if (acls && checkacl(ofs,dn_ofs,acl_read,0)!=1) return;
+
   sre.objectName.l=bstrlen(sre.objectName.s=map+uint32_read(map+ofs+8));
   sre.attributes=0;
+
   /* now go through list of requested attributes */
   {
     struct AttributeDescriptionList* adl=sr->attributes;
@@ -826,52 +919,8 @@ static void answerwith(uint32 ofs,struct SearchRequest* sr,long messageid,int ou
     while (adl) {
       const char* val=0;
       uint32 i=2,j;
-      int ok=acls?0:1;
 
-      for (j=0; j<acls; ++j) {
-	/* does the ACL subject apply? */
-	if (!acl_ec_subjects[Acls[j]->subject]) continue;
-	/* does the ACL even apply to read operations? */
-	if ((Acls[j]->may | Acls[j]->maynot) & acl_read) {
-	  uint32 k;
-	  if (acl_ec_subjects[filters+Acls[j]->object]==-1) continue;
-	  if (acl_ec_subjects[filters+Acls[j]->object]==0) {
-	    int match=0;
-	    if (Filters[Acls[j]->object]==(struct Filter*)Any)
-	      match=1;
-	    else if (Filters[Acls[j]->object]==(struct Filter*)Self)
-	      match=(ofs==authenticated_as);
-	    else
-	      match=(ldap_matchfilter_mapped(ofs,Filters[Acls[j]->object]));
-	    if (match)
-	      acl_ec_subjects[filters+Acls[j]->object]=1;
-	    else {
-	      acl_ec_subjects[filters+Acls[j]->object]=-1;
-	      continue;
-	    }
-	  }
-	  for (k=0; k<Acls[j]->attrs; ++k) {
-/*	    if (Acls[j]->Attrs[k]==any_ofs || !matchstring(&adl->a,map+Acls[j]->Attrs[k])) { */
-	    if (Acls[j]->Attrs[k]==any_ofs || adl->attrofs==Acls[j]->Attrs[k]) {
-	      if (Acls[j]->may&acl_read) {
-#if 0
-		printf("acl %u allowed serving attribute \"%.*s\"\n",j,(int)adl->a.l,adl->a.s);
-#endif
-		ok=1;
-	      } else {
-#if 0
-		printf("acl %u disallowed serving attribute \"%.*s\"\n",j,(int)adl->a.l,adl->a.s);
-#endif
-		ok=-1;
-	      }
-	      break;
-	    }
-	  }
-	}
-	if (ok) break;
-      }
-
-      if (ok==1) {
+      if (!acls || checkacl(ofs,adl->attrofs,acl_read,0)==1) {
 	uint32_unpack(map+ofs,&j);
 #if 0
 	buffer_puts(buffer_2,"looking for attribute \"");
@@ -949,9 +998,78 @@ add_attribute:
          |___/                                           |_|
 #endif
 
+int copystring(struct string* dest,struct string* src) {
+  dest->s=malloc(src->l+1);
+  if (!dest->s) return -1;
+  byte_copy((char*)dest->s,src->l,src->s);
+  dest->l=src->l;
+  return 0;
+}
+
+/* deep copy an attribute description list */
+static int copyadl(struct AttributeDescriptionList** dest,struct AttributeDescriptionList* src) {
+  *dest=0;
+  while (src) {
+    if (!(*dest=malloc(sizeof(*src)))) return -1;
+    byte_zero(*dest,sizeof(*src));
+    if (copystring(&(*dest)->a,&src->a)) return -1;
+    (*dest)->attrofs=src->attrofs;
+    dest=&(*dest)->next;
+    src=src->next;
+  }
+  return 0;
+}
+
+
+#if 0
+/* deep copy a partial attribute list */
+static int copypal(struct PartialAttributeList** dest,struct PartialAttributeList* src) {
+  *dest=0;
+  while (src) {
+    if (!(*dest=malloc(sizeof(**dest)))) return -1;
+    byte_zero(*dest,sizeof(**dest));
+    if (copystring(&(*dest)->type,&src->type) ||
+	copyadl(&(*dest)->values,src->values)) return -1;
+    dest=&(*dest)->next;
+    src=src->next;
+  }
+  return 0;
+}
+#endif
+
+static int ar2sreh1(struct PartialAttributeList** dest,struct Addition* src) {
+  *dest=0;
+  while (src) {
+    if (!(*dest=malloc(sizeof(**dest)))) return -1;
+    byte_zero(*dest,sizeof(**dest));
+    if (copystring(&(*dest)->type,&src->AttributeDescription) ||
+	copyadl(&(*dest)->values,&src->vals)) return -1;
+    dest=&(*dest)->next;
+    src=src->next;
+  }
+  return 0;
+}
+
+int addreq2sre(struct SearchResultEntry* sre,struct AddRequest* ar) {
+  byte_zero(sre,sizeof(*sre));
+  if (copystring(&sre->objectName,&ar->entry)) goto allocfailed;
+  if (!(sre->attributes=malloc(sizeof(*sre->attributes)))) goto allocfailed;
+  if (ar2sreh1(&sre->attributes,&ar->a)) goto allocfailed;
+  return 0;
+allocfailed:
+  free_ldapsearchresultentry(sre);
+  return -1;
+}
+
 /* This is the high level LDAP handling code.  It reads queries from the socket at in, and
  * then writes the answers to out.  Normally in == out, but they are separate here so this
  * can also be called with in=stdin and out=stdout. */
+
+int writesretofd(int fd,struct SearchResultEntry* sre) {
+  unsigned long l=fmt_ldapsearchresultentry(0,sre);
+  char* c=alloca(l+10);	/* you never know */
+  return write(fd,c,l)==l?0:-1;
+}
 
 /* a standard LDAP session looks like this:
  *   1. connect to server
@@ -1023,33 +1141,31 @@ authfailure:
 		{
 		  char outbuf[1024];
 		  int s=100;
-		  int len=fmt_ldapbindresponse(outbuf+s,48,"","authentication failure","");
+		  int len=fmt_ldapbindresponse(outbuf+s,inappropriateAuthentication,"","authentication failure","");
 		  int hlen=fmt_ldapmessage(0,messageid,BindResponse,len);
 		  fmt_ldapmessage(outbuf+s-hlen,messageid,BindResponse,len);
 		  write(out,outbuf+s-hlen,len+hlen);
 		  continue;
 		}
 	      } else {
-		unsigned long* result;
+		struct bitfield result;
 		unsigned long i,done;
-		result=alloca(record_set_length*sizeof(unsigned long));
-		useindex(&f,result);
+		result.bits=alloca(record_set_length*sizeof(unsigned long));
+		useindex(&f,&result);
 		done=0;
-		for (i=0; i<record_set_length; ++i)
-		  if (result[i])
-		    done=1;
-		if (!done) {
+		if (result.first>result.last) {
 		  buffer_putsflush(buffer_2,"no matching dn found, bind failed!\n");
 		  goto authfailure;
 		}
 		done=0;
-		for (i=0; i<record_count; ) {
-		  if (!result[i/(8*sizeof(long))]) {
+		assert(result.last<=record_count);
+		for (i=result.first; i<=result.last; ) {
+		  if (!result.bits[i/(8*sizeof(long))]) {
 		    i+=8*sizeof(long);
 		    continue;
 		  }
-		  for (; i<record_count; ++i) {
-		    if (isset(result,i)) {
+		  for (; i<=result.last; ++i) {
+		    if (isset(&result,i)) {
 		      uint32 j,authdn;
 		      const char* c;
 		      uint32_unpack(map+indices_offset+4*i,&j);
@@ -1130,25 +1246,26 @@ found:
 	    fixup(sr.filter);
 	    fixupadl(sr.attributes);
 	    if (indexable(sr.filter)) {
-	      unsigned long* result;
+	      struct bitfield result;
 	      unsigned long i;
 #if (debug != 0)
 	      if (debug) buffer_putsflush(buffer_2,"query can be answered with index!\n");
 #endif
-	      result=alloca(record_set_length*sizeof(unsigned long));
+	      result.bits=alloca(record_set_length*sizeof(unsigned long));
 	      /* Use the index to find matching data.  Put the offsets
 	       * of the matches in a table.  Use findrec to locate
 	       * the records that point to the data. */
-	      useindex(sr.filter,result);
-	      for (i=0; i<record_count; ) {
+	      useindex(sr.filter,&result);
+	      assert(result.last<=record_count);
+	      for (i=result.first; i<=result.last; ) {
 		unsigned long ni=i+8*sizeof(long);
-		if (!result[i/(8*sizeof(long))]) {
+		if (!result.bits[i/(8*sizeof(long))]) {
 		  i=ni;
 		  continue;
 		}
 		if (ni>record_count) ni=record_count;
 		for (; i<ni; ++i) {
-		  if (isset(result,i)) {
+		  if (isset(&result,i)) {
 		    uint32 j;
 		    uint32_unpack(map+indices_offset+4*i,&j);
 		    if (ldap_match_mapped(j,&sr)) {
@@ -1231,14 +1348,32 @@ found:
 	break;
       case AddRequest:
         {
+	  int err=success;
 	  struct AddRequest ar;
 //          buffer_putsflush(buffer_2,"AddRequest!\n");
           if ((tmp=scan_ldapaddrequest(buf+res,buf+res+len,&ar))) {
+	    struct SearchResultEntry sre;
+	    addreq2sre(&sre,&ar);
+	    /* convert addrequest to searchresultentry */
 	    /* TODO: do something with the add request ;-) */
-	  } else {
-	    buffer_putsflush(buffer_2,"couldn't parse add request!\n");
-	    exit(1);
-	  }
+	    /* 1. check ACLs */
+	    if (!acls || checkacl(0,0,acl_add,&sre)==1) {
+	      /* 2. check is there already is a record with this dn */
+	      /* 3. write record to "data.upd" */
+	      {
+		int fd=open("data.upd",O_WRONLY|O_APPEND|O_CREAT,0600);
+		if (fd==-1)
+		  err=operationsError;
+		else {
+		  if (writesretofd(fd,&sre)==-1)
+		    err=operationsError;
+		  close(fd);
+		}
+	      }
+	    } else
+	      err=insufficientAccessRights;
+	  } else
+	    err=protocolError;
 
 	  buffer_put(buffer_1,ar.entry.s,ar.entry.l);
 	  buffer_putsflush(buffer_1,"\n");
@@ -1258,12 +1393,12 @@ found:
 	  free_ldapaddrequest(&ar);
 
 	  {
-	      char outbuf[1024];
-	      int s=100;
-	      int len=fmt_ldapbindresponse(outbuf+s,0,"","","");
-	      int hlen=fmt_ldapmessage(0,messageid,AddResponse,len);
-	      fmt_ldapmessage(outbuf+s-hlen,messageid,AddResponse,len);
-	      write(out,outbuf+s-hlen,len+hlen);
+	    char outbuf[1024];
+	    int s=100;
+	    int len=fmt_ldapresult(outbuf+s,err,"","","");
+	    int hlen=fmt_ldapmessage(0,messageid,AddResponse,len);
+	    fmt_ldapmessage(outbuf+s-hlen,messageid,AddResponse,len);
+	    write(out,outbuf+s-hlen,len+hlen);
 	  }
 	}
 	break;

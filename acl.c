@@ -167,7 +167,7 @@ int parseaclpermissions(buffer* in,struct acl* a) {
     case '-': s=&a->maynot; break;
     case 'r': *s|=acl_read; break;
     case 'w': *s|=acl_write; break;
-    case 'a': *s|=acl_auth; break;
+    case 'a': *s|=acl_add; break;
     case 'd': *s|=acl_delete; break;
     case 'R': *s|=acl_rendn; break;
     case ' ': case '\t': case '\n': break;

@@ -107,6 +107,47 @@ enum ldapops {
   ExtendedResponse=24
 };
 
+enum ldaperrors {
+  success=0,
+  operationsError=1,
+  protocolError=2,
+  timeLimitExceeded=3,
+  sizeLimitExceeded=4,
+  compareFalse=5,
+  compareTrue=6,
+  authMethodNotSupported=7,
+  strongAuthRequired=8,
+  referral=10,
+  adminLimitExceeded=11,
+  unavailableCriticalExtension=12,
+  confidentialityRequired=13,
+  saslBindInProgress=14,
+  noSuchAttribute=16,
+  undefinedAttributeType=17,
+  inappropriateMatching=18,
+  constraintViolation=19,
+  attributeOrValueExists=20,
+  invalidAttributeSyntax=21,
+  noSuchObject=32,
+  aliasProblem=33,
+  invalidDNSyntax=34,
+  aliasDereferencingProblem=36,
+  inappropriateAuthentication=48,
+  invalidCredentials=49,
+  insufficientAccessRights=50,
+  busy=51,
+  unavailable=52,
+  unwillingToPerform=53,
+  loopDetect=54,
+  namingViolation=64,
+  objectClassViolation=65,
+  notAllowedOnNonLeaf=66,
+  notAllowedOnRDN=67,
+  entryAlreadyExists=68,
+  objectClassModsProhibited=69,
+  affectsMultipleDSAs=71,
+};
+
 void freefilter(struct Filter* f);
 void freeava(struct AttributeDescriptionList* a);
 void freepal(struct PartialAttributeList* a);
@@ -160,6 +201,8 @@ void free_ldapmodifyrequest(struct ModifyRequest* m);
 void free_ldapaddrequest(struct AddRequest * a);
 /* does not free e itself */
 void free_ldapsearchresultentry(struct SearchResultEntry* e);
+
+int ldap_matchfilter_sre(struct SearchResultEntry* sre,struct Filter* f);
 
 
 #endif
