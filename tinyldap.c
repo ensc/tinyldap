@@ -1068,7 +1068,7 @@ allocfailed:
 int writesretofd(int fd,struct SearchResultEntry* sre) {
   unsigned long l=fmt_ldapsearchresultentry(0,sre);
   char* c=alloca(l+10);	/* you never know */
-  return write(fd,c,l)==l?0:-1;
+  return (write(fd,c,l)==(ssize_t)l)?0:-1;
 }
 
 /* a standard LDAP session looks like this:
