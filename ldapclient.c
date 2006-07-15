@@ -60,7 +60,7 @@ usage:
     return 0;
   }
   for (durchlauf=0; durchlauf<n; ++durchlauf) {
-    sock=socket_tcp4();
+    sock=socket_tcp4b();
     {
       char ip[4];
       if (argv[1][scan_ip4(argv[1],ip)]) goto usage;

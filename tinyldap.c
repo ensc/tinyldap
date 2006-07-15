@@ -1485,7 +1485,7 @@ int main(int argc,char* argv[]) {
 #endif
 
 #ifdef STANDALONE
-  if ((sock=socket_tcp6())==-1) {
+  if ((sock=socket_tcp6b())==-1) {
     buffer_putsflush(buffer_2,"socket failed!\n");
     exit(1);
   }

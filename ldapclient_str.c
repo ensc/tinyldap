@@ -44,7 +44,7 @@ usage:
     buffer_putsflush(buffer_2,"usage: ldapclient_src ip baseObject Attrib Prefix\n");
     return 0;
   }
-  sock=socket_tcp4();
+  sock=socket_tcp4b();
   {
     char ip[4];
     if (argv[1][scan_ip4(argv[1],ip)]) goto usage;
