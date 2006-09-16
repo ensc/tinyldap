@@ -1269,7 +1269,7 @@ found:
 		    uint32 j;
 		    uint32_unpack(map+indices_offset+4*i,&j);
 		    if (ldap_match_mapped(j,&sr)) {
-		      if (sr.sizeLimit && sr.sizeLimit<=++returned)
+		      if (sr.sizeLimit && sr.sizeLimit<++returned)
 			break;
 		      answerwith(j,&sr,messageid,out);
 		    }
@@ -1286,7 +1286,7 @@ found:
 		uint32 j;
 		uint32_unpack(x,&j);
 		if (ldap_match_mapped(x-map,&sr)) {
-		  if (sr.sizeLimit && sr.sizeLimit<=++returned)
+		  if (sr.sizeLimit && sr.sizeLimit<++returned)
 		    break;
 		  answerwith(x-map,&sr,messageid,out);
 		}
