@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include "asn1.h"
 
 unsigned int scan_asn1length(const char* src,const char* max,unsigned long* length) {
@@ -19,6 +20,6 @@ unsigned int scan_asn1length(const char* src,const char* max,unsigned long* leng
     *length=*src&0x7f;
   src++;
   if (src+*length>max) return 0;	/* catch integer overflow */
-  if (src+*length<src) return 0;
+  if ((uintptr_t)src+*length<(uintptr_t)src) return 0;	/* gcc 4 removes this check without the cast to uintptr_t */
   return src-orig;
 }
