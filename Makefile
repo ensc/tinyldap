@@ -39,7 +39,7 @@ CC=gcc
 CFLAGS=-pipe -I. -Wall -W
 ifneq ($(DEBUG),)
 DIET=/opt/diet/bin/diet
-CFLAGS=-pipe -I. -Wall -W -g
+CFLAGS=-pipe -I. -Wall -W -g -fstack-protector
 endif
 ifeq ($(COVERAGE),1)
 DIET=

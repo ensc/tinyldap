@@ -18,8 +18,11 @@
 
 static void buffer_putescaped(buffer* b,const char* x,size_t l) {
   size_t needed=fmt_ldapescape2(0,x,l,"");
-  char* buf=alloca(needed);
-  fmt_ldapescape(buf,x,l);
+  char* buf;
+  if (needed>100000)
+    buf=0;
+  buf=alloca(needed);
+  fmt_ldapescape2(buf,x,l,"");
   buffer_put(b,buf,needed);
 }
 
