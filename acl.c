@@ -271,9 +271,9 @@ int marshalfilter(stralloc* x,struct assertion* a) {
   }
 }
 
-int marshal(char* map,unsigned long filelen,const char* filename) {
-  unsigned long filters,acls,i,j,k;
-  unsigned long filter_offset,acl_offset;
+int marshal(char* map,size_t filelen,const char* filename) {
+  size_t filters,acls,i,j,k;
+  size_t filter_offset,acl_offset;
   struct acl* a;
   uint32* F,* A;
   uint32 attribute_count;
@@ -484,7 +484,7 @@ shortwrite:
 
 #ifdef MAIN
 int main(int argc,char* argv[]) {
-  unsigned long filelen;
+  size_t filelen;
   char* filename=argc>1?argv[1]:"data";
   char* map=mmap_read(filename,&filelen);
 
