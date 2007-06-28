@@ -136,7 +136,8 @@ usage:
 	int matches=0;
 	len=0;
 	for (;;) {
-	  unsigned long slen,mid,op;
+	  unsigned long mid,op;
+	  size_t slen;
 	  int cur=0;
 
 	  tmp=read(sock,buf+len,sizeof(buf)-len);
