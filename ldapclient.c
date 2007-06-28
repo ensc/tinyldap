@@ -31,13 +31,13 @@ static unsigned long messageid=1;
 static int ldapbind(int sock) {
   char outbuf[1024];
   int s=100;
-  int len=fmt_ldapbindrequest(outbuf+s,3,"","");
-  int hlen=fmt_ldapmessage(0,messageid,BindRequest,len);
-  int res;
-  unsigned long op,Len,result;
+  size_t len=fmt_ldapbindrequest(outbuf+s,3,"","");
+  size_t hlen=fmt_ldapmessage(0,messageid,BindRequest,len);
+  size_t res,Len;
+  unsigned long op,result;
   struct string matcheddn,errormessage,referral;
   fmt_ldapmessage(outbuf+s-hlen,messageid,BindRequest,len);
-  if (write(sock,outbuf+s-hlen,len+hlen)!=len+hlen) return 0;;
+  if ((size_t)write(sock,outbuf+s-hlen,len+hlen)!=len+hlen) return 0;;
   len=read(sock,outbuf,1024);
   res=scan_ldapmessage(outbuf,outbuf+len,&messageid,&op,&Len);
   if (!res) return 0;
