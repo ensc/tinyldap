@@ -16,9 +16,8 @@
                 vals    SET OF AttributeValue }
 #endif
 
-unsigned int scan_ldapaddrequest(const char* src,const char* max,struct AddRequest* a) {
-  unsigned int res,tmp;
-  unsigned long oslen; /* outer sequence length */
+size_t scan_ldapaddrequest(const char* src,const char* max,struct AddRequest* a) {
+  size_t res,tmp,oslen;
   struct Addition* last=0;
   byte_zero(a,sizeof(*a));
   if (!(res=scan_ldapstring(src,max,&a->entry))) goto error;
@@ -28,7 +27,7 @@ unsigned int scan_ldapaddrequest(const char* src,const char* max,struct AddReque
   max=src+res+oslen;
   if (src+res>=max) goto error;		/* need at least one record */
   do {
-    unsigned long islen;
+    size_t islen;
     if (last) {
       struct Addition* cur;
       if (!(cur=malloc(sizeof(struct Addition))))
@@ -49,7 +48,7 @@ unsigned int scan_ldapaddrequest(const char* src,const char* max,struct AddReque
 
     /* scan set of AttributeValue: */
     {
-      unsigned long set_len;
+      size_t set_len;
       const char* set_max;
       struct AttributeDescriptionList* ilast=0;
       if (!(tmp=scan_asn1SET(src+res,max,&set_len))) {

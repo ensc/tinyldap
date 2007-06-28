@@ -72,7 +72,7 @@ found:
   return 1;
 }
 
-extern uint32 dn_ofs;
+extern uint32_t dn_ofs;
 
 int ldap_matchfilter_sre(struct SearchResultEntry* sre,struct Filter* f) {
   struct PartialAttributeList* p;

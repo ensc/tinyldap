@@ -6,7 +6,7 @@
  * the new string. */
 
 struct stringduptable {
-  int n,a;
+  size_t n,a;
   const char** s;
 };
 

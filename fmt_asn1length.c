@@ -2,10 +2,9 @@
 
 /* write int in least amount of bytes, return number of bytes */
 /* as used in ASN.1 length */
-unsigned int fmt_asn1length(char* dest,unsigned long l) {
+size_t fmt_asn1length(char* dest,size_t l) {
   /* encoding is either l%128 or (0x80+number of bytes,bytes) */
-  int needed=(sizeof l);
-  int i;
+  size_t needed=(sizeof l),i;
   if (l<128) {
     if (dest) *dest=l&0x7f;
     return 1;

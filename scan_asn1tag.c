@@ -1,6 +1,6 @@
 #include "asn1.h"
 
-unsigned int scan_asn1tag(const char* src,const char* max,enum asn1_tagclass* tc,enum asn1_tagtype* tt,unsigned long* tag) {
+size_t scan_asn1tag(const char* src,const char* max,enum asn1_tagclass* tc,enum asn1_tagtype* tt,unsigned long* tag) {
   const char* orig=src;
   *tc=(*src&0xC0);
   *tt=(*src&0x20);

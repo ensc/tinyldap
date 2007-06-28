@@ -6,7 +6,7 @@
 #include "mduptab.h"
 #include "uint32.h"
 
-long mduptab_add(mduptab_t* t,const char* s,unsigned int len) {
+long mduptab_add(mduptab_t* t,const char* s,size_t len) {
   unsigned int i;
   unsigned long* l=(unsigned long*)t->table.root;
   long x,bak;

@@ -4,9 +4,9 @@
 
 #define PAGESIZE 4096
 
-const char* strstorage_add(const char* s,int n) {
+const char* strstorage_add(const char* s,size_t n) {
   static char* page=0;
-  static int leftonpage=0;
+  static size_t leftonpage=0;
   if (leftonpage>=n) {
 copyit:
     byte_copy(page,n,s);

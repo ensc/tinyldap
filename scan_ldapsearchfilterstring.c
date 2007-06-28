@@ -2,11 +2,11 @@
 #include "ldap.h"
 #include "str.h"
 
-unsigned int scan_ldapsearchfilterstring(const char* src,struct Filter** f) {
+size_t scan_ldapsearchfilterstring(const char* src,struct Filter** f) {
   char* s=(char*)src;
   if (!(*f=calloc(sizeof(struct Filter),1))) goto error;
   if (s[0]=='*' && (s[1]==0 || s[1]=='(')) {
-    int i=scan_ldapsearchfilterstring("(objectClass=*)",f);
+    size_t i=scan_ldapsearchfilterstring("(objectClass=*)",f);
     if (i) return 1;
   }
   if (*s!='(') goto error;
@@ -18,7 +18,7 @@ scan_filterlist:
       s+=scan_ldapsearchfilterstring(s,&(*f)->x);
       n=&(*f)->x->next;
       while (*s!=')') {
-	unsigned long l=scan_ldapsearchfilterstring(s,n);
+	size_t l=scan_ldapsearchfilterstring(s,n);
 	if (!l) return 0;
 	s+=l;
 	n=&(*n)->next;
@@ -51,7 +51,7 @@ scan_filterlist:
 	 (*f)->type=SUBSTRING;
 substring:
 	  while (*s!=')') {
-	    int i,j;
+	    size_t i,j;
 	    struct Substring* substring=malloc(sizeof(struct Substring));
 	    if (!substring) goto error;
 	    substring->s.s=s;
@@ -70,7 +70,7 @@ substring:
 	    if (*s==0) goto error;
 	  }
 	} else {
-	  int i,j;
+	  size_t i,j;
 	  i=str_chr(s,')');
 	  j=str_chr(s,'*');
 	  if (i>j) {

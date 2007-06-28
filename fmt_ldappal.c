@@ -1,9 +1,9 @@
 #include "asn1.h"
 #include "ldap.h"
 
-unsigned int fmt_ldappal(char* dest,struct PartialAttributeList* pal) {
+size_t fmt_ldappal(char* dest,struct PartialAttributeList* pal) {
 //  int l,l2,sum;
-  long sum,l,l2;
+  size_t sum,l,l2;
   if (!pal) return 0;
   sum=fmt_ldapstring(0,&pal->type);
   /* look how much space the adl needs */

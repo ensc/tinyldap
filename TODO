@@ -1,4 +1,20 @@
 
+  1. let tinyldap check for and incorporate updates from the journal in
+     the hash table
+
+  2. support modify and delete requests (should be easy)
+
+  9. test whether the acls for add actually work
+
+  10. think about how to incorporate the journal into the database while
+      still allowing new writes.  Second journal?  Switch to one-process
+      model?
+
+  11. think about compressed database (maybe add first n chars of each
+      string to index to avoid decompressing too much)
+
+[old and obsolete]
+
   - add auth method (openldap md5: base64, 4 bytes salt, direct hash)
   - add write support with an external journal
     We can also implement clustering through this journal.

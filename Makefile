@@ -65,7 +65,7 @@ t1 parse: ldif.a storage.a
 t2: ldap.a asn1.a
 t3 t4 t5 addindex: storage.a
 t6: storage.a
-tinyldap tinyldap_standalone tinyldap_debug: ldif.a auth.a
+tinyldap tinyldap_standalone tinyldap_debug: ldif.a storage.a auth.a
 bindrequest tinyldap tinyldap_standalone tinyldap_debug ldapclient ldapclient_str: ldap.a asn1.a
 idx2ldif: ldap.a
 dumpacls: ldap.a asn1.a

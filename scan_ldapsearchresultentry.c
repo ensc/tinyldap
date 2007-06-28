@@ -2,9 +2,8 @@
 #include "asn1.h"
 #include "ldap.h"
 
-unsigned int scan_ldapsearchresultentry(const char* src,const char* max,struct SearchResultEntry* sre) {
-  unsigned int res,tmp;
-  unsigned long oslen; /* outer sequence length */
+size_t scan_ldapsearchresultentry(const char* src,const char* max,struct SearchResultEntry* sre) {
+  size_t res,tmp,oslen; /* outer sequence length */
   struct PartialAttributeList** a=&sre->attributes;
   *a=0;
   if (!(res=scan_ldapstring(src,max,&sre->objectName))) goto error;
@@ -15,7 +14,7 @@ unsigned int scan_ldapsearchresultentry(const char* src,const char* max,struct S
   while (src+res<max) {
     struct string s;
     struct AttributeDescriptionList* x;
-    unsigned long islen;
+    size_t islen;
     const char* nmax;
     if (!(tmp=scan_asn1SEQUENCE(src+res,max,&islen))) goto error;
     res+=tmp; nmax=src+res+islen; if (nmax>max) goto error;

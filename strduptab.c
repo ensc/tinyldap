@@ -7,7 +7,7 @@
 #define PAGESIZE 4096
 
 const char* strduptab_add(struct stringduptable* t,const char* s) {
-  int i;
+  size_t i;
   for (i=0; i<t->n; ++i)
     if (str_equal(t->s[i],s))
       return t->s[i];

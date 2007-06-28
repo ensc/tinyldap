@@ -14,7 +14,7 @@ extern long filelen;
 extern uint32 magic,attribute_count,record_count,indices_offset,size_of_string_table;
 extern uint32 dn_ofs,objectClass_ofs;
 
-static int substringmatch(struct Substring* x,const char* attr,int ignorecase) {
+int substringmatch(struct Substring* x,const char* attr,int ignorecase) {
   int (*diff)(const void* a, unsigned long len, const void* b);
   if (ignorecase)
     diff=case_diffb;
@@ -66,7 +66,7 @@ uint32 ldap_find_attr_value(uint32 ofs,uint32 attrofs) {
   return 0;
 }
 
-static inline int matchint(struct Filter* f,const char* t) {
+int matchint(struct Filter* f,const char* t) {
   int r;
 
   if (f->attrflag&1)

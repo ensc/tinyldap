@@ -1,8 +1,7 @@
 #include <asn1.h>
 
-unsigned int fmt_asn1sintpayload(char* dest,signed long l) {
-  unsigned int needed=sizeof l;
-  unsigned int i;
+size_t fmt_asn1sintpayload(char* dest,signed long l) {
+  size_t needed=sizeof l,i;
   signed long tmp=0x7f;
   if (l>=0) return fmt_asn1intpayload(dest,l);
   for (i=1; i<needed; ++i) {
@@ -12,7 +11,7 @@ unsigned int fmt_asn1sintpayload(char* dest,signed long l) {
     tmp=(tmp<<8)|0xff;
   }
   if (dest) {
-    int j=i;
+    size_t j=i;
     while (j) {
       --j;
       *dest=(l>>(j*8))&0xff;

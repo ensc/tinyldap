@@ -3,7 +3,7 @@
 #include "uint32.h"
 #include "bstr.h"
 
-int bstr_diff2(const char* a,const char* b,unsigned int blen) {
+int bstr_diff2(const char* a,const char* b,size_t blen) {
   const char* A,* B;
   int j;
   /* like str_diff, just for bstrs */
@@ -23,7 +23,7 @@ int bstr_diff2(const char* a,const char* b,unsigned int blen) {
     } else
       if (b==B)
 	return 1;
-    if ((j=(*a-*b))) break;
+    if ((j=((unsigned char)*a-(unsigned char)*b))) break;
     ++a; ++b;
   }
   return j;

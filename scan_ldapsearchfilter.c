@@ -30,12 +30,10 @@
                 dnAttributes    [4] BOOLEAN DEFAULT FALSE }
 */
 
-unsigned int scan_ldapsearchfilter(const char* src,const char* max,struct Filter** f) {
+size_t scan_ldapsearchfilter(const char* src,const char* max,struct Filter** f) {
   enum asn1_tagclass tc;
   enum asn1_tagtype tt;
-  unsigned long tag,len;
-  unsigned int res;
-  unsigned int tmp;
+  size_t tag,len,res,tmp;
   const char* nmax;
   *f=0;
   if (!(res=scan_asn1tag(src,max,&tc,&tt,&tag))) goto error;
@@ -80,7 +78,7 @@ unsigned int scan_ldapsearchfilter(const char* src,const char* max,struct Filter
     break;
   case 4:    /*  substrings      [4] SubstringFilter, */
     {
-      unsigned long len2;
+      size_t len2;
       if (!(tmp=scan_ldapstring(src+res,nmax,&(*f)->ava.desc))) goto error;
       res+=tmp;
       if (!(tmp=scan_asn1SEQUENCE(src+res,nmax,&len2))) goto error;

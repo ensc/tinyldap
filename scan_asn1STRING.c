@@ -1,7 +1,7 @@
 #include "asn1.h"
 
-unsigned int scan_asn1STRING(const char* src,const char* max,const char** s,unsigned long* l) {
-  unsigned int tmp;
+size_t scan_asn1STRING(const char* src,const char* max,const char** s,size_t* l) {
+  size_t tmp;
   unsigned long tag;
   enum asn1_tagclass tc;
   enum asn1_tagtype tt;

@@ -1,10 +1,12 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include "str.h"
 #include "case.h"
 #include "byte.h"
 #include "buffer.h"
 #include "ldap.h"
+#include "mduptab.h"
 #include "ldif.h"
 #include "open.h"
 #include "mmap.h"
@@ -28,6 +30,9 @@
 #include <ctype.h>
 #include <assert.h>
 #include <fcntl.h>
+#include "errmsg.h"
+#include "textcode.h"
+#include "fmt.h"
 
 #ifdef DEBUG
 #include <sys/poll.h>
@@ -38,9 +43,11 @@
 #define debug 0
 #endif
 
+#define HUGE_SIZE_FOR_SANITY_CHECKS 1024*1024
+
 /* basic operation: the whole data file is mmapped read-only at the beginning and stays there. */
 char* map;	/* where the file is mapped */
-unsigned long filelen;	/* how many bytes are mapped (the whole file) */
+size_t filelen;	/* how many bytes are mapped (the whole file) */
 uint32 magic,attribute_count,record_count,indices_offset,size_of_string_table;
 		/* these are the first values from the file, see the file "FORMAT"
 		 * basic counts and offsets needed to calculate the positions of
@@ -55,6 +62,23 @@ uint32 record_set_length;
 
 /* some pre-looked-up attribute offsets to speed up ldap_match_mapped */
 uint32 dn_ofs,objectClass_ofs,userPassword_ofs,any_ofs;
+
+
+
+
+/* journal hash structures */
+struct attribute2 {
+  unsigned char* a,* v;
+};
+
+struct hashnode {
+  struct hashnode* next;
+  unsigned long hashval;
+  unsigned char* dn;
+  size_t n;
+  struct attribute2 a[1];
+};
+
 
 
 
@@ -82,7 +106,7 @@ static void fixup(struct Filter* f) {
   case APPROX:
     {
       char* x=map+5*4+size_of_string_table;
-      unsigned int i;
+      size_t i;
       f->attrofs=f->attrflag=0;
       for (i=0; i<attribute_count; ++i) {
 	uint32 j=uint32_read(x);
@@ -112,7 +136,7 @@ static void fixup(struct Filter* f) {
 static void fixupadl(struct AttributeDescriptionList* a) {
   while (a) {
     char* x=map+5*4+size_of_string_table;
-    unsigned int i;
+    size_t i;
     a->attrofs=0;
     for (i=0; i<attribute_count; ++i) {
       uint32 j=uint32_read(x);
@@ -138,14 +162,14 @@ static void fixupadl(struct AttributeDescriptionList* a) {
 
 
 
-#if 0
+/*
             _                                    _
   __ _  ___| |  ___ _   _ _ __  _ __   ___  _ __| |_
  / _` |/ __| | / __| | | | '_ \| '_ \ / _ \| '__| __|
 | (_| | (__| | \__ \ |_| | |_) | |_) | (_) | |  | |_
  \__,_|\___|_| |___/\__,_| .__/| .__/ \___/|_|   \__|
                          |_|   |_|
-#endif
+*/
 
 uint32 filters,acls;		/* number of filters and acls in the ACL section of the data file */
 uint32 filtertab,acltab;	/* offsets of the filter and acl table in the data file */
@@ -204,7 +228,7 @@ kaputt:
       else if (scan_ldapsearchfilter(map+ofs,map+filelen,&f)!=0) {
 	fixup(f);
 	if (debug) {
-	  unsigned long l=fmt_ldapsearchfilterstring(0,f);
+	  size_t l=fmt_ldapsearchfilterstring(0,f);
 	  char* buf=malloc(l+23);
 	  if (!buf) goto kaputt;
 	  buf[fmt_ldapsearchfilterstring(buf,f)]=0;
@@ -258,14 +282,14 @@ kaputt:
 
 
 
-#if 0
+/*
      _      _                                 _
   __| | ___| |__  _   _  __ _    ___ ___   __| | ___
  / _` |/ _ \ '_ \| | | |/ _` |  / __/ _ \ / _` |/ _ \
 | (_| |  __/ |_) | |_| | (_| | | (_| (_) | (_| |  __/
  \__,_|\___|_.__/ \__,_|\__, |  \___\___/ \__,_|\___|
                         |___/
-#endif
+*/
 
 #define BUFSIZE 8192
 
@@ -354,13 +378,13 @@ mergesub:
 
 
 
-#if 0
+/*
  _           _                           _
 (_)_ __   __| | _____  __   ___ ___   __| | ___
 | | '_ \ / _` |/ _ \ \/ /  / __/ _ \ / _` |/ _ \
 | | | | | (_| |  __/>  <  | (_| (_) | (_| |  __/
 |_|_| |_|\__,_|\___/_/\_\  \___\___/ \__,_|\___|
-#endif
+*/
 
 /* find out whether this filter can be accelerated with the indices */
 static int indexable(struct Filter* f) {
@@ -463,14 +487,14 @@ static long findrec(uint32 dat) {
 struct bitfield {
   unsigned long* bits;
 #ifdef RANGECHECK
-  unsigned long n;
+  size_t n;
 #endif
-  unsigned long first,last;
+  size_t first,last;
 };
 
 /* basic bit-set support: set all bits to 0 */
 static inline void emptyset(struct bitfield* b) {
-  unsigned long i;
+  size_t i;
 #ifdef RANGECHECK
   b->n=
 #endif
@@ -481,7 +505,7 @@ static inline void emptyset(struct bitfield* b) {
 
 /* basic bit-set support: set all bits to 1 */
 static inline void fillset(struct bitfield* b) {
-  unsigned long i;
+  size_t i;
   b->first=0;
 #ifdef RANGECHECK
   b->n=
@@ -491,7 +515,7 @@ static inline void fillset(struct bitfield* b) {
 }
 
 /* basic bit-set support: set one bit to 1 */
-static inline void setbit(struct bitfield* b,unsigned long bit) {
+static inline void setbit(struct bitfield* b,size_t bit) {
 #ifdef RANGECHECK
   if (bit<=b->n) {
 #endif
@@ -504,7 +528,7 @@ static inline void setbit(struct bitfield* b,unsigned long bit) {
 }
 
 /* basic bit-set support: see if given bit is set */
-static inline int isset(struct bitfield* b,unsigned long bit) {
+static inline int isset(struct bitfield* b,size_t bit) {
 #ifdef RANGECHECK
   if (bit>b->n) return 0;
 #endif
@@ -514,7 +538,7 @@ static inline int isset(struct bitfield* b,unsigned long bit) {
 /* use index (sorted table of offsets to records) to do a binary search
  * for all records that match the value in s.  Set the corresponding
  * bits to 1 in bitfield. */
-static void tagmatches(uint32* index,unsigned int elements,struct string* s,
+static void tagmatches(uint32* index,size_t elements,struct string* s,
 		       struct bitfield* b,int (*match)(struct string* s,const char* c),
 		       uint32 index_type,enum FilterType ft) {
   uint32 bottom=0;
@@ -623,9 +647,8 @@ static void tagmatches(uint32* index,unsigned int elements,struct string* s,
   }
 }
 
-uint32 hash(const unsigned char* c,unsigned long keylen) {
-  unsigned long h=0;
-  unsigned long i;
+uint32 hash(const unsigned char* c,size_t keylen) {
+  size_t h=0,i;
   for (i=0; i<keylen; ++i) {
     /* from djb's cdb */
     h += (h<<5);
@@ -634,9 +657,8 @@ uint32 hash(const unsigned char* c,unsigned long keylen) {
   return (uint32)h;
 }
 
-uint32 hash_tolower(const unsigned char* c,unsigned long keylen) {
-  unsigned long h=0;
-  unsigned long i;
+uint32 hash_tolower(const unsigned char* c,size_t keylen) {
+  size_t h=0,i;
   for (i=0; i<keylen; ++i) {
     /* from djb's cdb */
     h += (h<<5);
@@ -701,7 +723,7 @@ static int useindex(struct Filter* f,struct bitfield* b) {
 	fillset(b);
       while (y) {
 	if (useindex(y,&tmp)) {
-	  unsigned int i;
+	  size_t i;
 	  for (i=0; i<record_set_length; ++i)
 	    b->bits[i] &= tmp.bits[i];
 	  if (tmp.first>b->first) b->first=tmp.first;
@@ -724,7 +746,7 @@ static int useindex(struct Filter* f,struct bitfield* b) {
 	emptyset(b);
       while (y) {
 	if (useindex(y,&tmp)) {
-	  unsigned int i;
+	  size_t i;
 	  for (i=0; i<record_set_length; ++i)
 	    b->bits[i] |= tmp.bits[i];
 	  if (tmp.first<b->first) b->first=tmp.first;
@@ -765,7 +787,7 @@ static int useindex(struct Filter* f,struct bitfield* b) {
        * through the record table, but since each check is very cheap,
        * we pretend it's indexed */
       char* x=map+5*4+size_of_string_table+attribute_count*8;
-      unsigned long i;
+      size_t i;
       emptyset(b);
       for (i=0; i<record_count; ++i) {
 	if (ldap_match_present(x-map,f->attrofs))
@@ -801,17 +823,17 @@ static int useindex(struct Filter* f,struct bitfield* b) {
 
 
 
-#if 0
+/*
                                                                  _
   __ _ _   _  ___ _ __ _   _    __ _ _ __  _____      _____ _ __(_)_ __   __ _
  / _` | | | |/ _ \ '__| | | |  / _` | '_ \/ __\ \ /\ / / _ \ '__| | '_ \ / _` |
 | (_| | |_| |  __/ |  | |_| | | (_| | | | \__ \\ V  V /  __/ |  | | | | | (_| |
  \__, |\__,_|\___|_|   \__, |  \__,_|_| |_|___/ \_/\_/ \___|_|  |_|_| |_|\__, |
     |_|                |___/                                             |___/
-#endif
+*/
 
-static int checkacl(uint32 ofs,uint32 attrofs,unsigned long operation,struct SearchResultEntry* sre) {
-  uint32_t j;
+static int checkacl(uint32 recofs,uint32 attrofs,unsigned long operation,struct SearchResultEntry* sre) {
+  uint32 j;
   for (j=0; j<acls; ++j) {
     /* does the ACL subject apply? */
     if (!acl_ec_subjects[Acls[j]->subject]) continue;
@@ -824,9 +846,9 @@ static int checkacl(uint32 ofs,uint32 attrofs,unsigned long operation,struct Sea
 	if (Filters[Acls[j]->object]==(struct Filter*)Any)
 	  match=1;
 	else if (Filters[Acls[j]->object]==(struct Filter*)Self)
-	  match=(ofs==authenticated_as);
-	else if (ofs)
-	  match=ldap_matchfilter_mapped(ofs,Filters[Acls[j]->object]);
+	  match=(recofs==authenticated_as);
+	else if (recofs)
+	  match=ldap_matchfilter_mapped(recofs,Filters[Acls[j]->object]);
 	else if (sre)
 	  match=ldap_matchfilter_sre(sre,Filters[Acls[j]->object]);
 	else
@@ -853,12 +875,62 @@ static int checkacl(uint32 ofs,uint32 attrofs,unsigned long operation,struct Sea
   return 0;
 }
 
+static int ldap_matchfilter_hn(struct hashnode* hn,struct Filter* f);
+
+static int checkacl_hn(struct hashnode* hn,const unsigned char* attr,unsigned long operation) {
+  uint32 j;
+  for (j=0; j<acls; ++j) {
+    /* does the ACL subject apply? */
+    if (!acl_ec_subjects[Acls[j]->subject]) continue;
+    /* does the ACL even apply to the wanted operation? */
+    if ((Acls[j]->may | Acls[j]->maynot) & operation) {
+      uint32 k;
+      if (acl_ec_subjects[filters+Acls[j]->object]==-1) continue;
+      if (acl_ec_subjects[filters+Acls[j]->object]==0) {
+	int match=0;
+	if (Filters[Acls[j]->object]==(struct Filter*)Any)
+	  match=1;
+	else if (Filters[Acls[j]->object]==(struct Filter*)Self)
+	  match=dn && !strcmp((char*)hn->dn,map+authenticated_as);
+	else if (dn)
+	  match=ldap_matchfilter_hn(hn,Filters[Acls[j]->object]);
+	else
+	  match=-1;
+	if (match)
+	  acl_ec_subjects[filters+Acls[j]->object]=1;
+	else {
+	  acl_ec_subjects[filters+Acls[j]->object]=-1;
+	  continue;
+	}
+      }
+      for (k=0; k<Acls[j]->attrs; ++k) {
+/*	    if (Acls[j]->Attrs[k]==any_ofs || !matchstring(&adl->a,map+Acls[j]->Attrs[k])) { */
+	if (Acls[j]->Attrs[k]==any_ofs || bstr_equal((char*)attr,map+Acls[j]->Attrs[k])) {
+	  if (Acls[j]->may&operation)
+	    return 1;
+	  else
+	    return -1;
+	  break;
+	}
+      }
+    }
+  }
+  return 0;
+}
+
+
+static struct hashnode** dn_in_journal(unsigned char* dn);
+
 /* this routine is called for each record matched the query.  It basically puts together
  * an answer LDAP message from the record and the list of attributes the other side said
  * it wanted to have. */
 static void answerwith(uint32 ofs,struct SearchRequest* sr,long messageid,int out) {
   struct SearchResultEntry sre;
   struct PartialAttributeList** pal=&sre.attributes;
+  struct hashnode** hn;
+
+  if ((hn=dn_in_journal((unsigned char*)map+uint32_read(map+ofs+8))) && *hn)
+    return;
 
 #if (debug != 0)
   if (debug) {
@@ -897,20 +969,21 @@ static void answerwith(uint32 ofs,struct SearchRequest* sr,long messageid,int ou
   /* now go through list of requested attributes */
   {
     struct AttributeDescriptionList* adl=sr->attributes;
-    if (!adl) {
+    if (!adl && attribute_count>2) {
       /* did not ask for any attributes.  send 'em all. */
       /* to do that, construct a list of all attributes */
 
-      /* FIXME!  This adl appears to create a segfault later on */
       uint32 i;
       char* x=map+5*4+size_of_string_table+4;
+      if (attribute_count>HUGE_SIZE_FOR_SANITY_CHECKS/sizeof(struct AttributeDescriptionList))
+	return;
       adl=alloca((attribute_count)*sizeof(struct AttributeDescriptionList));
       for (i=0; i<attribute_count-1; ++i) {
 	uint32 j;
 	uint32_unpack(x,&j);
 	x+=4;
 	adl[i].a.s=map+j;
-	adl[i].a.l=strlen(map+j);
+	adl[i].a.l=str_len(map+j);
 	adl[i].attrofs=j;
 	adl[i].next=adl+i+1;
       }
@@ -974,29 +1047,32 @@ add_attribute:
   }
   {
     long l=fmt_ldapsearchresultentry(0,&sre);
-    char *buf=alloca(l+300); /* you never know ;) */
+    char *buf;
     long tmp;
-    if (verbose) {
-      buffer_puts(buffer_2,"sre len ");
-      buffer_putulong(buffer_2,l);
-      buffer_putsflush(buffer_2,".\n");
+    if (l<=HUGE_SIZE_FOR_SANITY_CHECKS) {
+      buf=alloca(l+300); /* you never know ;) */
+      if (verbose) {
+	buffer_puts(buffer_2,"sre len ");
+	buffer_putulong(buffer_2,l);
+	buffer_putsflush(buffer_2,".\n");
+      }
+      tmp=fmt_ldapmessage(buf,messageid,SearchResultEntry,l);
+      fmt_ldapsearchresultentry(buf+tmp,&sre);
+      write(out,buf,l+tmp);
     }
-    tmp=fmt_ldapmessage(buf,messageid,SearchResultEntry,l);
-    fmt_ldapsearchresultentry(buf+tmp,&sre);
-    write(out,buf,l+tmp);
   }
   free_ldappal(sre.attributes);
 }
 
 
-#if 0
+/*
  _     _       _       _                _   _     _
 | |__ (_) __ _| |__   | | _____   _____| | | | __| | __ _ _ __
 | '_ \| |/ _` | '_ \  | |/ _ \ \ / / _ \ | | |/ _` |/ _` | '_ \
 | | | | | (_| | | | | | |  __/\ V /  __/ | | | (_| | (_| | |_) |
 |_| |_|_|\__, |_| |_| |_|\___| \_/ \___|_| |_|\__,_|\__,_| .__/
          |___/                                           |_|
-#endif
+*/
 
 int copystring(struct string* dest,struct string* src) {
   dest->s=malloc(src->l+1);
@@ -1037,6 +1113,7 @@ static int copypal(struct PartialAttributeList** dest,struct PartialAttributeLis
 }
 #endif
 
+/* small helper for addreq2sre */
 static int ar2sreh1(struct PartialAttributeList** dest,struct Addition* src) {
   *dest=0;
   while (src) {
@@ -1050,25 +1127,112 @@ static int ar2sreh1(struct PartialAttributeList** dest,struct Addition* src) {
   return 0;
 }
 
-int addreq2sre(struct SearchResultEntry* sre,struct AddRequest* ar) {
+/* convert an AddRequest to a SearchResultEntry */
+static int addreq2sre(struct SearchResultEntry* sre,struct AddRequest* ar) {
   byte_zero(sre,sizeof(*sre));
-  if (copystring(&sre->objectName,&ar->entry)) goto allocfailed;
-  if (!(sre->attributes=malloc(sizeof(*sre->attributes)))) goto allocfailed;
-  if (ar2sreh1(&sre->attributes,&ar->a)) goto allocfailed;
+  if (copystring(&sre->objectName,&ar->entry) ||
+      !(sre->attributes=malloc(sizeof(*sre->attributes))) ||
+      ar2sreh1(&sre->attributes,&ar->a)) {
+    free_ldapsearchresultentry(sre);
+    return -1;
+  }
   return 0;
-allocfailed:
-  free_ldapsearchresultentry(sre);
-  return -1;
+}
+
+/* write a search result entry to a file */
+static int writesretofd(int fd,struct SearchResultEntry* sre) {
+  /* we have no locking, but we open using O_APPEND, so the OS synchronizes for us as long
+   * as we write atomically.  Therefore we have to buffer here. */
+  size_t i,l,nl;
+  char* c;
+  struct PartialAttributeList* pal=sre->attributes;
+  l=5+fmt_ldapescape(0,sre->objectName.s,sre->objectName.l);	/* "\ndn: ...\n" */
+  if (l<=5) return -1;
+  while (pal) {
+    struct AttributeDescriptionList* adl=pal->values;
+    while (adl) {
+      nl=fmt_ldapescape(0,pal->type.s,pal->type.l);
+      if (nl>HUGE_SIZE_FOR_SANITY_CHECKS) return -1;
+      l+=nl;
+      nl=fmt_ldapescape(0,adl->a.s,adl->a.l);
+      if (nl>HUGE_SIZE_FOR_SANITY_CHECKS) return -1;
+      l+=nl;
+      if (l+3>HUGE_SIZE_FOR_SANITY_CHECKS) return -1;
+      l+=3;
+      adl=adl->next;
+    }
+    pal=pal->next;
+  }
+  c=alloca(l+1);
+  if (!c) return -1;
+  i=fmt_str(c,"dn: ");
+  i+=fmt_ldapescape(c+i,sre->objectName.s,sre->objectName.l);
+  i+=fmt_str(c+i,"\n");
+  pal=sre->attributes;
+  while (pal) {
+    struct AttributeDescriptionList* adl=pal->values;
+    while (adl) {
+      i+=fmt_ldapescape(c+i,pal->type.s,pal->type.l);
+      i+=fmt_str(c+i,": ");
+      i+=fmt_ldapescape(c+i,adl->a.s,adl->a.l);
+      i+=fmt_str(c+i,"\n");
+      adl=adl->next;
+    }
+    pal=pal->next;
+  }
+  i+=fmt_str(c+i,"\n");
+
+  return (write(fd,c,i)==(ssize_t)i)?0:-1;
 }
 
 /* This is the high level LDAP handling code.  It reads queries from the socket at in, and
  * then writes the answers to out.  Normally in == out, but they are separate here so this
  * can also be called with in=stdin and out=stdout. */
 
-int writesretofd(int fd,struct SearchResultEntry* sre) {
-  unsigned long l=fmt_ldapsearchresultentry(0,sre);
-  char* c=alloca(l+10);	/* you never know */
-  return (write(fd,c,l)==(ssize_t)l)?0:-1;
+static void answerwithjournal(struct SearchRequest* sr,long messageid,int out);
+static struct hashnode** dn_in_journal2(const char* dn,size_t dnlen);
+
+static int lookupdn(struct string* dn,size_t* index, struct hashnode** hn) {
+  struct Filter f;
+  struct hashnode** tmphn;
+  if ((tmphn=dn_in_journal2(dn->s,dn->l)) && *tmphn) {
+    *hn=*tmphn;
+    *index=-1;
+    return (*hn)->n > 0;
+  }
+  *hn=0;
+  f.type=EQUAL;
+  f.ava.desc.l=2; f.ava.desc.s="dn";
+  f.ava.value=*dn;
+  f.next=0;
+  fixup(&f);
+  if (!indexable(&f)) {
+    buffer_putsflush(buffer_2,"no index for dn, lookup failed!\n");
+    return -1;
+  } else {
+    struct bitfield result;
+    size_t i,done;
+    result.bits=alloca(record_set_length*sizeof(unsigned long));
+    useindex(&f,&result);
+    done=0;
+    if (result.first>result.last)
+      return 0;
+    done=0;
+    assert(result.last<=record_count);
+    for (i=result.first; i<=result.last; ) {
+      if (!result.bits[i/(8*sizeof(long))]) {
+	i+=8*sizeof(long);
+	continue;
+      }
+      for (; i<=result.last; ++i) {
+	if (isset(&result,i)) {
+	  *index=i;
+	  return 1;
+	}
+      }
+    }
+  }
+  return 0;
 }
 
 /* a standard LDAP session looks like this:
@@ -1083,12 +1247,12 @@ int writesretofd(int fd,struct SearchResultEntry* sre) {
  * tinyldap does not complain if you don't unbind before hanging up.
  */
 int handle(int in,int out) {
-  unsigned int len;
+  size_t len;
   char buf[BUFSIZE];
   for (len=0;;) {
     int tmp=read(in,buf+len,BUFSIZE-len);
     int res;
-    unsigned long messageid,op,Len;
+    size_t messageid,op,Len;
     if (tmp==0) {
       close(in);
       if (in!=out) close(out); 
@@ -1140,16 +1304,16 @@ int handle(int in,int out) {
 authfailure:
 		{
 		  char outbuf[1024];
-		  int s=100;
-		  int len=fmt_ldapbindresponse(outbuf+s,inappropriateAuthentication,"","authentication failure","");
-		  int hlen=fmt_ldapmessage(0,messageid,BindResponse,len);
+		  size_t s=100;
+		  size_t len=fmt_ldapbindresponse(outbuf+s,inappropriateAuthentication,"","authentication failure","");
+		  size_t hlen=fmt_ldapmessage(0,messageid,BindResponse,len);
 		  fmt_ldapmessage(outbuf+s-hlen,messageid,BindResponse,len);
 		  write(out,outbuf+s-hlen,len+hlen);
 		  continue;
 		}
 	      } else {
 		struct bitfield result;
-		unsigned long i,done;
+		size_t i,done;
 		result.bits=alloca(record_set_length*sizeof(unsigned long));
 		useindex(&f,&result);
 		done=0;
@@ -1220,7 +1384,7 @@ found:
 	  }
 #endif
 	  if ((tmp=scan_ldapsearchrequest(buf+res,buf+res+len,&sr))) {
-	    unsigned long returned=0;
+	    size_t returned=0;
 
 #if (debug != 0)
 	    if (debug) {
@@ -1247,7 +1411,7 @@ found:
 	    fixupadl(sr.attributes);
 	    if (indexable(sr.filter)) {
 	      struct bitfield result;
-	      unsigned long i;
+	      size_t i;
 #if (debug != 0)
 	      if (debug) buffer_putsflush(buffer_2,"query can be answered with index!\n");
 #endif
@@ -1258,7 +1422,7 @@ found:
 	      useindex(sr.filter,&result);
 	      assert(result.last<=record_count);
 	      for (i=result.first; i<=result.last; ) {
-		unsigned long ni=i+8*sizeof(long);
+		size_t ni=i+8*sizeof(long);
 		if (!result.bits[i/(8*sizeof(long))]) {
 		  i=ni;
 		  continue;
@@ -1278,7 +1442,7 @@ found:
 	      }
 	    } else {
 	      char* x=map+5*4+size_of_string_table+attribute_count*8;
-	      unsigned long i;
+	      size_t i;
 #if (debug != 0)
 	      if (debug) buffer_putsflush(buffer_2,"query can NOT be answered with index!\n");
 #endif
@@ -1293,6 +1457,9 @@ found:
 		x+=j*8;
 	      }
 	    }
+
+	    /* now answer with the results from the journal */
+	    answerwithjournal(&sr,messageid,out);
 	    free_ldapsearchrequest(&sr);
 	  } else {
 	    buffer_putsflush(buffer_2,"couldn't parse search request!\n");
@@ -1353,15 +1520,23 @@ found:
 //          buffer_putsflush(buffer_2,"AddRequest!\n");
           if ((tmp=scan_ldapaddrequest(buf+res,buf+res+len,&ar))) {
 	    struct SearchResultEntry sre;
-	    addreq2sre(&sre,&ar);
 	    /* convert addrequest to searchresultentry */
+	    addreq2sre(&sre,&ar);
 	    /* TODO: do something with the add request ;-) */
 	    /* 1. check ACLs */
 	    if (!acls || checkacl(0,0,acl_add,&sre)==1) {
-	      /* 2. check is there already is a record with this dn */
+	      /* 2. check if there already is a record with this dn */
+	      struct hashnode* hn;
+	      size_t idx;
+	      switch (lookupdn(&sre.objectName,&idx,&hn)) {
+	      case -1: err=operationsError; break;
+	      case 1: err=entryAlreadyExists; break;
+	      case 0: break;
+	      default: err=operationsError;
+	      }
+	      if (err==success) {
 	      /* 3. write record to "data.upd" */
-	      {
-		int fd=open("data.upd",O_WRONLY|O_APPEND|O_CREAT,0600);
+		int fd=open("journal",O_WRONLY|O_APPEND|O_CREAT,0600);
 		if (fd==-1)
 		  err=operationsError;
 		else {
@@ -1426,18 +1601,359 @@ found:
   }
 }
 
-#if 0
+
+
+/* journal reading code */
+
+extern int (*ldif_parse_callback)(struct ldaprec* l);
+
+extern mstorage_t stringtable;
+extern mduptab_t attributes,classes;
+
+unsigned long hash2(const unsigned char* c) {
+  unsigned long h=0;
+  if (*c==0) {
+    uint32 len=uint32_read((char*)c+1);
+    return hash(c+5,len);
+  }
+  while (*c) {
+    /* from djb's cdb */
+    h += (h<<5);
+    h ^= *c;
+    ++c;
+  }
+  return h;
+}
+
+#define HASHTABSIZE 8191
+
+unsigned char* bstrdup(unsigned char* c) {
+  size_t len;
+  unsigned char* x;
+  if (*c)
+    len=str_len((char*)c);
+  else {
+    len=5+uint32_read((char*)c+1);
+    if (len<5) return 0;
+  }
+  x=malloc(len);
+  if (x) byte_copy(x,len,c);
+  return x;
+}
+
+unsigned char* bstrdup_attrib(unsigned char* c) {
+  char* x=map+5*4+size_of_string_table;
+  size_t i,l;
+  if (*c)
+    l=str_len((char*)c)+1;
+  else {
+    l=uint32_read((char*)c+1);
+    c+=5;
+  }
+  for (i=0; i<attribute_count; ++i) {
+    uint32 j=uint32_read(x);
+    if (case_equalb(c,l,map+j))
+      return (unsigned char*)map+j;
+    x+=4;
+  }
+  return bstrdup(c);
+}
+
+struct hashnode* hashtab[HASHTABSIZE];
+
+static struct hashnode** dn_in_journal(unsigned char* dn) {
+  unsigned long hashval;
+  struct hashnode** hn;
+  hashval=hash2(dn);
+  hn=hashtab+(hashval%HASHTABSIZE);
+  while (*hn) {
+    if ((*hn)->hashval==hashval) {
+      if (!bstr_diff((char*)(*hn)->dn,(char*)dn))
+	break;
+    }
+    hn=&((*hn)->next);
+  }
+  return hn;
+}
+
+static struct hashnode** dn_in_journal2(const char* dn,size_t dnlen) {
+  unsigned long hashval;
+  struct hashnode** hn;
+  hashval=hash2((const unsigned char*)dn);
+  hn=hashtab+(hashval%HASHTABSIZE);
+  while (*hn) {
+    if ((*hn)->hashval==hashval) {
+      if (!bstr_diff2((char*)(*hn)->dn,dn,dnlen))
+	break;
+    }
+    hn=&((*hn)->next);
+  }
+  return hn;
+}
+
+
+int parse_callback(struct ldaprec* l) {
+  size_t i;
+  unsigned long hashval;
+  struct hashnode** hn;
+  if (l->dn==(uint32)-1) return -1;
+  hashval=hash2((unsigned char*)stringtable.root+l->dn);
+  hn=hashtab+(hashval%HASHTABSIZE);
+  while (*hn) {
+    if ((*hn)->hashval==hashval) {
+      if (!bstr_diff((char*)(*hn)->dn,stringtable.root+l->dn))
+	break;
+    }
+    hn=&((*hn)->next);
+  }
+  if (*hn) {
+    /* a record with this dn exists */
+    /* adjust it to the new reality */
+    for (i=0; i<(*hn)->n; ++i) {
+      free((*hn)->a[i].a);
+      free((*hn)->a[i].v);
+    }
+    *hn = realloc(*hn,sizeof(**hn)-sizeof(struct attribute2)+l->n*sizeof(struct attribute2));
+    if (!*hn) nomem: die(1,"out of memory!");
+  } else {
+    *hn = malloc(sizeof(**hn)-sizeof(struct attribute2)+l->n*sizeof(struct attribute2));
+    if (!*hn) goto nomem;
+    if (!((*hn)->dn=bstrdup((unsigned char*)stringtable.root+l->dn))) goto nomem;
+    (*hn)->hashval=hashval;
+    (*hn)->next=0;
+  }
+  (*hn)->n=l->n;
+  for (i=0; i<l->n; ++i) {
+    if (!((*hn)->a[i].a=bstrdup_attrib((unsigned char*)attributes.strings.root+l->a[i].name)) ||
+	!((*hn)->a[i].v=bstrdup((unsigned char*)((*hn)->a[i].a==(unsigned char*)map+objectClass_ofs?classes.strings.root:stringtable.root)+l->a[i].value))) goto nomem;
+  }
+  stringtable.used=0;
+  return 0;
+}
+
+int readjournal() {
+  ldif_parse_callback=parse_callback;
+  mduptab_init(&attributes);
+  mduptab_init(&classes);
+  return ldif_parse("journal");
+}
+
+static int ldap_matchfilter_hn(struct hashnode* hn,struct Filter* f) {
+  struct Filter* y=f->x;
+  size_t i;
+  if (!hn->n) return 0;
+  if (!f) return 1;
+  switch (f->type) {
+  case AND:
+    while (y) {
+      if (!ldap_matchfilter_hn(hn,y)) return 0;
+      y=y->next;
+    }
+    return 1;
+  case OR:
+    while (y) {
+      if (ldap_matchfilter_hn(hn,y)) return 1;
+      y=y->next;
+    }
+    return 0;
+  case NOT:
+    return !ldap_matchfilter_hn(hn,y);
+  case PRESENT:
+    if (f->attrofs==dn_ofs)
+      return 1;
+    for (i=0; i<hn->n; ++i)
+      if (!matchstring(&f->ava.desc,(char*)hn->a[i].a))
+	return 1;
+    return 0;
+  case EQUAL:
+  case LESSEQUAL:
+  case GREATEQUAL:
+    if (f->attrofs==dn_ofs)
+      return matchint(f,(char*)hn->dn);
+    for (i=0; i<hn->n; ++i)
+      if (!matchstring(&f->ava.desc,(char*)hn->a[i].a) &&
+	  matchint(f,(char*)hn->a[i].v)) return 1;
+    return 0;
+  case SUBSTRING:
+    if (f->attrofs==dn_ofs)
+      return substringmatch(f->substrings,(char*)hn->dn,f->attrflag&1);
+    for (i=0; i<hn->n; ++i)
+      if (!matchstring(&f->ava.desc,(char*)hn->a[i].a) &&
+	  substringmatch(f->substrings,(char*)hn->a[i].v,f->attrflag&1)) return 1;
+    return 0;
+  default:
+    write(2,"unsupported query type\n",23);
+    return 0;
+  }
+  return 1;
+}
+
+/* return 0 if they didn't match, otherwise return length in b */
+static int match(const char* a,int len,const char* b) {
+  const char* A=a+len;
+  const char* B=b+str_len(b);
+  while (len>0 && A>a && B>b) {
+    --A; --B; --len;
+    while (*A==' ' && A>a) { --A; --len; }
+    while (*B==' ' && B>b) --B;
+    if (tolower(*A) != tolower(*B))
+      return 0;
+  }
+  return str_len(B);
+}
+
+static int matchhashnode(struct hashnode* hn,struct SearchRequest* sr) {
+  size_t i,len=bstrlen((char*)hn->dn);
+  unsigned char* c;
+  if (sr->baseObject.l>len)
+    /* baseObject is longer than dn */
+    return 0;
+  if (sr->baseObject.l && !match(sr->baseObject.s,sr->baseObject.l,(char*)hn->dn))
+    /* baseObject is not a suffix of dn */
+    return 0;
+  switch (sr->scope) {
+  case wholeSubtree: break;
+  case baseObject: if (len==sr->baseObject.l) break; return 0;
+  default:
+    c=hn->dn+bstrstart((char*)hn->dn);
+    for (i=0; i<len; ++i)
+      if (c[i]==',')
+	break;
+    if (i+2>=len-sr->baseObject.l) break;
+    return 0;
+  }
+  return ldap_matchfilter_hn(hn,sr->filter);
+}
+
+static void answerwith_hn(struct hashnode* hn,struct SearchRequest* sr,long messageid,int out) {
+  struct SearchResultEntry sre;
+  struct PartialAttributeList** pal=&sre.attributes;
+
+  if (acls)
+    byte_zero(acl_ec_subjects+filters,filters);
+
+  if (acls && checkacl_hn(hn,(unsigned char*)map+dn_ofs,acl_read)!=1) return;
+
+  sre.objectName.l=bstrlen(sre.objectName.s=(char*)hn->dn);
+  sre.attributes=0;
+
+  /* now go through list of requested attributes */
+  {
+    struct AttributeDescriptionList* adl=sr->attributes;
+    if (!adl && hn->n && hn->n<HUGE_SIZE_FOR_SANITY_CHECKS/sizeof(*adl)) {
+      /* did not ask for any attributes.  send 'em all. */
+      /* to do that, construct a list of all attributes */
+
+      uint32 i,j,k;
+      adl=alloca(hn->n*sizeof(*adl));
+      for (i=k=0; i<hn->n; ++i) {
+	adl[k].a.s=(char*)hn->a[i].a;
+	adl[k].a.l=str_len((char*)hn->a[i].a);
+	adl[k].attrofs=0;
+	adl[k].next=adl+k+1;
+	for (j=0; j<i; ++j) {
+	  if (!strcmp((char*)hn->a[i].a,(char*)hn->a[j].a)) {
+	    --k;
+	    break;
+	  }
+	}
+	++k;
+      }
+      if (k) adl[k-1].next=0;
+    }
+    while (adl) {
+      const unsigned char* val=0;
+      uint32 i=0;
+
+      if (!acls || checkacl_hn(hn,(unsigned char*)adl->a.s,acl_read)==1) {
+	if (!matchstring(&adl->a,"dn"))
+	  val=hn->dn;
+	else {
+	  for (; i<hn->n; ++i)
+	    if (!matchstring(&adl->a,(char*)hn->a[i].a)) {
+	      val=hn->a[i].v;
+	      ++i;
+	      break;
+	    }
+	}
+	if (val) {
+	  *pal=malloc(sizeof(struct PartialAttributeList));
+	  if (!*pal) {
+nomem:
+	    buffer_putsflush(buffer_2,"out of virtual memory!\n");
+	    exit(1);
+	  }
+	  (*pal)->type=adl->a;
+	  {
+	    struct AttributeDescriptionList** a;
+	    a=&(*pal)->values;
+add_attribute:
+	    *a=malloc(sizeof(struct AttributeDescriptionList));
+	    if (!*a) goto nomem;
+	    (*a)->a.s=bstrfirst((char*)val);
+	    (*a)->a.l=bstrlen((char*)val);
+	    for (;i<hn->n; ++i)
+	      if (!matchstring(&adl->a,(char*)hn->a[i].a)) {
+		val=hn->a[i].v;
+		++i;
+		a=&(*a)->next;
+		goto add_attribute;
+	      }
+	    (*a)->next=0;
+	  }
+	  (*pal)->next=0;
+	  pal=&(*pal)->next;
+	}
+      }
+      adl=adl->next;
+    }
+  }
+  {
+    long l=fmt_ldapsearchresultentry(0,&sre);
+    char *buf;
+    long tmp;
+    if (l<HUGE_SIZE_FOR_SANITY_CHECKS) {
+      buf=alloca(l+300); /* you never know ;) */
+      if (verbose) {
+	buffer_puts(buffer_2,"sre len ");
+	buffer_putulong(buffer_2,l);
+	buffer_putsflush(buffer_2,".\n");
+      }
+      tmp=fmt_ldapmessage(buf,messageid,SearchResultEntry,l);
+      fmt_ldapsearchresultentry(buf+tmp,&sre);
+      write(out,buf,l+tmp);
+    }
+  }
+  free_ldappal(sre.attributes);
+}
+
+static void answerwithjournal(struct SearchRequest* sr,long messageid,int out) {
+  int i;
+  for (i=0; i<HASHTABSIZE; ++i) {	/* for all entries in hash table... */
+    struct hashnode* hn=hashtab[i];
+    while (hn) {
+      if (matchhashnode(hn,sr)) {
+	answerwith_hn(hn,sr,messageid,out);
+      }
+      hn=hn->next;
+    }
+  }
+}
+
+/*
                  _
  _ __ ___   __ _(_)_ __
 | '_ ` _ \ / _` | | '_ \
 | | | | | | (_| | | | | |
 |_| |_| |_|\__,_|_|_| |_|
-#endif
+*/
 
 int main(int argc,char* argv[]) {
 #ifdef STANDALONE
   int sock;
 #endif
+
+  errmsg_iam("tinyldap");
 
   signal(SIGPIPE,SIG_IGN);
 
@@ -1456,7 +1972,7 @@ int main(int argc,char* argv[]) {
   /* look up "dn" and "objectClass" */
   {
     char* x=map+5*4+size_of_string_table;
-    unsigned int i;
+    size_t i;
     dn_ofs=objectClass_ofs=userPassword_ofs=any_ofs=0;
     for (i=0; i<attribute_count; ++i) {
       uint32 j;
@@ -1476,6 +1992,8 @@ int main(int argc,char* argv[]) {
   }
 
   load_acls();
+
+  readjournal();
 
 #if 0
   ldif_parse("exp.ldif");

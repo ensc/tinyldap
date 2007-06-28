@@ -3,8 +3,8 @@
 #include "str.h"
 #include "ldap.h"
 
-unsigned int fmt_ldapsearchfilterstring(char* dest,struct Filter* f) {
-  unsigned int len;
+size_t fmt_ldapsearchfilterstring(char* dest,struct Filter* f) {
+  size_t len;
   len = fmt_str(dest,"(");
   switch (f->type) {
   case AND: case OR: case NOT:

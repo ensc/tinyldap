@@ -2,10 +2,9 @@
 
 /* write int in least amount of bytes, return number of bytes */
 /* as used in ASN.1 tags */
-unsigned int fmt_asn1tag(char* dest,enum asn1_tagclass tc,enum asn1_tagtype tt,unsigned long l) {
+size_t fmt_asn1tag(char* dest,enum asn1_tagclass tc,enum asn1_tagtype tt,unsigned long l) {
   /* encoding is either l%128 or (0x1f,...) */
-  int needed=(sizeof l)*7/8;
-  int i;
+  size_t needed=(sizeof l)*7/8,i;
   if (l<0x1f) {
     if (dest) *dest=(int)tc+(int)tt+(l&0x1f);
     return 1;
@@ -14,7 +13,7 @@ unsigned int fmt_asn1tag(char* dest,enum asn1_tagclass tc,enum asn1_tagtype tt,u
     if (!(l>>(i*7)))
       break;
   if (dest) {
-    int j=i;
+    size_t j=i;
     *dest=(int)tc+(int)tt+0x1f; ++dest;
     while (j) {
       --j;

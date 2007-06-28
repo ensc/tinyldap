@@ -1,11 +1,13 @@
 #ifndef _MSTORAGE_H
 #define _MSTORAGE_H
 
+#include <stddef.h>
+
 /* (optionally persistent) mmapped storage. */
 
 typedef struct mstorage {
   char* root;
-  unsigned long mapped,used;
+  size_t mapped,used;
   int fd;
 } mstorage_t;
 
@@ -16,7 +18,7 @@ int mstorage_init_persistent(mstorage_t* p,int fd);
 /* Works like strstorage_add, but will return an
  * offset to mstorage_root, which is mmapped and may thus change. */
 /* offset -1 ==> error */
-long mstorage_add(mstorage_t* p,const char* s,unsigned long n);
+long mstorage_add(mstorage_t* p,const char* s,size_t n);
 
 /* undo mapping */
 void mstorage_unmap(mstorage_t* p);
@@ -26,6 +28,6 @@ void mstorage_unmap(mstorage_t* p);
  *   char 0;
  *   uint32 len;
  *   char data[len] */
-long mstorage_add_bin(mstorage_t* p,const char* s,unsigned long n);
+long mstorage_add_bin(mstorage_t* p,const char* s,size_t n);
 
 #endif

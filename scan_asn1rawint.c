@@ -1,7 +1,7 @@
 #include "asn1.h"
 
-unsigned int scan_asn1rawint(const char* src,const char* max,unsigned int len,long* l) {
-  unsigned int i,j;
+size_t scan_asn1rawint(const char* src,const char* max,size_t len,long* l) {
+  size_t i,j;
   long m;
   if (*src<0) m=-1; else m=0;
   for (i=j=0; i<len; ++i,++j) {

@@ -120,7 +120,7 @@ int main(int argc,char* argv[]) {
       {
 	unsigned long result;
 	struct string matcheddn,errormessage,referral;
-	printf("scan_ldapbindresponse: %d\n",
+	printf("scan_ldapbindresponse: %zd\n",
 	       scan_ldapbindresponse(ldapsequence+done+res,ldapsequence+done+res+len,
 					 &result,&matcheddn,&errormessage,&referral));
 	printf("result %lu, matcheddn \"%.*s\", errormessage \"%.*s\", referral \"%.*s\"\n",
@@ -184,7 +184,7 @@ int main(int argc,char* argv[]) {
       {
 	unsigned long result;
 	struct string matcheddn,errormessage,referral;
-	printf("scan_ldapresult: %d\n",
+	printf("scan_ldapresult: %zd\n",
 	       scan_ldapresult(ldapsequence+done+res,ldapsequence+done+res+len,
 				   &result,&matcheddn,&errormessage,&referral));
 	printf("result %lu, matcheddn \"%.*s\", errormessage \"%.*s\", referral \"%.*s\"\n",

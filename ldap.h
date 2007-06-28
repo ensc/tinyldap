@@ -1,10 +1,11 @@
 #ifndef _LDAP_H
 #define _LDAP_H
 
-#include "uint32.h"
+#include <stddef.h>
+#include <inttypes.h>
 
 struct string {
-  unsigned long l;
+  size_t l;
   const char* s;
 };
 
@@ -19,7 +20,7 @@ struct AttributeValueAssertion {
 
 struct AttributeDescriptionList {
   struct string a;
-  uint32 attrofs;
+  uint32_t attrofs;
   struct AttributeDescriptionList *next;
 };
 
@@ -42,8 +43,8 @@ enum FilterType {
 struct Filter {
   enum FilterType type;
   struct AttributeValueAssertion ava;
-  uint32 attrofs; /* offset of attribute name in index */
-  uint32 attrflag; /* "case sensitivity" flag from index */
+  uint32_t attrofs; /* offset of attribute name in index */
+  uint32_t attrflag; /* "case sensitivity" flag from index */
   struct Substring* substrings;
   struct AttributeDescriptionList *a;
   struct Filter* x,*next;
@@ -152,40 +153,40 @@ void freefilter(struct Filter* f);
 void freeava(struct AttributeDescriptionList* a);
 void freepal(struct PartialAttributeList* a);
 
-unsigned int scan_ldapstring(const char* src,const char* max,struct string* s);
-unsigned int scan_ldapmessage(const char* src,const char* max,
-		     unsigned long* messageid,unsigned long* op,
-		     unsigned long* len);
-unsigned int scan_ldapbindrequest(const char* src,const char* max,
-			 unsigned long* version,struct string* name,
-			 unsigned long* method);
-unsigned int scan_ldapbindresponse(const char* src,const char* max,
-			  unsigned long* result,struct string* matcheddn,
-			  struct string* errormessage,struct string* referral);
-unsigned int scan_ldapava(const char* src,const char* max,struct AttributeValueAssertion* a);
-unsigned int scan_ldapsearchfilter(const char* src,const char* max,struct Filter** f);
-unsigned int scan_ldapsearchrequest(const char* src,const char* max,struct SearchRequest* s);
-unsigned int scan_ldapsearchresultentry(const char* src,const char* max,struct SearchResultEntry* sre);
-unsigned int scan_ldapresult(const char* src,const char* max,unsigned long* result,
-		    struct string* matcheddn,struct string* errormessage,
-		    struct string* referral);
-unsigned int scan_ldapmodifyrequest(const char* src,const char* max,struct ModifyRequest* m);
-unsigned int scan_ldapaddrequest(const char * src, const char * max, struct AddRequest * a);
-unsigned int scan_ldapsearchfilterstring(const char* src,struct Filter** f);
+size_t scan_ldapstring(const char* src,const char* max,struct string* s);
+size_t scan_ldapmessage(const char* src,const char* max,
+			unsigned long* messageid,unsigned long* op,
+			size_t* len);
+size_t scan_ldapbindrequest(const char* src,const char* max,
+			    unsigned long* version,struct string* name,
+			    unsigned long* method);
+size_t scan_ldapbindresponse(const char* src,const char* max,
+			     unsigned long* result,struct string* matcheddn,
+			     struct string* errormessage,struct string* referral);
+size_t scan_ldapava(const char* src,const char* max,struct AttributeValueAssertion* a);
+size_t scan_ldapsearchfilter(const char* src,const char* max,struct Filter** f);
+size_t scan_ldapsearchrequest(const char* src,const char* max,struct SearchRequest* s);
+size_t scan_ldapsearchresultentry(const char* src,const char* max,struct SearchResultEntry* sre);
+size_t scan_ldapresult(const char* src,const char* max,unsigned long* result,
+		       struct string* matcheddn,struct string* errormessage,
+		       struct string* referral);
+size_t scan_ldapmodifyrequest(const char* src,const char* max,struct ModifyRequest* m);
+size_t scan_ldapaddrequest(const char* src, const char * max, struct AddRequest * a);
+size_t scan_ldapsearchfilterstring(const char* src,struct Filter** f);
 
-unsigned int fmt_ldapstring(char* dest,struct string* s);
-unsigned int fmt_ldapmessage(char* dest,long messageid,long op,long len);
-unsigned int fmt_ldapbindrequest(char* dest,long version,char* name,char* simple);
-unsigned int fmt_ldapsearchfilter(char* dest,struct Filter* f);
-unsigned int fmt_ldapsearchrequest(char* dest,struct SearchRequest* s);
-unsigned int fmt_ldapsearchresultentry(char* dest,struct SearchResultEntry* sre);
-unsigned int fmt_ldapresult(char* dest,long result,char* matcheddn,char* errormessage,char* referral);
-unsigned int fmt_ldappal(char* dest,struct PartialAttributeList* pal);
-unsigned int fmt_ldapava(char* dest,struct AttributeValueAssertion* a);
-unsigned int fmt_ldapadl(char* dest,struct AttributeDescriptionList* adl);
-unsigned int fmt_ldapavl(char* dest,struct AttributeDescriptionList* adl);
-unsigned int fmt_ldapmodifyrequest(char* dest,struct ModifyRequest* m);
-unsigned int fmt_ldapsearchfilterstring(char* dest,struct Filter* f);
+size_t fmt_ldapstring(char* dest,struct string* s);
+size_t fmt_ldapmessage(char* dest,long messageid,long op,size_t len);
+size_t fmt_ldapbindrequest(char* dest,long version,char* name,char* simple);
+size_t fmt_ldapsearchfilter(char* dest,struct Filter* f);
+size_t fmt_ldapsearchrequest(char* dest,struct SearchRequest* s);
+size_t fmt_ldapsearchresultentry(char* dest,struct SearchResultEntry* sre);
+size_t fmt_ldapresult(char* dest,long result,char* matcheddn,char* errormessage,char* referral);
+size_t fmt_ldappal(char* dest,struct PartialAttributeList* pal);
+size_t fmt_ldapava(char* dest,struct AttributeValueAssertion* a);
+size_t fmt_ldapadl(char* dest,struct AttributeDescriptionList* adl);
+size_t fmt_ldapavl(char* dest,struct AttributeDescriptionList* adl);
+size_t fmt_ldapmodifyrequest(char* dest,struct ModifyRequest* m);
+size_t fmt_ldapsearchfilterstring(char* dest,struct Filter* f);
 
 #define fmt_ldapbindresponse(a,b,c,d,e) fmt_ldapresult(a,b,c,d,e)
 #define fmt_ldapsearchresultdone(a,b,c,d,e) fmt_ldapresult(a,b,c,d,e)
@@ -204,5 +205,7 @@ void free_ldapsearchresultentry(struct SearchResultEntry* e);
 
 int ldap_matchfilter_sre(struct SearchResultEntry* sre,struct Filter* f);
 
+int matchint(struct Filter* f,const char* t);
+int substringmatch(struct Substring* x,const char* attr,int ignorecase);
 
 #endif

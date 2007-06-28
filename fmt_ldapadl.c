@@ -1,10 +1,9 @@
 #include "asn1.h"
 #include "ldap.h"
 
-static int doit(char* dest,struct AttributeDescriptionList* adl,int seq) {
+static size_t doit(char* dest,struct AttributeDescriptionList* adl,int seq) {
   struct AttributeDescriptionList* x=adl;
-  long sum=0;
-  int tmp;
+  size_t sum=0,tmp;
   while (x) {
     sum+=fmt_asn1OCTETSTRING(0,0,x->a.l);
     x=x->next;
@@ -25,10 +24,10 @@ static int doit(char* dest,struct AttributeDescriptionList* adl,int seq) {
   return sum;
 }
 
-unsigned int fmt_ldapadl(char* dest,struct AttributeDescriptionList* adl) {
+size_t fmt_ldapadl(char* dest,struct AttributeDescriptionList* adl) {
   return doit(dest,adl,1);
 }
 
-unsigned int fmt_ldapavl(char* dest,struct AttributeDescriptionList* adl) {
+size_t fmt_ldapavl(char* dest,struct AttributeDescriptionList* adl) {
   return doit(dest,adl,0);
 }

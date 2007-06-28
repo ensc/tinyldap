@@ -58,7 +58,7 @@ uint32 hashmapped(uint32 ofs,int ignorecase) {
   unsigned char* c=(unsigned char*)map+ofs;
   uint32 len;
   if (*c) return ignorecase?hash_tolower(c,strlen((char*)c)):hash(c,strlen((char*)c));
-  uint32_unpack(c+1,&len);
+  uint32_unpack((char*)c+1,&len);
   return ignorecase?hash_tolower(c+5,len):hash(c+5,len);
 }
 

@@ -1,7 +1,7 @@
 #include "asn1.h"
 
-unsigned int scan_asn1ENUMERATED(const char* src,const char* max,unsigned long* l) {
-  unsigned int tmp;
+size_t scan_asn1ENUMERATED(const char* src,const char* max,unsigned long* val) {
+  size_t tmp;
   unsigned long tag;
   enum asn1_tagclass tc;
   enum asn1_tagtype tt;
@@ -9,7 +9,7 @@ unsigned int scan_asn1ENUMERATED(const char* src,const char* max,unsigned long* 
   if ((tmp=scan_asn1int(src,max,&tc,&tt,&tag,&ltmp)))
     if (tc==UNIVERSAL && tt==PRIMITIVE && tag==ENUMERATED) {
       if (ltmp<0 || src+tmp+ltmp>max) return 0;
-      *l=(unsigned long)ltmp;
+      *val=(unsigned long)ltmp;
       return tmp;
     }
   return 0;

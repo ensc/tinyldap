@@ -85,7 +85,7 @@ uint32 my_addstring(const char* s,unsigned long len) {
 
 int ldif_callback(struct ldaprec* l) {
   char x[8];	/* temp buf for endianness conversion */
-  int i;
+  unsigned int i;
 //  uint32 ofs;
   uint32 oc=(uint32)-1;	/* value of the first objectClass */
 
@@ -99,7 +99,7 @@ int ldif_callback(struct ldaprec* l) {
   }
   if (oc==(uint32)-1) {
     extern long lines;
-    buffer_puts(buffer_1,"ignoring record without objectClass... (line");
+    buffer_puts(buffer_1,"ignoring record without objectClass... (line ");
     buffer_putulong(buffer_1,lines);
     buffer_putsflush(buffer_1,")\n");
     return 0;

@@ -12,10 +12,11 @@
 #include "byte.h"
 #include "textcode.h"
 #include "stralloc.h"
+#include "uint32.h"
 
 mduptab_t attributes,classes;
 mstorage_t stringtable;
-uint32 dn, objectClass;
+uint32_t dn, objectClass;
 unsigned long lines;
 
 /* this is called after each record.
@@ -27,11 +28,11 @@ unsigned long lines;
  * If the callback is NULL, a callback that always returns 1 is assumed.
  * */
 int (*ldif_parse_callback)(struct ldaprec* l);
-uint32 (*ldif_addstring_callback)(const char* s,unsigned long len);
+uint32_t (*ldif_addstring_callback)(const char* s,unsigned long len);
 
 unsigned long ldifrecords;
 
-static void addattribute(struct ldaprec** l,uint32 name,uint32 val) {
+static void addattribute(struct ldaprec** l,uint32_t name,uint32_t val) {
   if (name==dn) (*l)->dn=val; else
     if ((*l)->n<ATTRIBS) {
       (*l)->a[(*l)->n].name=name;
@@ -80,28 +81,28 @@ static int unbase64(char* buf) {
   return destlen;
 }
 
-uint32 (*ldif_addstring_callback)(const char* s,unsigned long len);
+uint32_t (*ldif_addstring_callback)(const char* s,unsigned long len);
 
-static uint32 addstring(const char* s,unsigned long len) {
+static uint32_t addstring(const char* s,unsigned long len) {
   return mstorage_add(&stringtable,s,len);
 }
 
 static long commit_string_bin(const char* s,unsigned long n) {
   unsigned int i;
   static char zero;
-  uint32 x;
+  uint32_t x;
   char intbuf[4];
   if (n==0 || (n==1 && s[0]==0)) goto encodebinary;
   for (i=0; i<n-1; ++i)
     if (!s[i]) {
 encodebinary:
       uint32_pack(intbuf,n);
-      if ((x=ldif_addstring_callback(&zero,1))==(uint32)-1 || ldif_addstring_callback(intbuf,4)==(uint32)-1 || ldif_addstring_callback(s,n)==(uint32)-1) return -1;
+      if ((x=ldif_addstring_callback(&zero,1))==(uint32_t)-1 || ldif_addstring_callback(intbuf,4)==(uint32_t)-1 || ldif_addstring_callback(s,n)==(uint32_t)-1) return -1;
       return x;
     }
   x=ldif_addstring_callback(s,n);
   if (s[n-1])
-    if (ldif_addstring_callback(&zero,1)==(uint32)-1) return -1;
+    if (ldif_addstring_callback(&zero,1)==(uint32_t)-1) return -1;
   return x;
 }
 
@@ -117,7 +118,7 @@ static int parserec(buffer* b, struct ldaprec** l) {
   char buf[8192];
   int n,i,eof=0,ofs=0;
   unsigned int i2;
-  int len,base64,binary;
+  size_t len,base64,binary;
   stralloc payload={0,0,0};
 
   if (!(*l=malloc(sizeof(struct ldaprec)))) {
@@ -129,7 +130,7 @@ nomem:
   (*l)->next=0; (*l)->n=0;
   ldifrecords=0;
   do {
-    uint32 tmp, val;
+    uint32_t tmp, val;
     base64=binary=0;
     n=ofs+buffer_get_token(b,buf+ofs,8192-ofs,":",1);
     if (n==0) break;
@@ -139,7 +140,7 @@ nomem:
       buf[i2]=0;
       if (str_equal("binary",buf+i2+1)) binary=1;
     }
-    if ((tmp=mduptab_adds(&attributes,buf+i))==(uint32)-1) goto nomem;
+    if ((tmp=mduptab_adds(&attributes,buf+i))==(uint32_t)-1) goto nomem;
     if (!stralloc_copys(&payload,"")) goto nomem;
     {
       char dummy;
@@ -178,8 +179,12 @@ lookagain:
 	  if (base64) {
 	    len=unbase64(payload.s);
 	    if (!binary) { payload.s[len]=0; ++len; }
-	  } else
-	    len=n+1;
+	  } else {
+	    len=n;
+	    scan_ldapescape(payload.s,payload.s,&len);
+	    payload.s[len]=0;
+	    ++len;
+	  }
 	} else
 	  len=0;
 
@@ -192,11 +197,11 @@ lookagain:
 #endif
 
 	if (tmp==objectClass) {
-	  if ((val=mduptab_add(&classes,payload.s,len-1))==(uint32)-1) goto nomem;
+	  if ((val=mduptab_add(&classes,payload.s,len-1))==(uint32_t)-1) goto nomem;
 	} else if (tmp==dn) {
-	  if ((val=add_normalized(payload.s,len))==(uint32)-1) goto nomem;
+	  if ((val=add_normalized(payload.s,len))==(uint32_t)-1) goto nomem;
 	} else
-	  if ((val=commit_string_bin(payload.s,len))==(uint32)-1) goto nomem;
+	  if ((val=commit_string_bin(payload.s,len))==(uint32_t)-1) goto nomem;
 	addattribute(l,tmp,val);
 
 	m=0;
@@ -236,8 +241,12 @@ lookagain:
       if (base64) {
 	len=unbase64(payload.s);
 	if (!binary) { payload.s[len]=0; ++len; }
-      } else
-	len=n+1;
+      } else {
+	len=n;
+	scan_ldapescape(payload.s,payload.s,&len);
+	payload.s[len]=0;
+	++len;
+      }
     } else
       len=0;
 
@@ -250,16 +259,16 @@ lookagain:
 #endif
 
     if (tmp==objectClass) {
-      if ((val=mduptab_add(&classes,payload.s,len-1))==(uint32)-1) goto nomem;
+      if ((val=mduptab_add(&classes,payload.s,len-1))==(uint32_t)-1) goto nomem;
     } else if (tmp==dn) {
-      if ((val=add_normalized(payload.s,payload.len))==(uint32)-1) goto nomem;
+      if ((val=add_normalized(payload.s,payload.len))==(uint32_t)-1) goto nomem;
     } else
-      if ((val=commit_string_bin(payload.s,len))==(uint32)-1) goto nomem;
+      if ((val=commit_string_bin(payload.s,len))==(uint32_t)-1) goto nomem;
     addattribute(l,tmp,val);
 #endif
   } while (!eof);
   if (ldif_parse_callback && ldif_parse_callback(*l)==-1) return -1;
-  if ((*l)->dn==(uint32)-1 && ((*l)->next)) {
+  if ((*l)->dn==(uint32_t)-1 && ((*l)->next)) {
     struct ldaprec* m=(*l)->next;
     free((*l));
     (*l)=m;

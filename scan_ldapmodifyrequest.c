@@ -17,9 +17,8 @@
                 vals    SET OF AttributeValue }
 #endif
 
-unsigned int scan_ldapmodifyrequest(const char* src,const char* max,struct ModifyRequest* m) {
-  unsigned int res,tmp;
-  unsigned long oslen; /* outer sequence length */
+size_t scan_ldapmodifyrequest(const char* src,const char* max,struct ModifyRequest* m) {
+  size_t res,tmp,oslen; /* outer sequence length */
   struct Modification* last=0;
   m->m.next=0;
   if (!(res=scan_ldapstring(src,max,&m->object))) goto error;
@@ -29,7 +28,7 @@ unsigned int scan_ldapmodifyrequest(const char* src,const char* max,struct Modif
   max=src+res+oslen;
   if (src+res>=max) goto error;		/* need at least one record */
   do {
-    unsigned long islen, etmp;
+    size_t islen, etmp;
     if (last) {
       struct Modification* cur;
       if (!(cur=malloc(sizeof(struct Modification)))) goto error;
@@ -42,7 +41,7 @@ unsigned int scan_ldapmodifyrequest(const char* src,const char* max,struct Modif
     if (!(tmp=scan_asn1ENUMERATED(src+res,max,&etmp))) goto error;
     if (etmp>2) goto error; last->operation=etmp; res+=tmp;
     {
-      unsigned long iislen;	/* urgh, _three_ levels of indirection */
+      size_t iislen;	/* urgh, _three_ levels of indirection */
       const char* imax;
       if (!(tmp=scan_asn1SEQUENCE(src+res,max,&iislen))) goto error;
       res+=tmp;
@@ -51,7 +50,7 @@ unsigned int scan_ldapmodifyrequest(const char* src,const char* max,struct Modif
       if (!(tmp=scan_ldapstring(src+res,imax,&last->AttributeDescription))) goto error;
       res+=tmp;
       {
-	unsigned long iiislen;	/* waah, _four_ levels of indirection!  It doesn't get more inefficient than this */
+	size_t iiislen;	/* waah, _four_ levels of indirection!  It doesn't get more inefficient than this */
 	const char* iimax;
 	struct AttributeDescriptionList* ilast=0;
 	if (!(tmp=scan_asn1SET(src+res,max,&iiislen))) goto error;

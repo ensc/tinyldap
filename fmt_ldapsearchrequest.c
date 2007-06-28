@@ -1,8 +1,8 @@
 #include "asn1.h"
 #include "ldap.h"
 
-unsigned int fmt_ldapsearchrequest(char* dest,struct SearchRequest* sr) {
-  int l,sum=0;
+size_t fmt_ldapsearchrequest(char* dest,struct SearchRequest* sr) {
+  size_t l,sum=0;
   sum=fmt_ldapstring(dest,&sr->baseObject);
   if (dest) dest+=sum;
   l=fmt_asn1ENUMERATED(dest,sr->scope);

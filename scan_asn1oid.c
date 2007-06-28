@@ -1,15 +1,15 @@
 #include "asn1.h"
 
-unsigned int scan_asn1oid(const char* src,const char* max) {
-  unsigned int res,tmp;
-  unsigned long tag,tlen;
+size_t scan_asn1oid(const char* src,const char* max) {
+  size_t res,tmp,tlen;
+  unsigned long tag;
   enum asn1_tagclass tc;
   enum asn1_tagtype tt;
   if (!(res=scan_asn1tag(src,max,&tc,&tt,&tag))) goto error;
   if (!(tmp=scan_asn1length(src+res,max,&tlen))) goto error;
   res+=tmp;
   {
-    unsigned int i,x,y;
+    size_t i,x,y;
     tmp=0;
     for(i=0;src[res+i]&128;++i)
       tmp=(tmp<<7)+((unsigned char)src[res+i]&(~128));

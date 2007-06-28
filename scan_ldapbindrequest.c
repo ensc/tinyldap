@@ -1,10 +1,10 @@
 #include "asn1.h"
 #include "ldap.h"
 
-unsigned int scan_ldapbindrequest(const char* src,const char* max,
-			 unsigned long* version,struct string* name,
-			 unsigned long* method) {
-  unsigned int res,tmp;
+size_t scan_ldapbindrequest(const char* src,const char* max,
+			    unsigned long* version,struct string* name,
+			    unsigned long* method) {
+  size_t res,tmp;
   if (!(res=scan_asn1INTEGER(src,max,(signed long*)version))) return 0;
   if (!(tmp=scan_ldapstring(src+res,max,name))) return 0;
   res+=tmp;

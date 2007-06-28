@@ -6,27 +6,32 @@
 #include "uint32.h"
 #include "bstr.h"
 #include "textcode.h"
+#include <assert.h>
 
 static void dumpbstr(const char* c) {
-  int printable=1;
-  int i,l;
+  size_t i,l,up;
   const char* d;
   l=bstrlen(c);
   d=bstrfirst(c);
-  for (i=0; i<l; ++i)
-    if (!isprint(d[i])) { printable=0; break; }
-  if (printable) {
+  up=fmt_ldapescape(0,d,l);
+  assert(up>=l);
+  if (up==l) {
     buffer_puts(buffer_1," ");
     if (*c)
       buffer_puts(buffer_1,c);
     else
       buffer_put(buffer_1,bstrfirst(c),bstrlen(c));
-  } else {
+  } else if (up > (l+2)/3*4) {
     char* e;
     i=fmt_base64(0,d,l);
     e=alloca(i+1);
     buffer_puts(buffer_1,": ");
     buffer_put(buffer_1,e,fmt_base64(e,d,l));
+  } else {
+    char* e;
+    e=alloca(up);
+    buffer_puts(buffer_1,": ");
+    buffer_put(buffer_1,e,fmt_ldapescape(e,d,l));
   }
 }
 

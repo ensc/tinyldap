@@ -9,11 +9,19 @@
 #include "socket.h"
 #include "ip4.h"
 #include "str.h"
+#include "textcode.h"
 
 #include <fcntl.h>
 #include <sys/socket.h>
 
 #define BUFSIZE 8192
+
+static void buffer_putescaped(buffer* b,const char* x,size_t l) {
+  size_t needed=fmt_ldapescape(0,x,l);
+  char* buf=alloca(needed);
+  fmt_ldapescape(buf,x,l);
+  buffer_put(b,buf,needed);
+}
 
 static unsigned long messageid=1;
 
@@ -118,7 +126,7 @@ usage:
       }
       shutdown(sock,SHUT_WR);
       {
-	char buf[8192];	/* arbitrary limit, bad! */
+	char buf[32*1024];	/* arbitrary limit, bad! */
 	int len=0,tmp,tmp2;
 	char* max;
 	struct SearchResultEntry sre;
@@ -158,16 +166,16 @@ nextmessage:
 
 		if (durchlauf==0) {
 		  buffer_puts(buffer_1,"dn: ");
-		  buffer_put(buffer_1,sre.objectName.s,sre.objectName.l);
+		  buffer_putescaped(buffer_1,sre.objectName.s,sre.objectName.l);
 		  buffer_puts(buffer_1,"\n");
 		  while (pal) {
 		    struct AttributeDescriptionList* adl=pal->values;
 		    do {
-		      buffer_puts(buffer_1,"  ");
-		      buffer_put(buffer_1,pal->type.s,pal->type.l);
+//		      buffer_puts(buffer_1,"  ");
+		      buffer_putescaped(buffer_1,pal->type.s,pal->type.l);
 		      buffer_puts(buffer_1,": ");
 		      if (adl) {
-			buffer_put(buffer_1,adl->a.s,adl->a.l);
+			buffer_putescaped(buffer_1,adl->a.s,adl->a.l);
 			buffer_puts(buffer_1,"\n");
 			adl=adl->next;
 			if (!adl) break;

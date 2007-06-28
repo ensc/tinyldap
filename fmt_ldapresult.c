@@ -2,9 +2,8 @@
 #include "ldap.h"
 #include "str.h"
 
-unsigned int fmt_ldapresult(char* dest,long result,char* matcheddn,char* errormessage,char* referral) {
-  unsigned int l,sum=0;
-  unsigned int nlen;
+size_t fmt_ldapresult(char* dest,long result,char* matcheddn,char* errormessage,char* referral) {
+  size_t l,sum=0,nlen;
   sum=l=fmt_asn1ENUMERATED(dest,result);
   if (dest) dest+=l;
   nlen=str_len(matcheddn);
