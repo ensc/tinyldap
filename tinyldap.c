@@ -1261,7 +1261,8 @@ int handle(int in,int out) {
   for (len=0;;) {
     int tmp=read(in,buf+len,BUFSIZE-len);
     int res;
-    size_t messageid,op,Len;
+    unsigned long messageid,op;
+    size_t Len;
     if (tmp==0) {
       close(in);
       if (in!=out) close(out); 
