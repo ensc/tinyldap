@@ -71,11 +71,15 @@ struct attribute2 {
   unsigned char* a,* v;
 };
 
+/* we have chained hashing (that's what next is for), but we also have a linear list of
+ * all the entries in the journal (that's what linear is for), so we can traverse the
+ * entries in the same order they were put in the journal */
 struct hashnode {
-  struct hashnode* next;
+  struct hashnode* next,* linear;
   unsigned long hashval;
   unsigned char* dn;
   size_t n;
+  int overwrite;
   struct attribute2 a[1];
 };
 
@@ -921,6 +925,8 @@ static int checkacl_hn(struct hashnode* hn,const unsigned char* attr,unsigned lo
 
 static struct hashnode** dn_in_journal(unsigned char* dn);
 
+static void answerwith_hn(struct hashnode* hn,struct SearchRequest* sr,long messageid,int out);
+
 /* this routine is called for each record matched the query.  It basically puts together
  * an answer LDAP message from the record and the list of attributes the other side said
  * it wanted to have. */
@@ -929,8 +935,11 @@ static void answerwith(uint32 ofs,struct SearchRequest* sr,long messageid,int ou
   struct PartialAttributeList** pal=&sre.attributes;
   struct hashnode** hn;
 
-  if ((hn=dn_in_journal((unsigned char*)map+uint32_read(map+ofs+8))) && *hn)
+  if ((hn=dn_in_journal((unsigned char*)map+uint32_read(map+ofs+8))) && *hn) {
+    (*hn)->overwrite=1;
+    answerwith_hn(*hn,sr,messageid,out);
     return;
+  }
 
 #if (debug != 0)
   if (debug) {
@@ -1691,8 +1700,10 @@ static struct hashnode** dn_in_journal2(const char* dn,size_t dnlen) {
   return hn;
 }
 
+struct hashnode* root;
 
 int parse_callback(struct ldaprec* l) {
+  static struct hashnode** nextinlinearlist=&root;
   size_t i;
   unsigned long hashval;
   struct hashnode** hn;
@@ -1721,6 +1732,12 @@ int parse_callback(struct ldaprec* l) {
     if (!((*hn)->dn=bstrdup((unsigned char*)stringtable.root+l->dn))) goto nomem;
     (*hn)->hashval=hashval;
     (*hn)->next=0;
+
+    (*hn)->overwrite=0;
+    /* put new entry in the linear list */
+    *nextinlinearlist=*hn;
+    (*hn)->linear=0;
+    nextinlinearlist=&(*hn)->linear;
   }
   (*hn)->n=l->n;
   for (i=0; i<l->n; ++i) {
@@ -1928,15 +1945,11 @@ add_attribute:
 }
 
 static void answerwithjournal(struct SearchRequest* sr,long messageid,int out) {
-  int i;
-  for (i=0; i<HASHTABSIZE; ++i) {	/* for all entries in hash table... */
-    struct hashnode* hn=hashtab[i];
-    while (hn) {
-      if (matchhashnode(hn,sr)) {
-	answerwith_hn(hn,sr,messageid,out);
-      }
-      hn=hn->next;
-    }
+  struct hashnode* hn=root;
+  while (hn) {
+    if (!hn->overwrite && matchhashnode(hn,sr))
+      answerwith_hn(hn,sr,messageid,out);
+    hn=hn->linear;
   }
 }
 
