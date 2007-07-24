@@ -1641,7 +1641,7 @@ unsigned char* bstrdup(unsigned char* c) {
   size_t len;
   unsigned char* x;
   if (*c)
-    len=str_len((char*)c);
+    len=str_len((char*)c)+1;
   else {
     len=5+uint32_read((char*)c+1);
     if (len<5) return 0;
