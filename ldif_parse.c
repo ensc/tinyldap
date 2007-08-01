@@ -140,8 +140,13 @@ nomem:
       buf[i2]=0;
       if (str_equal("binary",buf+i2+1)) binary=1;
     }
-    if ((tmp=mduptab_adds(&attributes,buf+i))==(uint32_t)-1) goto nomem;
-    if (!stralloc_copys(&payload,"")) goto nomem;
+    if ((tmp=mduptab_adds(&attributes,buf+i))==(uint32_t)-1) {
+//      write(2,"a",1);
+      goto nomem;
+    } if (!stralloc_copys(&payload,"")) {
+//      write(2,"b",1);
+      goto nomem;
+    }
     {
       char dummy;
       int res;
@@ -150,7 +155,10 @@ nomem:
 	if (dummy=='\n') { ++lines; break; }
 	if (!n && dummy==':' && base64==0) { base64=1; continue; }
 	if (!n && (dummy==' ' || dummy=='\t')) continue;
-	if (!stralloc_append(&payload,&dummy)) goto nomem;
+	if (!stralloc_append(&payload,&dummy)) {
+//	  write(2,"c",1);
+	  goto nomem;
+	}
 	++n;
       }
       if (res==-1) return 1;
@@ -167,7 +175,10 @@ lookagain:
 //	puts("continuation!");
 	n=buffer_get_token(b,buf,8192,"\n",1);
 	if (n==-1) return 1;
-	if (!stralloc_catb(&payload,buf,n)) goto nomem;
+	if (!stralloc_catb(&payload,buf,n)) {
+//	  write(2,"d",1);
+	  goto nomem;
+	}
 	goto lookagain;
       } else if (c=='\n') {
 	struct ldaprec* m;
@@ -175,7 +186,10 @@ lookagain:
 	++lines;
 
 	if (payload.len) {
-	  if (!stralloc_0(&payload)) goto nomem;
+	  if (!stralloc_0(&payload)) {
+//	    write(2,"e",1);
+	    goto nomem;
+	  }
 	  if (base64) {
 	    len=unbase64(payload.s);
 	    if (!binary) { payload.s[len]=0; ++len; }
@@ -197,11 +211,20 @@ lookagain:
 #endif
 
 	if (tmp==objectClass) {
-	  if ((val=mduptab_add(&classes,payload.s,len-1))==(uint32_t)-1) goto nomem;
+	  if ((val=mduptab_add(&classes,payload.s,len-1))==(uint32_t)-1) {
+//	    write(2,"f",1);
+	    goto nomem;
+	  }
 	} else if (tmp==dn) {
-	  if ((val=add_normalized(payload.s,len))==(uint32_t)-1) goto nomem;
+	  if ((val=add_normalized(payload.s,len))==(uint32_t)-1) {
+//	    write(2,"g",1);
+	    goto nomem;
+	  }
 	} else
-	  if ((val=commit_string_bin(payload.s,len))==(uint32_t)-1) goto nomem;
+	  if ((val=commit_string_bin(payload.s,len))==(uint32_t)-1) {
+//	    write(2,"h",1);
+	    goto nomem;
+	  }
 	addattribute(l,tmp,val);
 
 	m=0;
@@ -237,7 +260,10 @@ lookagain:
 #if 1
 
     if (payload.len) {
-      if (!stralloc_0(&payload)) goto nomem;
+      if (!stralloc_0(&payload)) {
+//	write(2,"i",1);
+	goto nomem;
+      }
       if (base64) {
 	len=unbase64(payload.s);
 	if (!binary) { payload.s[len]=0; ++len; }
@@ -259,11 +285,20 @@ lookagain:
 #endif
 
     if (tmp==objectClass) {
-      if ((val=mduptab_add(&classes,payload.s,len-1))==(uint32_t)-1) goto nomem;
+      if ((val=mduptab_add(&classes,payload.s,len-1))==(uint32_t)-1) {
+//	write(2,"j",1);
+	goto nomem;
+      }
     } else if (tmp==dn) {
-      if ((val=add_normalized(payload.s,payload.len))==(uint32_t)-1) goto nomem;
+      if ((val=add_normalized(payload.s,payload.len))==(uint32_t)-1) {
+//	write(2,"k",1);
+	goto nomem;
+      }
     } else
-      if ((val=commit_string_bin(payload.s,len))==(uint32_t)-1) goto nomem;
+      if ((val=commit_string_bin(payload.s,len))==(uint32_t)-1) {
+//	write(2,"l",1);
+	goto nomem;
+      }
     addattribute(l,tmp,val);
 #endif
   } while (!eof);
@@ -283,6 +318,7 @@ int ldif_parse(const char* filename) {
   int fd;
   buffer in;
   buffer* tmp;
+  mstorage_init(&stringtable);
   if (ldif_addstring_callback==0) ldif_addstring_callback=addstring;
   if (filename[0]=='-' && !filename[1]) {
     tmp=buffer_0;
