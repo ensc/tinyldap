@@ -184,6 +184,7 @@ struct Filter** Filters;
 char Self[]="self";
 char Any[]="*";
 uint32 authenticated_as;
+char* authenticated_as_str;
 
 struct acl {
   uint32 subject,object;	/* index of filter for subject,object */
@@ -849,9 +850,12 @@ static int checkacl(uint32 recofs,uint32 attrofs,unsigned long operation,struct 
 	int match=0;
 	if (Filters[Acls[j]->object]==(struct Filter*)Any)
 	  match=1;
-	else if (Filters[Acls[j]->object]==(struct Filter*)Self)
-	  match=(recofs==authenticated_as);
-	else if (recofs)
+	else if (Filters[Acls[j]->object]==(struct Filter*)Self) {
+	  if (authenticated_as==0 && authenticated_as_str)
+	    match=!strcmp(map+uint32_read(map+recofs+8),authenticated_as_str);
+	  else
+	    match=(recofs==authenticated_as);
+	} else if (recofs)
 	  match=ldap_matchfilter_mapped(recofs,Filters[Acls[j]->object]);
 	else if (sre)
 	  match=ldap_matchfilter_sre(sre,Filters[Acls[j]->object]);
@@ -895,7 +899,7 @@ static int checkacl_hn(struct hashnode* hn,const unsigned char* attr,unsigned lo
 	if (Filters[Acls[j]->object]==(struct Filter*)Any)
 	  match=1;
 	else if (Filters[Acls[j]->object]==(struct Filter*)Self)
-	  match=dn && !strcmp((char*)hn->dn,map+authenticated_as);
+	  match=dn && !strcmp((char*)hn->dn,authenticated_as_str);
 	else if (dn)
 	  match=ldap_matchfilter_hn(hn,Filters[Acls[j]->object]);
 	else
@@ -1105,6 +1109,22 @@ static int copyadl(struct AttributeDescriptionList** dest,struct AttributeDescri
   return 0;
 }
 
+/* semi-deep copy an attribute description list */
+static int copyadl2(struct AttributeDescriptionList** dest,struct AttributeDescriptionList* src) {
+  *dest=0;
+  while (src) {
+    if (!(*dest=malloc(sizeof(*src)))) return -1;
+    byte_zero(*dest,sizeof(*src));
+    (*dest)->a=src->a;
+    (*dest)->attrofs=src->attrofs;
+    dest=&(*dest)->next;
+    src=src->next;
+  }
+  return 0;
+}
+
+
+
 
 #if 0
 /* deep copy a partial attribute list */
@@ -1144,6 +1164,97 @@ static int addreq2sre(struct SearchResultEntry* sre,struct AddRequest* ar) {
       ar2sreh1(&sre->attributes,&ar->a)) {
     free_ldapsearchresultentry(sre);
     return -1;
+  }
+  return 0;
+}
+
+/* small helper for modreq2sre */
+static int mr2sreh1(struct PartialAttributeList** dest,struct Modification* src) {
+  *dest=0;
+  while (src) {
+    if (!(*dest=malloc(sizeof(**dest)))) return -1;
+    byte_zero(*dest,sizeof(**dest));
+    (*dest)->type=src->AttributeDescription;
+    if (copyadl2(&(*dest)->values,src->vals)) return -1;
+    dest=&(*dest)->next;
+    src=src->next;
+  }
+  return 0;
+}
+
+/* We need two versions for the modify request.  The first one just creates a stupid
+ * SearchResultEntry out of just the changed attributes, which is then only used for ACL
+ * matching.  The second version merges in the existing record to form the modified
+ * record.  This is the first version for ACL checking. */
+static int modreq2sre(struct SearchResultEntry* sre,struct ModifyRequest* mr) {
+  byte_zero(sre,sizeof(*sre));
+  sre->objectName=mr->object;
+  if (!(sre->attributes=malloc(sizeof(*sre->attributes))) ||
+      mr2sreh1(&sre->attributes,&mr->m)) {
+    free_ldapsearchresultentry(sre);
+    return -1;
+  }
+  return 0;
+}
+
+static int applymodreq(struct hashnode* hn,struct ModifyRequest* mr,struct SearchResultEntry* sre) {
+  struct PartialAttributeList** l;
+  struct Modification* m;
+  size_t i;
+  sre->objectName.l=strlen((char*)hn->dn);
+  sre->objectName.s=(char*)hn->dn;
+  sre->attributes=0;
+  l=&(sre->attributes);
+  /* go through all the attributes in the hash node and apply the modifications */
+  for (i=0; i<hn->n; ++i) {
+    enum { Keep, Drop } todo=Keep;
+    for (m=&mr->m; m; m=m->next) {
+      if (!matchstring(&m->AttributeDescription,(char*)hn->a[i].a)) {
+	/* same attribute */
+	if (m->operation==Add)
+	  continue;
+	else if (m->operation==Delete) {
+	  /* if it's delete, we need to check the value list */
+	  struct AttributeDescriptionList* adl=m->vals;
+	  if (!adl)
+	    todo=Drop;	/* if the list is empty, drop all */
+	  else
+	    for (adl=m->vals; adl; adl=adl->next) {
+	      if (!matchstring(&adl->a,(char*)hn->a[i].v)) {
+		todo=Drop;
+		break;
+	      }
+	    }
+	} else
+	  todo=Drop;
+      }
+      if (todo==Drop) break;
+    }
+    if (todo==Keep) {
+      *l=malloc(sizeof(**l));
+      if (!*l) return -1;
+      (*l)->next=0;
+      (*l)->type.s=bstrfirst((char*)hn->a[i].a);
+      (*l)->type.l=bstrlen((char*)hn->a[i].a);
+      if (!((*l)->values=malloc(sizeof(*(*l)->values)))) return -1;
+      (*l)->values->a.s=bstrfirst((char*)hn->a[i].v);
+      (*l)->values->a.l=bstrlen((char*)hn->a[i].v);
+      (*l)->values->attrofs=0;
+      (*l)->values->next=0;
+      l=&(*l)->next;
+    }
+  }
+  /* then add all the "replace" or "add" attributes */
+  for (m=&mr->m; m; m=m->next) {
+    if ((m->operation==Add || m->operation==Replace) && m->vals) {
+      *l=malloc(sizeof(**l));
+      if (!*l) return -1;
+      (*l)->next=0;
+      (*l)->type.s=m->AttributeDescription.s;
+      (*l)->type.l=m->AttributeDescription.l;
+      if (copyadl2(&(*l)->values,m->vals)==-1) return -1;
+      l=&(*l)->next;
+    }
   }
   return 0;
 }
@@ -1204,6 +1315,10 @@ static struct hashnode** dn_in_journal2(const char* dn,size_t dnlen);
 static int lookupdn(struct string* dn,size_t* index, struct hashnode** hn) {
   struct Filter f;
   struct hashnode** tmphn;
+  if (dn->l<1 || !dn->s) {
+    buffer_putsflush(buffer_2,"lookupdn called for NULL dn!\n");
+    return -1;
+  }
   if ((tmphn=dn_in_journal2(dn->s,dn->l)) && *tmphn) {
     *hn=*tmphn;
     *index=-1;
@@ -1213,20 +1328,18 @@ static int lookupdn(struct string* dn,size_t* index, struct hashnode** hn) {
   f.type=EQUAL;
   f.ava.desc.l=2; f.ava.desc.s="dn";
   f.ava.value=*dn;
-  f.next=0;
+  f.next=f.x=0;
   fixup(&f);
   if (!indexable(&f)) {
     buffer_putsflush(buffer_2,"no index for dn, lookup failed!\n");
     return -1;
   } else {
     struct bitfield result;
-    size_t i,done;
+    size_t i;
     result.bits=alloca(record_set_length*sizeof(unsigned long));
     useindex(&f,&result);
-    done=0;
     if (result.first>result.last)
       return 0;
-    done=0;
     assert(result.last<=record_count);
     for (i=result.first; i<=result.last; ) {
       if (!result.bits[i/(8*sizeof(long))]) {
@@ -1300,17 +1413,64 @@ int handle(int in,int out) {
 	      buffer_putsflush(buffer_2,".\n");
 	    }
 	    if (name.l) {
-	      struct Filter f;
 	      struct string password;
-	      f.type=EQUAL;
-	      scan_ldapstring(buf+res+tmp,buf+res+len,&password);
-	      f.ava.desc.l=2; f.ava.desc.s="dn";
-	      f.ava.value=name;
-	      f.next=0;
-	      fixup(&f);
+	      size_t idx;
+	      struct hashnode* hn;
+	      int err=success;
 
-	      if (!indexable(&f)) {
-		buffer_putsflush(buffer_2,"no index for dn, bind failed!\n");
+	      scan_ldapstring(buf+res+tmp,buf+res+len,&password);
+
+	      switch (lookupdn(&name,&idx,&hn)) {
+	      case -1: err=operationsError; break;
+	      case 1: break;
+	      case 0: err=noSuchObject; break;
+	      default: err=operationsError;
+	      }
+	      if (err!=success)
+		goto authfailure;
+	      else {
+		char* c=0;
+		uint32 authdn;
+		char* authdn_str=0;
+		if (idx==(size_t)-1) {	// found in journal
+		  size_t i;
+		  for (i=0; i<hn->n; ++i)
+		    if (!strcmp((char*)hn->a[i].a,"userPassword")) {
+		      c=(char*)hn->a[i].v;
+		      authdn=0;
+		      authdn_str=(char*)hn->dn;
+		      break;
+		    }
+		} else {	// found in db
+		  uint32 j;
+		  uint32_unpack(map+indices_offset+4*idx,&j);
+		  uint32_unpack(map+j+8,&authdn);
+		  authdn_str=map+authdn;
+		  if (!(j=ldap_find_attr_value(j,userPassword_ofs))) {
+		    buffer_putsflush(buffer_2,"no userPassword attribute found, bind failed!\n");
+		    goto authfailure;
+		  }
+		  c=map+j;
+		}
+
+		if (check_password(c,&password)) {
+		  authenticated_as=authdn;
+		  authenticated_as_str=authdn_str;
+		  if (acls) {
+		    size_t i;
+		    for (i=0; i<filters; ++i)
+		      acl_ec_subjects[i]=(Filters[i]==(struct Filter*)Any);
+		    for (i=0; i<acls; ++i) {
+		      size_t j=Acls[i]->subject;
+		      if (!acl_ec_subjects[j]) {
+			if (authdn==0)	// authenticated against hashnode
+			  acl_ec_subjects[j]=ldap_matchfilter_hn(hn,Filters[j]);
+			else	// authenticated against mapped db
+			  acl_ec_subjects[j]=ldap_matchfilter_mapped(authdn,Filters[j]);
+		      }
+		    }
+		  }
+		} else
 authfailure:
 		{
 		  char outbuf[1024];
@@ -1321,56 +1481,8 @@ authfailure:
 		  write(out,outbuf+s-hlen,len+hlen);
 		  continue;
 		}
-	      } else {
-		struct bitfield result;
-		size_t i,done;
-		result.bits=alloca(record_set_length*sizeof(unsigned long));
-		useindex(&f,&result);
-		done=0;
-		if (result.first>result.last) {
-		  buffer_putsflush(buffer_2,"no matching dn found, bind failed!\n");
-		  goto authfailure;
-		}
-		done=0;
-		assert(result.last<=record_count);
-		for (i=result.first; i<=result.last; ) {
-		  if (!result.bits[i/(8*sizeof(long))]) {
-		    i+=8*sizeof(long);
-		    continue;
-		  }
-		  for (; i<=result.last; ++i) {
-		    if (isset(&result,i)) {
-		      uint32 j,authdn;
-		      const char* c;
-		      uint32_unpack(map+indices_offset+4*i,&j);
-		      uint32_unpack(map+j+8,&authdn);
-		      if (!(j=ldap_find_attr_value(j,userPassword_ofs))) {
-			buffer_putsflush(buffer_2,"no userPassword attribute found, bind failed!\n");
-			goto authfailure;
-		      }
-		      c=map+j;
-#if 0
-		      buffer_puts(buffer_2,"compare ");
-		      buffer_puts(buffer_2,c);
-		      buffer_puts(buffer_2," with ");
-		      buffer_put(buffer_2,f.ava.value.s,f.ava.value.l);
-		      buffer_putsflush(buffer_2,".\n");
-#endif
-		      if (check_password(c,&password)) {
-			done=1;
-			authenticated_as=authdn;
-			goto found;
-		      }
-		    }
-		  }
-		}
-		if (!done) {
-		  buffer_putsflush(buffer_2,"wrong password, bind failed!\n");
-		  goto authfailure;
-		}
 	      }
 	    }
-found:
 	    {
 	      char outbuf[1024];
 	      int s=100;
@@ -1490,9 +1602,10 @@ found:
       case ModifyRequest:
 	{
 	  struct ModifyRequest mr;
-	  int tmp;
+	  int tmp,err=success;
 	  buffer_putsflush(buffer_2,"modifyrequest!\n");
 	  if ((tmp=scan_ldapmodifyrequest(buf+res,buf+res+len,&mr))) {
+	    struct SearchResultEntry sre;
 	    buffer_puts(buffer_1,"modify request: dn \"");
 	    buffer_put(buffer_1,mr.object.s,mr.object.l);
 	    buffer_putsflush(buffer_1,"\"\n");
@@ -1504,7 +1617,7 @@ found:
 	    buffer_put(buffer_1,mr.m.AttributeDescription.s,mr.m.AttributeDescription.l);
 	    buffer_puts(buffer_1,"\n");
 	    {
-	      struct AttributeDescriptionList* x=&mr.m.vals;
+	      struct AttributeDescriptionList* x=mr.m.vals;
 	      do {
 		buffer_puts(buffer_1," -> \"");
 		buffer_put(buffer_1,x->a.s,x->a.l);
@@ -1513,12 +1626,60 @@ found:
 	      } while (x);
 	    }
 	    /* TODO: do something with the modify request ;-) */
-	    free_ldapmodifyrequest(&mr);
-	  } else {
-	    buffer_putsflush(buffer_2,"couldn't parse modify request!\n");
-	    exit(1);
+	    if (acls) {
+	      /* convert modifyrequest to searchresultentry */
+	      modreq2sre(&sre,&mr);
+	      /* 1. check ACLs */
+	      if (checkacl(0,0,acl_write,&sre)!=1)
+		err=insufficientAccessRights;
+	      free_ldapsearchresultentry(&sre);
+	    }
+	    if (err==success) {
+	      /* 2. check if there already is a record with this dn */
+	      struct hashnode* hn;
+	      size_t idx;
+	      switch (lookupdn(&mr.object,&idx,&hn)) {
+	      case -1: err=operationsError; break;
+	      case 1: break;
+	      case 0: err=noSuchObject; break;
+	      default: err=operationsError;
+	      }
+	      if (err==success) {
+#if 1
+		/* 3. apply modifications to record to get new record */
+		if (!applymodreq(hn,&mr,&sre)) {
+		  /* 4. write record to "data.upd" */
+		  int fd=open("journal",O_WRONLY|O_APPEND|O_CREAT,0600);
+		  if (fd==-1)
+		    err=operationsError;
+		  else {
+		    if (writesretofd(fd,&sre)==-1)
+		      err=operationsError;
+		    close(fd);
+		  }
+		} else
+		  err=operationsError;
+		free_ldapsearchresultentry(&sre);
+#else
+		err=operationsError;
+#endif
+	      }
+	    }
+	  } else
+	    err=protocolError;
+
+	  {
+	    char outbuf[1024];
+	    int s=100;
+	    int len=fmt_ldapresult(outbuf+s,err,"","","");
+	    int hlen=fmt_ldapmessage(0,messageid,AddResponse,len);
+	    fmt_ldapmessage(outbuf+s-hlen,messageid,AddResponse,len);
+	    write(out,outbuf+s-hlen,len+hlen);
 	  }
+
+	  free_ldapmodifyrequest(&mr);
 	}
+	break;
       case AbandonRequest:
 	buffer_putsflush(buffer_2,"AbandonRequest!\n");
 	/* do nothing */
@@ -1632,7 +1793,7 @@ unsigned long hash2(const unsigned char* c) {
     h ^= *c;
     ++c;
   }
-  return h;
+  return (uint32)h;
 }
 
 #define HASHTABSIZE 8191
@@ -1689,7 +1850,8 @@ static struct hashnode** dn_in_journal(unsigned char* dn) {
 static struct hashnode** dn_in_journal2(const char* dn,size_t dnlen) {
   unsigned long hashval;
   struct hashnode** hn;
-  hashval=hash2((const unsigned char*)dn);
+  hashval=hash((const unsigned char*)dn,dnlen);
+//  printf("lookup: \"%.*s\" -> %lu\n",dnlen,dn,hashval);
   hn=hashtab+(hashval%HASHTABSIZE);
   while (*hn) {
     if ((*hn)->hashval==hashval) {
@@ -1710,6 +1872,7 @@ int parse_callback(struct ldaprec* l) {
   struct hashnode** hn;
   if (l->dn==(uint32)-1) return -1;
   hashval=hash2((unsigned char*)stringtable.root+l->dn);
+//  printf("journal: \"%s\" -> %lu\n",stringtable.root+l->dn,hashval);
   hn=hashtab+(hashval%HASHTABSIZE);
   while (*hn) {
     if ((*hn)->hashval==hashval) {

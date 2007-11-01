@@ -5,6 +5,6 @@ acl * * userPassword -r;
 # but everyone can authenticate using it
 acl * self * +a;
 # admins at fefe.de can write in their tree
-acl (dn=*ou=admin,o=fefe,c=de) (dn=*,o=fefe,c=de) * +rwdR;
+acl (dn=*ou=admin,d=fefe,c=de) (dn=*,d=fefe,c=de) * +rwdR;
 # everyone can read everything else
 acl * * * +r;

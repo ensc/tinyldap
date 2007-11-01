@@ -143,7 +143,8 @@ int parseaclattrib(buffer* in,struct acl* a) {
     a->anum=1;
     return 1;
   }
-  if (!(a->attrib=strdup(x.s))) return -1;
+  if (!(a->attrib=malloc(x.len))) return -1;
+  memcpy(a->attrib,x.s,x.len);
   {
     unsigned int i,j;
     j=1;
@@ -182,7 +183,7 @@ static int parseacl(buffer* in,struct acl* a) {
   char c;
   if ((r=skipws(in))!=1) return r;
   for (i=0; i<3; ++i)
-    if ((r=buffer_getc(in,&c))!=1 && c!="acl"[i]) {
+    if ((r=buffer_getc(in,&c))!=1 || c!="acl"[i]) {
       if (r==0 && i==0) return 0;
       parseerror();
     }
@@ -242,7 +243,8 @@ int readacls(const char* filename) {
   while ((r=parseacl(&b,&a))==1) {
     *next=malloc(sizeof(struct acl));
     if (!*next) diesys(1,"malloc");
-    **next=a;
+    byte_copy(*next,sizeof(a),&a);
+//    **next=a;
     next=&(*next)->next;
     if (r==0) break;
   }
@@ -264,7 +266,7 @@ int marshalfilter(stralloc* x,struct assertion* a) {
     unsigned long l=fmt_ldapsearchfilter(0,a->f);
     tmp=alloca(l+10);	// you never know
     if (fmt_ldapsearchfilter(tmp,a->f)!=l) {
-      buffer_putmflush(buffer_2,"internal error!\n");
+      buffer_putsflush(buffer_2,"internal error!\n");
       exit(1);
     }
     return stralloc_catb(x,tmp,l);
@@ -316,7 +318,7 @@ int marshal(char* map,size_t filelen,const char* filename) {
       ++i;
       if (!marshalfilter(&x,&a->subject)) {
 nomem:
-	buffer_putmflush(buffer_2,"out of memory!\n");
+	buffer_putsflush(buffer_2,"out of memory!\n");
 	exit(1);
       }
 //      printf("marshalled \"%s\" to %ld\n",a->subject.filterstring,F[i-1]);
@@ -342,6 +344,7 @@ nomem:
 
     for (a=root; a; a=a->next) {
       unsigned int l=0;
+//      printf("a->anum = %lu\nsizeof(*a->attrs) = %lu\n",a->anum,sizeof(*a->attrs));
       if (!(a->attrs=malloc(a->anum*sizeof(*a->attrs))))
 	goto nomem;
       a->attrs[l]=a->attrib; ++l;
@@ -489,7 +492,7 @@ int main(int argc,char* argv[]) {
   char* map=mmap_read(filename,&filelen);
 
   if (filelen<5*4 || uint32_read(map)!=0xfefe1da9) {
-    buffer_putmflush(buffer_2,"not a valid tinyldap data file!\n");
+    buffer_putsflush(buffer_2,"not a valid tinyldap data file!\n");
     exit(0);
   }
 

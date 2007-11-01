@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <alloca.h>
+#include <string.h>
 #include "ldap.h"
 #include "auth.h"
 #include "str.h"

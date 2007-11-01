@@ -74,7 +74,7 @@ struct SearchResultEntry {
 struct Modification {
   enum { Add=0, Delete=1, Replace=2 } operation;
   struct string AttributeDescription; /* ? */
-  struct AttributeDescriptionList vals;
+  struct AttributeDescriptionList* vals;
   struct Modification* next;
 };
 

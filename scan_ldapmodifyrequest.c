@@ -52,19 +52,17 @@ size_t scan_ldapmodifyrequest(const char* src,const char* max,struct ModifyReque
       {
 	size_t iiislen;	/* waah, _four_ levels of indirection!  It doesn't get more inefficient than this */
 	const char* iimax;
-	struct AttributeDescriptionList* ilast=0;
+	struct AttributeDescriptionList** ilast=0;
 	if (!(tmp=scan_asn1SET(src+res,max,&iiislen))) goto error;
 	res+=tmp;
 	iimax=src+res+iiislen;
 	if (src+res+iiislen!=imax) goto error;
+	ilast=&last->vals;
 	while (src+res<iimax) {
-	  if (ilast) {
-	    struct AttributeDescriptionList* x;
-	    if (!(x=malloc(sizeof(struct AttributeDescriptionList)))) goto error;
-	    x->next=ilast; ilast=x;
-	  } else
-	    ilast=&last->vals;
-	  if (!(tmp=scan_ldapstring(src+res,imax,&ilast->a))) goto error;
+	  if (!(*ilast=malloc(sizeof(struct AttributeDescriptionList)))) goto error;
+	  if (!(tmp=scan_ldapstring(src+res,imax,&(*ilast)->a))) goto error;
+	  (*ilast)->next=0;
+	  ilast=&(*ilast)->next;
 	  res+=tmp;
 	}
       }
@@ -86,6 +84,6 @@ static void free_mod(struct Modification* m) {
 }
 
 void free_ldapmodifyrequest(struct ModifyRequest* m) {
-  free_ldapadl(m->m.vals.next);
+  free_ldapadl(m->m.vals);
   free_mod(m->m.next);
 }

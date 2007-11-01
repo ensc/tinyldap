@@ -96,12 +96,3 @@ The syntax of the list should be:
   uint32_t attributes[];  /* offsets of attribute names in stringtab,
 			     terminated by 0.  Empty list means: all */
 
-Typische ACL:
-
-access to dn="ou=(Fraktion-[^,]+),ou=Fraktionen,o=bundestag,c=de" attr=userPassword
-        by self write
-        by anonymous auth
-        by group="cn=Gruppe A,ou=Administration,o=bundestag,c=de" write
-        by group="cn=$1,ou=Administration,o=bundestag,c=de" write
-        by * none
-

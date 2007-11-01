@@ -8,6 +8,7 @@
 #include <sys/mman.h>
 #include <sys/shm.h>
 #include <stdlib.h>
+#include <string.h>
 #include "buffer.h"
 #include "ldif.h"
 #include "mduptab.h"
