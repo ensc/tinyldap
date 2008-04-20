@@ -2066,6 +2066,7 @@ static void update() {
     map_datafile(datafilename);
     /* OK, now that we have the datafile reloaded, we need to clean our idea of a journal
      * and reload the journal from scratch. */
+resetjournal:
     mduptab_reset(&attributes);
     mduptab_reset(&classes);
     readjournal();
@@ -2088,6 +2089,30 @@ static void update() {
       new_journal.st_ino!=ss_journal.st_ino) {
     /* Journal changed.  Since all we ever do is append, we just read the part from how
      * far we got last time, which happens to be ss_journal.st_size. */
+
+    /* On the other hand, we should make a valiant effort to not break if someone edits
+     * his journal manually. After all, that's why our journal is in text form.
+     * We look for two clues that someone edited his journal:
+     *   1. size is identical or smaller
+     *   2. journal does not end with "\n\n"
+     * If we detect meddling we just throw away our journal and read the new one. */
+    int kosher=0;
+    if (new_journal.st_size>ss_journal.st_size && ss_journal.st_size>2) {
+      int fd;
+      fd=open("journal",O_RDONLY);
+      if (fd!=-1) {
+	char buf[2];
+	lseek(fd,ss_journal.st_size-2,SEEK_SET);
+	if (read(fd,buf,2)!=2) 
+	  if (buf[0]=='\n' && buf[1]=='\n')
+	    kosher=1;
+	close(fd);
+      }
+    }
+    if (kosher) {
+      buffer_putsflush(buffer_2,"Unsanctioned journal editing detected!  Re-reading journal.\n");
+      goto resetjournal;
+    }
     if (ldif_parse("journal",ss_journal.st_size,&ss_journal)) {
       buffer_putsflush(buffer_2,"Failed to parse journal!\n");
       exit(1);
