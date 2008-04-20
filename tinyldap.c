@@ -1697,7 +1697,8 @@ authfailure:
 	      if (checkacl(0,0,acl_write,&sre)!=1)
 		err=insufficientAccessRights;
 	      free_ldapsearchresultentry(&sre);
-	    }
+	    } else
+	      err=insufficientAccessRights;
 	    if (err==success) {
 	      /* 2. check if there already is a record with this dn */
 	      struct hashnode* hn;
@@ -1762,7 +1763,7 @@ authfailure:
 	    addreq2sre(&sre,&ar);
 
 	    /* 1. check ACLs */
-	    if (!acls || checkacl(0,0,acl_add,&sre)==1) {
+	    if (checkacl(0,0,acl_add,&sre)==1) {
 	      /* 2. check if there already is a record with this dn */
 	      struct hashnode* hn;
 	      size_t idx;
@@ -1831,11 +1832,9 @@ authfailure:
 	    /* convert modifyrequest to searchresultentry */
 	    sre.objectName=s;
 	    sre.attributes=0;
-	    if (acls) {
-	      /* 1. check ACLs */
-	      if (checkacl(0,0,acl_delete,&sre)!=1)
-		err=insufficientAccessRights;
-	    }
+	    /* 1. check ACLs */
+	    if (checkacl(0,0,acl_delete,&sre)!=1)
+	      err=insufficientAccessRights;
 	    if (err==success) {
 	      /* 2. check if there already is a record with this dn */
 	      struct hashnode* hn;
