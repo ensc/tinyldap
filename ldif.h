@@ -1,3 +1,5 @@
+#define _FILE_OFFSET_BITS 64
+#include <sys/stat.h>
 #include <inttypes.h>
 #include <ldap.h>
 
@@ -19,7 +21,7 @@ extern uint32_t dn, mail, sn, cn, objectClass;
 extern struct ldaprec *first;
 extern unsigned long ldifrecords;
 
-int ldif_parse(const char* filename);
+int ldif_parse(const char* filename,off_t fromofs,struct stat* ss);
 
 /* return non-zero if the record matches the search request */
 int ldap_match(struct ldaprec* r,struct SearchRequest* sr);

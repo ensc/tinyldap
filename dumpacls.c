@@ -66,15 +66,6 @@ kaputt:
 	  if (!buf) goto kaputt;
 	  buf[l2=fmt_ldapsearchfilterstring(buf,f)]=0;
 	  buffer_puts(buffer_1,buf);
-	  if (l!=l2) {
-	    buffer_puts(buffer_1,"\n\n\n");
-	    buffer_putulong(buffer_1,l);
-	    buffer_puts(buffer_1," != ");
-	    buffer_putulong(buffer_1,l2);
-	    buffer_puts(buffer_1,"\n");
-	    buffer_flush(buffer_1);
-	    assert(l==l2);
-	  }
 	  free_ldapsearchfilter(f);
 	  free(f);
 	}

@@ -14,7 +14,7 @@ static void dumpbstr(const char* c) {
   l=bstrlen(c);
   d=bstrfirst(c);
   up=fmt_ldapescape(0,d,l);
-  assert(up>=l);
+//  assert(up>=l);
   if (up==l) {
     buffer_puts(buffer_1," ");
     if (*c)

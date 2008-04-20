@@ -193,7 +193,7 @@ writeerror:
 //  if ((mduptab_adds(&attributes,"*"))<0)
 //    die(1,"out of memory");
 
-  ldif_parse(argc<2?"exp.ldif":argv[1]);
+  ldif_parse(argc<2?"exp.ldif":argv[1],0,0);
   if (!first)
     die(1,"usage: parse [src-ldif-filename] [dest-bin-filename]\n");
 

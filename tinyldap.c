@@ -1,3 +1,4 @@
+#define _FILE_OFFSET_BITS 64
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -196,6 +197,8 @@ struct acl {
 struct acl** Acls;
 
 static void load_acls() {
+  struct acl** oldAcls=Acls;
+  size_t oldacls=acls;
   uint32 ofs;
   uint32 acl_ofs;
   acl_ofs=0;
@@ -281,11 +284,56 @@ kaputt:
     for (i=0; i<filters; ++i)
       acl_ec_subjects[i]=(Filters[i]==(struct Filter*)Any);
   }
+  if (oldAcls) {
+    size_t i;
+    for (i=0; i<oldacls; ++i)
+      free(oldAcls[i]);
+    free(oldAcls);
+  }
 }
 
 /* End of ACL code */
 
+static const char* datafilename;
+static struct stat ss_data;
+static struct stat ss_journal;
 
+void map_datafile(const char* filename) {
+  map=mmap_read(datafilename=filename,&filelen);
+  stat(datafilename,&ss_data);
+  if (!map) {
+    buffer_putsflush(buffer_2,"could not open data!\n");
+    exit(1);
+  }
+  uint32_unpack(map,&magic);
+  uint32_unpack(map+4,&attribute_count);
+  uint32_unpack(map+2*4,&record_count);
+  uint32_unpack(map+3*4,&indices_offset);
+  uint32_unpack(map+4*4,&size_of_string_table);
+  record_set_length=(record_count+sizeof(unsigned long)*8-1) / (sizeof(long)*8);
+
+  /* look up "dn" and "objectClass" */
+  {
+    char* x=map+5*4+size_of_string_table;
+    size_t i;
+    dn_ofs=objectClass_ofs=userPassword_ofs=any_ofs=0;
+    for (i=0; i<attribute_count; ++i) {
+      uint32 j;
+      j=uint32_read(x);
+      if (case_equals("dn",map+j))
+	dn_ofs=j;
+      else if (case_equals("objectClass",map+j))
+	objectClass_ofs=j;
+      else if (case_equals("userPassword",map+j))
+	userPassword_ofs=j;
+      x+=4;
+    }
+    if (!dn_ofs || !objectClass_ofs) {
+      buffer_putsflush(buffer_2,"can't happen error: dn or objectClass not there?!\n");
+      exit(0);
+    }
+  }
+}
 
 /*
      _      _                                 _
@@ -652,7 +700,7 @@ static void tagmatches(uint32* index,size_t elements,struct string* s,
   }
 }
 
-uint32 hash(const unsigned char* c,size_t keylen) {
+static uint32 hash(const unsigned char* c,size_t keylen) {
   size_t h=0,i;
   for (i=0; i<keylen; ++i) {
     /* from djb's cdb */
@@ -662,7 +710,7 @@ uint32 hash(const unsigned char* c,size_t keylen) {
   return (uint32)h;
 }
 
-uint32 hash_tolower(const unsigned char* c,size_t keylen) {
+static uint32 hash_tolower(const unsigned char* c,size_t keylen) {
   size_t h=0,i;
   for (i=0; i<keylen; ++i) {
     /* from djb's cdb */
@@ -869,7 +917,6 @@ static int checkacl(uint32 recofs,uint32 attrofs,unsigned long operation,struct 
 	}
       }
       for (k=0; k<Acls[j]->attrs; ++k) {
-/*	    if (Acls[j]->Attrs[k]==any_ofs || !matchstring(&adl->a,map+Acls[j]->Attrs[k])) { */
 	if (Acls[j]->Attrs[k]==any_ofs || attrofs==Acls[j]->Attrs[k]) {
 	  if (Acls[j]->may&operation)
 	    return 1;
@@ -1087,7 +1134,7 @@ add_attribute:
          |___/                                           |_|
 */
 
-int copystring(struct string* dest,struct string* src) {
+static int copystring(struct string* dest,struct string* src) {
   dest->s=malloc(src->l+1);
   if (!dest->s) return -1;
   byte_copy((char*)dest->s,src->l,src->s);
@@ -1340,7 +1387,7 @@ static int lookupdn(struct string* dn,size_t* index, struct hashnode** hn) {
     useindex(&f,&result);
     if (result.first>result.last)
       return 0;
-    assert(result.last<=record_count);
+//    assert(result.last<=record_count);
     for (i=result.first; i<=result.last; ) {
       if (!result.bits[i/(8*sizeof(long))]) {
 	i+=8*sizeof(long);
@@ -1357,6 +1404,17 @@ static int lookupdn(struct string* dn,size_t* index, struct hashnode** hn) {
   return 0;
 }
 
+static void normalize_string_dn(struct string* s) {
+  /* OK this is a kludge.  s->s is supposed to be read-only because it points into the
+   * buffer where we read it into from the network.
+   * Since normalize_dn ends up using less or equal space, and we are not interested in
+   * the non-normalized dn, we do the read-write cast and normalize in-place.
+   * Kids, don't do this at home. */
+  s->l=normalize_dn((char*)s->s,s->s,s->l);
+}
+
+static void update();
+
 /* a standard LDAP session looks like this:
  *   1. connect to server
  *   2. send a BindRequest
@@ -1368,7 +1426,7 @@ static int lookupdn(struct string* dn,size_t* index, struct hashnode** hn) {
  *   5. close
  * tinyldap does not complain if you don't unbind before hanging up.
  */
-int handle(int in,int out) {
+static int handle(int in,int out) {
   size_t len;
   char buf[BUFSIZE];
   for (len=0;;) {
@@ -1395,14 +1453,15 @@ int handle(int in,int out) {
 	buffer_putulong(buffer_2,op);
 	buffer_putsflush(buffer_2,".\n");
       }
+      update();
       switch (op) {
       case BindRequest:
 	{
 	  unsigned long version,method;
 	  struct string name;
-	  int tmp;
-	  tmp=scan_ldapbindrequest(buf+res,buf+res+len,&version,&name,&method);
-	  if (tmp>=0) {
+	  size_t tmp;
+	  tmp=scan_ldapbindrequest(buf+res,buf+len,&version,&name,&method);
+	  if (tmp>0) {
 	    if (verbose) {
 	      buffer_puts(buffer_2,"bind request: version ");
 	      buffer_putulong(buffer_2,version);
@@ -1418,8 +1477,9 @@ int handle(int in,int out) {
 	      struct hashnode* hn;
 	      int err=success;
 
-	      scan_ldapstring(buf+res+tmp,buf+res+len,&password);
+	      scan_ldapstring(buf+res+tmp,buf+len,&password);
 
+	      normalize_string_dn(&name);
 	      switch (lookupdn(&name,&idx,&hn)) {
 	      case -1: err=operationsError; break;
 	      case 1: break;
@@ -1430,7 +1490,7 @@ int handle(int in,int out) {
 		goto authfailure;
 	      else {
 		char* c=0;
-		uint32 authdn;
+		uint32 authdn=0;
 		char* authdn_str=0;
 		if (idx==(size_t)-1) {	// found in journal
 		  size_t i;
@@ -1485,9 +1545,9 @@ authfailure:
 	    }
 	    {
 	      char outbuf[1024];
-	      int s=100;
-	      int len=fmt_ldapbindresponse(outbuf+s,0,"","go ahead","");
-	      int hlen=fmt_ldapmessage(0,messageid,BindResponse,len);
+	      size_t s=100;
+	      size_t len=fmt_ldapbindresponse(outbuf+s,0,"","go ahead","");
+	      size_t hlen=fmt_ldapmessage(0,messageid,BindResponse,len);
 	      fmt_ldapmessage(outbuf+s-hlen,messageid,BindResponse,len);
 	      write(out,outbuf+s-hlen,len+hlen);
 	    }
@@ -1497,7 +1557,7 @@ authfailure:
       case SearchRequest:
 	{
 	  struct SearchRequest sr;
-	  int tmp;
+	  size_t tmp;
 #if 0
 	  {
 	    int fd=open_write("request");
@@ -1505,7 +1565,7 @@ authfailure:
 	    close(fd);
 	  }
 #endif
-	  if ((tmp=scan_ldapsearchrequest(buf+res,buf+res+len,&sr))) {
+	  if ((tmp=scan_ldapsearchrequest(buf+res,buf+len,&sr))) {
 	    size_t returned=0;
 
 #if (debug != 0)
@@ -1542,7 +1602,7 @@ authfailure:
 	       * of the matches in a table.  Use findrec to locate
 	       * the records that point to the data. */
 	      useindex(sr.filter,&result);
-	      assert(result.last<=record_count);
+//	      assert(result.last<=record_count);
 	      for (i=result.first; i<=result.last; ) {
 		size_t ni=i+8*sizeof(long);
 		if (!result.bits[i/(8*sizeof(long))]) {
@@ -1589,8 +1649,8 @@ authfailure:
 	  }
 	  {
 	    char buf[1000];
-	    long l=fmt_ldapsearchresultdone(buf+100,0,"","","");
-	    int hlen=fmt_ldapmessage(0,messageid,SearchResultDone,l);
+	    size_t l=fmt_ldapsearchresultdone(buf+100,0,"","","");
+	    size_t hlen=fmt_ldapmessage(0,messageid,SearchResultDone,l);
 	    fmt_ldapmessage(buf+100-hlen,messageid,SearchResultDone,l);
 	    write(out,buf+100-hlen,l+hlen);
 	  }
@@ -1602,30 +1662,34 @@ authfailure:
       case ModifyRequest:
 	{
 	  struct ModifyRequest mr;
-	  int tmp,err=success;
+	  size_t tmp,err=success;
 	  buffer_putsflush(buffer_2,"modifyrequest!\n");
-	  if ((tmp=scan_ldapmodifyrequest(buf+res,buf+res+len,&mr))) {
+	  if ((tmp=scan_ldapmodifyrequest(buf+res,buf+len,&mr))) {
 	    struct SearchResultEntry sre;
-	    buffer_puts(buffer_1,"modify request: dn \"");
-	    buffer_put(buffer_1,mr.object.s,mr.object.l);
-	    buffer_putsflush(buffer_1,"\"\n");
-	    switch (mr.m.operation) {
-	    case 0: buffer_puts(buffer_1,"Add\n"); break;
-	    case 1: buffer_puts(buffer_1,"Delete\n"); break;
-	    case 2: buffer_puts(buffer_1,"Replace\n"); break;
+	    if (verbose) {
+	      buffer_puts(buffer_1,"modify request: dn \"");
+	      buffer_put(buffer_1,mr.object.s,mr.object.l);
+	      buffer_putsflush(buffer_1,"\"\n");
+	      switch (mr.m.operation) {
+	      case 0: buffer_puts(buffer_1,"Add\n"); break;
+	      case 1: buffer_puts(buffer_1,"Delete\n"); break;
+	      case 2: buffer_puts(buffer_1,"Replace\n"); break;
+	      }
+	      buffer_put(buffer_1,mr.m.AttributeDescription.s,mr.m.AttributeDescription.l);
+	      buffer_puts(buffer_1,"\n");
+	      {
+		struct AttributeDescriptionList* x=mr.m.vals;
+		do {
+		  buffer_puts(buffer_1," -> \"");
+		  buffer_put(buffer_1,x->a.s,x->a.l);
+		  buffer_putsflush(buffer_1,"\"\n");
+		  x=x->next;
+		} while (x);
+	      }
 	    }
-	    buffer_put(buffer_1,mr.m.AttributeDescription.s,mr.m.AttributeDescription.l);
-	    buffer_puts(buffer_1,"\n");
-	    {
-	      struct AttributeDescriptionList* x=mr.m.vals;
-	      do {
-		buffer_puts(buffer_1," -> \"");
-		buffer_put(buffer_1,x->a.s,x->a.l);
-		buffer_putsflush(buffer_1,"\"\n");
-		x=x->next;
-	      } while (x);
-	    }
-	    /* TODO: do something with the modify request ;-) */
+
+	    normalize_string_dn(&mr.object);
+
 	    if (acls) {
 	      /* convert modifyrequest to searchresultentry */
 	      modreq2sre(&sre,&mr);
@@ -1648,7 +1712,7 @@ authfailure:
 #if 1
 		/* 3. apply modifications to record to get new record */
 		if (!applymodreq(hn,&mr,&sre)) {
-		  /* 4. write record to "data.upd" */
+		  /* 4. write record to journal */
 		  int fd=open("journal",O_WRONLY|O_APPEND|O_CREAT,0600);
 		  if (fd==-1)
 		    err=operationsError;
@@ -1665,8 +1729,10 @@ authfailure:
 #endif
 	      }
 	    }
-	  } else
+	  } else {
+	    buffer_putsflush(buffer_2,"could not parse modifyRequest!\n");
 	    err=protocolError;
+	  }
 
 	  {
 	    char outbuf[1024];
@@ -1681,7 +1747,7 @@ authfailure:
 	}
 	break;
       case AbandonRequest:
-	buffer_putsflush(buffer_2,"AbandonRequest!\n");
+	if (verbose) buffer_putsflush(buffer_2,"AbandonRequest!\n");
 	/* do nothing */
 	break;
       case AddRequest:
@@ -1689,11 +1755,12 @@ authfailure:
 	  int err=success;
 	  struct AddRequest ar;
 //          buffer_putsflush(buffer_2,"AddRequest!\n");
-          if ((tmp=scan_ldapaddrequest(buf+res,buf+res+len,&ar))) {
+          if ((tmp=scan_ldapaddrequest(buf+res,buf+len,&ar))) {
 	    struct SearchResultEntry sre;
+	    normalize_string_dn(&ar.entry);
 	    /* convert addrequest to searchresultentry */
 	    addreq2sre(&sre,&ar);
-	    /* TODO: do something with the add request ;-) */
+
 	    /* 1. check ACLs */
 	    if (!acls || checkacl(0,0,acl_add,&sre)==1) {
 	      /* 2. check if there already is a record with this dn */
@@ -1706,7 +1773,7 @@ authfailure:
 	      default: err=operationsError;
 	      }
 	      if (err==success) {
-	      /* 3. write record to "data.upd" */
+		/* 3. write record to journal */
 		int fd=open("journal",O_WRONLY|O_APPEND|O_CREAT,0600);
 		if (fd==-1)
 		  err=operationsError;
@@ -1740,14 +1807,70 @@ authfailure:
 
 	  {
 	    char outbuf[1024];
-	    int s=100;
-	    int len=fmt_ldapresult(outbuf+s,err,"","","");
-	    int hlen=fmt_ldapmessage(0,messageid,AddResponse,len);
+	    size_t s=100;
+	    size_t len=fmt_ldapresult(outbuf+s,err,"","","");
+	    size_t hlen=fmt_ldapmessage(0,messageid,AddResponse,len);
 	    fmt_ldapmessage(outbuf+s-hlen,messageid,AddResponse,len);
 	    write(out,outbuf+s-hlen,len+hlen);
 	  }
 	}
 	break;
+      case DelRequest:
+	{
+	  struct string s;
+	  size_t l=scan_ldapdeleterequest(buf+res,buf+len,&s);
+	  if (l>0) {
+	    struct SearchResultEntry sre;
+	    int err=success;
+	    if (verbose) {
+	      buffer_puts(buffer_2,"Delete Request for DN \"");
+	      buffer_put(buffer_2,s.s,s.l);
+	      buffer_putsflush(buffer_2,"\".\n");
+	    }
+	    normalize_string_dn(&s);
+	    /* convert modifyrequest to searchresultentry */
+	    sre.objectName=s;
+	    sre.attributes=0;
+	    if (acls) {
+	      /* 1. check ACLs */
+	      if (checkacl(0,0,acl_delete,&sre)!=1)
+		err=insufficientAccessRights;
+	    }
+	    if (err==success) {
+	      /* 2. check if there already is a record with this dn */
+	      struct hashnode* hn;
+	      size_t idx;
+	      switch (lookupdn(&s,&idx,&hn)) {
+	      case -1: err=operationsError; break;
+	      case 1: break;
+	      case 0: err=noSuchObject; break;
+	      default: err=operationsError;
+	      }
+	      if (err==success) {
+		/* 3. write record to journal */
+		int fd=open("journal",O_WRONLY|O_APPEND|O_CREAT,0600);
+		if (fd==-1)
+		  err=operationsError;
+		else {
+		  if (writesretofd(fd,&sre)==-1)
+		    err=operationsError;
+		  close(fd);
+		}
+	      }
+	    }
+	    {
+	      char outbuf[1024];
+	      size_t s=100;
+	      size_t len=fmt_ldapresult(outbuf+s,err,"","","");
+	      size_t hlen=fmt_ldapmessage(0,messageid,DelResponse,len);
+	      fmt_ldapmessage(outbuf+s-hlen,messageid,DelResponse,len);
+	      write(out,outbuf+s-hlen,len+hlen);
+	    }
+	  }
+	}
+	break;
+      case ModifyDNRequest:
+	/* TODO */
       default:
 	buffer_puts(buffer_2,"unknown request type ");
 	buffer_putulong(buffer_2,op);
@@ -1781,7 +1904,7 @@ extern int (*ldif_parse_callback)(struct ldaprec* l);
 extern mstorage_t stringtable;
 extern mduptab_t attributes,classes;
 
-unsigned long hash2(const unsigned char* c) {
+static unsigned long hash2(const unsigned char* c) {
   unsigned long h=0;
   if (*c==0) {
     uint32 len=uint32_read((char*)c+1);
@@ -1798,7 +1921,7 @@ unsigned long hash2(const unsigned char* c) {
 
 #define HASHTABSIZE 8191
 
-unsigned char* bstrdup(unsigned char* c) {
+static unsigned char* bstrdup(unsigned char* c) {
   size_t len;
   unsigned char* x;
   if (*c)
@@ -1812,7 +1935,7 @@ unsigned char* bstrdup(unsigned char* c) {
   return x;
 }
 
-unsigned char* bstrdup_attrib(unsigned char* c) {
+static unsigned char* bstrdup_attrib(unsigned char* c) {
   char* x=map+5*4+size_of_string_table;
   size_t i,l;
   if (*c)
@@ -1865,12 +1988,13 @@ static struct hashnode** dn_in_journal2(const char* dn,size_t dnlen) {
 
 struct hashnode* root;
 
-int parse_callback(struct ldaprec* l) {
+static int parse_callback(struct ldaprec* l) {
   static struct hashnode** nextinlinearlist=&root;
   size_t i;
   unsigned long hashval;
   struct hashnode** hn;
-  if (l->dn==(uint32)-1) return -1;
+  if (l->dn==(uint32)-1)
+    return -1;
   hashval=hash2((unsigned char*)stringtable.root+l->dn);
 //  printf("journal: \"%s\" -> %lu\n",stringtable.root+l->dn,hashval);
   hn=hashtab+(hashval%HASHTABSIZE);
@@ -1912,11 +2036,64 @@ int parse_callback(struct ldaprec* l) {
   return 0;
 }
 
-int readjournal() {
+static void readjournal() {
   ldif_parse_callback=parse_callback;
   mduptab_init(&attributes);
   mduptab_init(&classes);
-  return ldif_parse("journal");
+  if (ldif_parse("journal",0,&ss_journal)) {
+    buffer_putsflush(buffer_2,"Failed to parse journal!\n");
+    exit(1);
+  }
+}
+
+static void update() {
+  struct stat new_data,new_journal;
+  if (stat(datafilename,&new_data)==-1) {
+    /* no data file?!  There is no way to salvage the situation. */
+    buffer_putsflush(buffer_2,"ABEND: data file suddenly gone.\n");
+    exit(1);
+  }
+  /* now see if the data file changed.  If it did, map it anew. */
+  if (new_data.st_size!=ss_data.st_size ||
+      new_data.st_mtime!=ss_data.st_mtime ||
+      new_data.st_ino!=ss_data.st_ino) {
+    buffer_putsflush(buffer_2,"Data file changed, reloading.\n");
+    mmap_unmap(map,filelen);
+    /* If the new data file is corrupt, map_datafile calls exit.
+     * I don't believe in limping on.  If something is broken on such a fundamental level,
+     * it's better to bail so that the problem does not go unnoticed and things get even
+     * worse. */
+    map_datafile(datafilename);
+    /* OK, now that we have the datafile reloaded, we need to clean our idea of a journal
+     * and reload the journal from scratch. */
+    mduptab_reset(&attributes);
+    mduptab_reset(&classes);
+    readjournal();
+    ss_data=new_data;
+    return;
+  }
+  /* the data file did not change.  Maybe the journal did. */
+  if (stat("journal",&new_journal)==-1) {
+    /* no journal; that means:
+     * a) there never was one, totaly read-only data
+     * b) there was one, but it has now been incorporated into the main database
+     *    in this case: delete journal data
+     */
+    mduptab_reset(&attributes);
+    mduptab_reset(&classes);
+    return;
+  }
+  if (new_journal.st_size!=ss_journal.st_size ||
+      new_journal.st_mtime!=ss_journal.st_mtime ||
+      new_journal.st_ino!=ss_journal.st_ino) {
+    /* Journal changed.  Since all we ever do is append, we just read the part from how
+     * far we got last time, which happens to be ss_journal.st_size. */
+    if (ldif_parse("journal",ss_journal.st_size,&ss_journal)) {
+      buffer_putsflush(buffer_2,"Failed to parse journal!\n");
+      exit(1);
+    }
+    ss_data=new_data;
+  }
 }
 
 static int ldap_matchfilter_hn(struct hashnode* hn,struct Filter* f) {
@@ -2010,6 +2187,7 @@ static void answerwith_hn(struct hashnode* hn,struct SearchRequest* sr,long mess
   struct SearchResultEntry sre;
   struct PartialAttributeList** pal=&sre.attributes;
 
+  if (!hn->n) return;
   if (acls)
     byte_zero(acl_ec_subjects+filters,filters);
 
@@ -2134,39 +2312,7 @@ int main(int argc,char* argv[]) {
 
   signal(SIGPIPE,SIG_IGN);
 
-  map=mmap_read(argc>1?argv[1]:"data",&filelen);
-  if (!map) {
-    buffer_putsflush(buffer_2,"could not open data!\n");
-    return 1;
-  }
-  uint32_unpack(map,&magic);
-  uint32_unpack(map+4,&attribute_count);
-  uint32_unpack(map+2*4,&record_count);
-  uint32_unpack(map+3*4,&indices_offset);
-  uint32_unpack(map+4*4,&size_of_string_table);
-  record_set_length=(record_count+sizeof(unsigned long)*8-1) / (sizeof(long)*8);
-
-  /* look up "dn" and "objectClass" */
-  {
-    char* x=map+5*4+size_of_string_table;
-    size_t i;
-    dn_ofs=objectClass_ofs=userPassword_ofs=any_ofs=0;
-    for (i=0; i<attribute_count; ++i) {
-      uint32 j;
-      j=uint32_read(x);
-      if (case_equals("dn",map+j))
-	dn_ofs=j;
-      else if (case_equals("objectClass",map+j))
-	objectClass_ofs=j;
-      else if (case_equals("userPassword",map+j))
-	userPassword_ofs=j;
-      x+=4;
-    }
-    if (!dn_ofs || !objectClass_ofs) {
-      buffer_putsflush(buffer_2,"can't happen error: dn or objectClass not there?!\n");
-      return 0;
-    }
-  }
+  map_datafile(argc>1?argv[1]:"data");
 
   load_acls();
 

@@ -8,7 +8,6 @@ size_t scan_asn1ENUMERATED(const char* src,const char* max,unsigned long* val) {
   long ltmp;
   if ((tmp=scan_asn1int(src,max,&tc,&tt,&tag,&ltmp)))
     if (tc==UNIVERSAL && tt==PRIMITIVE && tag==ENUMERATED) {
-      if (ltmp<0 || src+tmp+ltmp>max) return 0;
       *val=(unsigned long)ltmp;
       return tmp;
     }

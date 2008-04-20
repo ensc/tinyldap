@@ -195,6 +195,21 @@ nextmessage:
 		goto copypartialandcontinue;
 	      }
 	    } else if (op==SearchResultDone) {
+	      unsigned long result;
+	      struct string matcheddn,errormessage,referral;
+	      if (scan_ldapresult(buf+cur+tmp2,max,&result,&matcheddn,&errormessage,&referral)>0) {
+		if (result!=0) {
+		  buffer_puts(buffer_2,"fail, code ");
+		  buffer_putulong(buffer_2,result);
+		  if (errormessage.l) {
+		    buffer_puts(buffer_2,", error message \"");
+		    buffer_put(buffer_2,errormessage.s,errormessage.l);
+		    buffer_puts(buffer_2,"\n");
+		  }
+		  buffer_putsflush(buffer_2,".\n");
+		}
+	      } else
+		buffer_putsflush(buffer_2,"scan_ldapresult failed!\n");
 	      if (!matches)
 		buffer_putsflush(buffer_2,"no matches.\n");
 	      if (bench && durchlauf!=0)

@@ -1,3 +1,4 @@
+#define _FILE_OFFSET_BITS 64
 #include <alloca.h>
 #include <buffer.h>
 #include <scan.h>
@@ -48,34 +49,10 @@ static void addattribute(struct ldaprec** l,uint32_t name,uint32_t val) {
     }
 }
 
-/* "ou=fnord; O=fefe; c=de" -> "ou=fnord,o=fefe,c=de" */
-/* returns the length of the new string */
-static int normalize_dn(char* dest,const char* src,int len) {
-  int makelower=1;
-  char* orig=dest;
-  while (len) {
-    if (*src==';' || *src==',') {
-      *dest=',';
-      while (len>1 && src[1]==' ') { ++src; --len; }
-      makelower=1;
-    } else {
-      if (makelower)
-	*dest=tolower(*src);
-      else
-	*dest=*src;
-      if (*dest=='=') makelower=0;
-    }
-    ++dest;
-    ++src;
-    --len;
-  }
-  return dest-orig;
-}
-
-static int unbase64(char* buf) {
-  unsigned long destlen;
+static size_t unbase64(char* buf) {
+  size_t destlen;
   char temp[8192];
-  long l=scan_base64(buf,temp,&destlen);
+  size_t l=scan_base64(buf,temp,&destlen);
   if (buf[l] && buf[l]!='\n') return 0;
   byte_copy(buf,destlen,temp);
   return destlen;
@@ -302,6 +279,7 @@ lookagain:
     addattribute(l,tmp,val);
 #endif
   } while (!eof);
+  if ((*l)->dn==(uint32_t)-1) return 0;
   if (ldif_parse_callback && ldif_parse_callback(*l)==-1) return -1;
   if ((*l)->dn==(uint32_t)-1 && ((*l)->next)) {
     struct ldaprec* m=(*l)->next;
@@ -313,7 +291,7 @@ lookagain:
 
 struct ldaprec *first=0;
 
-int ldif_parse(const char* filename) {
+int ldif_parse(const char* filename,off_t fromofs,struct stat* ss) {
   char buf[4096];
   int fd;
   buffer in;
@@ -325,7 +303,8 @@ int ldif_parse(const char* filename) {
     fd=-1;
   } else {
     fd=open_read(filename);
-    if (fd<0) return 1;
+    if (fd<0) return 0;		// no journal file is permissible
+    if (fromofs) lseek(fd,fromofs,SEEK_SET);
     buffer_init(&in,(void*)read,fd,buf,sizeof buf);
     tmp=&in;
   }
@@ -334,6 +313,13 @@ int ldif_parse(const char* filename) {
   lines=0;
   {
     int res=parserec(tmp,&first);
+    if (ss) {
+      fstat(fd,ss);
+      /* the file size may have changed between parserec hitting EOF and
+       * us calling lstat, we we write the current file pointer position
+       * to st_size */
+      ss->st_size=lseek(fd,0,SEEK_CUR);
+    }
     if (fd!=-1) close(fd);
     return res;
   }

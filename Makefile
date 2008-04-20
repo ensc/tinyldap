@@ -3,7 +3,7 @@
 
 all: t1 t2 parse dumpidx idx2ldif addindex bindrequest tinyldap \
 tinyldap_standalone tinyldap_debug ldapclient ldapclient_str \
-md5password mysql2ldif acl dumpacls # t6 # t
+md5password mysql2ldif acl dumpacls ldapdelete # t6 # t
 
 asn1.a: fmt_asn1intpayload.o fmt_asn1length.o fmt_asn1tag.o \
 fmt_asn1int.o fmt_asn1string.o fmt_asn1transparent.o scan_asn1tag.o \
@@ -23,20 +23,21 @@ matchprefix.o matchcasestring.o matchcaseprefix.o \
 scan_ldapmodifyrequest.o scan_ldapaddrequest.o bstrlen.o bstrfirst.o \
 bstrstart.o free_ldapadl.o free_ldappal.o free_ldapsearchfilter.o \
 scan_ldapsearchfilterstring.o free_ldapsearchresultentry.o \
-fmt_ldapsearchfilterstring.o ldap_match_sre.o
+fmt_ldapsearchfilterstring.o ldap_match_sre.o \
+fmt_ldapdeleterequest.o scan_ldapdeleterequest.o normalize_dn.o
 
 ldif.a: ldif_parse.o ldap_match_mapped.o
 
 storage.a: strstorage.o strduptab.o mstorage_add.o mduptab_add.o \
 bstr_diff.o mduptab_adds.o bstr_diff2.o mstorage_add_bin.o \
 mstorage_init.o mstorage_init_persistent.o mstorage_unmap.o \
-mduptab_init.o mduptab_init_reuse.o
+mduptab_init.o mduptab_init_reuse.o mduptab_reset.o
 
 auth.a: auth.o
 
 DIET=/opt/diet/bin/diet -Os
 CC=gcc
-CFLAGS=-pipe -I. -Wall -W
+CFLAGS=-pipe -I. -Wall -W -Wextra
 ifneq ($(DEBUG),)
 DIET=/opt/diet/bin/diet
 CFLAGS=-pipe -I. -Wall -W -g -fstack-protector
@@ -66,9 +67,10 @@ t2: ldap.a asn1.a
 t3 t4 t5 addindex: storage.a
 t6: storage.a
 tinyldap tinyldap_standalone tinyldap_debug: ldif.a storage.a auth.a
-bindrequest tinyldap tinyldap_standalone tinyldap_debug ldapclient ldapclient_str: ldap.a asn1.a
+bindrequest tinyldap tinyldap_standalone tinyldap_debug ldapclient ldapclient_str ldapdelete: ldap.a asn1.a
 idx2ldif: ldap.a
 dumpacls: ldap.a asn1.a
+parse: normalize_dn.o
 
 tinyldap_standalone: tinyldap.c
 	$(DIET) $(CC) $(CFLAGS) -DSTANDALONE -o $@ $^ $(LDFLAGS) -lowfat $(LIBS)

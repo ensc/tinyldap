@@ -14,6 +14,10 @@ int matchcasestring(struct string* s,const char* c);
 int matchprefix(struct string* s,const char* c);
 int matchcaseprefix(struct string* s,const char* c);
 
+/* "ou=fnord; O=fefe; c=de" -> "ou=fnord,o=fefe,c=de" */
+/* returns the length of the new string */
+size_t normalize_dn(char* dest,const char* src,int len);
+
 struct AttributeValueAssertion {
   struct string desc, value;
 };
@@ -92,6 +96,12 @@ struct ModifyRequest {
 struct AddRequest {
   struct string entry;
   struct Addition a;
+};
+
+struct ModifyDNRequest {
+  struct string entry, newrdn;
+  int deleteoldrdn;
+  struct string newsuperior;
 };
 
 enum ldapops {
@@ -173,6 +183,8 @@ size_t scan_ldapresult(const char* src,const char* max,unsigned long* result,
 size_t scan_ldapmodifyrequest(const char* src,const char* max,struct ModifyRequest* m);
 size_t scan_ldapaddrequest(const char* src, const char * max, struct AddRequest * a);
 size_t scan_ldapsearchfilterstring(const char* src,struct Filter** f);
+size_t scan_ldapdeleterequest(const char* src,const char* max,struct string* s);
+size_t scan_ldapmodifydnrequest(const char* src,const char* max,struct ModifyDNRequest* mdr);
 
 size_t fmt_ldapstring(char* dest,struct string* s);
 size_t fmt_ldapmessage(char* dest,long messageid,long op,size_t len);
@@ -187,6 +199,8 @@ size_t fmt_ldapadl(char* dest,struct AttributeDescriptionList* adl);
 size_t fmt_ldapavl(char* dest,struct AttributeDescriptionList* adl);
 size_t fmt_ldapmodifyrequest(char* dest,struct ModifyRequest* m);
 size_t fmt_ldapsearchfilterstring(char* dest,struct Filter* f);
+size_t fmt_ldapdeleterequest(char* dest,struct string* s);
+size_t fmt_ldapmodifydnrequest(char* dest,struct ModifyDNRequest* mdr);
 
 #define fmt_ldapbindresponse(a,b,c,d,e) fmt_ldapresult(a,b,c,d,e)
 #define fmt_ldapsearchresultdone(a,b,c,d,e) fmt_ldapresult(a,b,c,d,e)
