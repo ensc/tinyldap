@@ -34,6 +34,9 @@
 #include "errmsg.h"
 #include "textcode.h"
 #include "fmt.h"
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 
 #ifdef DEBUG
 #include <sys/poll.h>
@@ -1415,6 +1418,40 @@ static void normalize_string_dn(struct string* s) {
 
 static void update();
 
+void reply_with_index(struct SearchRequest* sr,unsigned long* messageid,int out) {
+  size_t returned=0;
+  struct bitfield result;
+  size_t i;
+#if (debug != 0)
+  if (debug) buffer_putsflush(buffer_2,"query can be answered with index!\n");
+#endif
+  result.bits=alloca(record_set_length*sizeof(unsigned long));
+  /* Use the index to find matching data.  Put the offsets
+    * of the matches in a table.  Use findrec to locate
+    * the records that point to the data. */
+  useindex(sr->filter,&result);
+//	      assert(result.last<=record_count);
+  for (i=result.first; i<=result.last; ) {
+    size_t ni=i+8*sizeof(long);
+    if (!result.bits[i/(8*sizeof(long))]) {
+      i=ni;
+      continue;
+    }
+    if (ni>record_count) ni=record_count;
+    for (; i<ni; ++i) {
+      if (isset(&result,i)) {
+	uint32 j;
+	uint32_unpack(map+indices_offset+4*i,&j);
+	if (ldap_match_mapped(j,sr)) {
+	  if (sr->sizeLimit && sr->sizeLimit<++returned)
+	    break;
+	  answerwith(j,sr,*messageid,out);
+	}
+      }
+    }
+  }
+}
+
 /* a standard LDAP session looks like this:
  *   1. connect to server
  *   2. send a BindRequest
@@ -1592,36 +1629,7 @@ authfailure:
 	    fixup(sr.filter);
 	    fixupadl(sr.attributes);
 	    if (indexable(sr.filter)) {
-	      struct bitfield result;
-	      size_t i;
-#if (debug != 0)
-	      if (debug) buffer_putsflush(buffer_2,"query can be answered with index!\n");
-#endif
-	      result.bits=alloca(record_set_length*sizeof(unsigned long));
-	      /* Use the index to find matching data.  Put the offsets
-	       * of the matches in a table.  Use findrec to locate
-	       * the records that point to the data. */
-	      useindex(sr.filter,&result);
-//	      assert(result.last<=record_count);
-	      for (i=result.first; i<=result.last; ) {
-		size_t ni=i+8*sizeof(long);
-		if (!result.bits[i/(8*sizeof(long))]) {
-		  i=ni;
-		  continue;
-		}
-		if (ni>record_count) ni=record_count;
-		for (; i<ni; ++i) {
-		  if (isset(&result,i)) {
-		    uint32 j;
-		    uint32_unpack(map+indices_offset+4*i,&j);
-		    if (ldap_match_mapped(j,&sr)) {
-		      if (sr.sizeLimit && sr.sizeLimit<++returned)
-			break;
-		      answerwith(j,&sr,messageid,out);
-		    }
-		  }
-		}
-	      }
+	      reply_with_index(&sr,&messageid,out);
 	    } else {
 	      char* x=map+5*4+size_of_string_table+attribute_count*8;
 	      size_t i;
@@ -2379,6 +2387,10 @@ again:
       buffer_putsflush(buffer_2,"accept failed!\n");
       exit(1);
     }
+    {
+      int one=1;
+      setsockopt(asock,IPPROTO_TCP,TCP_NODELAY,&one,sizeof(one));
+    }
 #ifdef DEBUG
     {
       struct pollfd p;
@@ -2401,6 +2413,10 @@ again:
     }
   }
 #else
+  {
+    int one=1;
+    setsockopt(1,IPPROTO_TCP,TCP_NODELAY,&one,sizeof(one));
+  }
   handle(0,1);
 #endif
   return 0;

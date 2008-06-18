@@ -13,6 +13,8 @@
 
 #include <fcntl.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
 
 #define BUFSIZE 8192
 
@@ -54,23 +56,32 @@ int main(int argc,char* argv[]) {
   int len=0;
   char* me;
   long n,durchlauf;
-  int bench;
+  int bench,bench2;
   if ((me=strrchr(argv[0],'/')))
     ++me;
   else
     me=argv[0];
   n=1;
   if ((bench=!strcmp(me,"ldapbench"))) {
-    n=atoi(getenv("NUM"));
+    char* c=getenv("NUM");
+    if (!c) goto usage;
+    n=atoi(c);
+    if (n<1) goto usage;
+    if (getenv("CONNECT"))
+      bench=2;
     buffer_putsflush(buffer_2,"benchmark mode\n");
   }
+  bench2=0;
 
   if (argc<4) {
 usage:
     buffer_putsflush(buffer_2,"usage: ldapclient ip baseObject filter [foo...]\n");
+    if (bench)
+      buffer_putsflush(buffer_2,"and set $NUM to the number of iterations,\nand $CONNECT to anything to do only one connection (instead of one per request).\n");
     return 0;
   }
   for (durchlauf=0; durchlauf<n; ++durchlauf) {
+    if (bench==2 && bench2) goto skipconnect;
     sock=socket_tcp4b();
     {
       char ip[4];
@@ -80,11 +91,15 @@ usage:
 	return 1;
       }
     }
+    {
+      int one=1;
+      setsockopt(sock,IPPROTO_TCP,TCP_NODELAY,&one,sizeof(one));
+    }
     if (ldapbind(sock)) {
-      struct Filter *f;
-      struct AttributeDescriptionList adl;
-      struct AttributeDescriptionList *next;
-      struct SearchRequest sr;
+      static struct Filter *f;
+      static struct AttributeDescriptionList adl;
+      static struct AttributeDescriptionList *next;
+      static struct SearchRequest sr;
       int i;
       if (!scan_ldapsearchfilterstring(argv[3],&f)) {
 	buffer_putsflush(buffer_2,"could not parse filter!\n");
@@ -121,13 +136,16 @@ usage:
       sr.scope=wholeSubtree; sr.derefAliases=neverDerefAliases;
       sr.sizeLimit=sr.timeLimit=sr.typesOnly=0;
       sr.filter=f;
+      bench2=1;
+skipconnect:
       len=fmt_ldapsearchrequest(buf+100,&sr);
       {
 	int tmp=fmt_ldapmessage(0,++messageid,SearchRequest,len);
 	fmt_ldapmessage(buf+100-tmp,messageid,SearchRequest,len);
 	write(sock,buf+100-tmp,len+tmp);
       }
-      shutdown(sock,SHUT_WR);
+      if (bench!=2)
+	shutdown(sock,SHUT_WR);
       {
 	char buf[32*1024];	/* arbitrary limit, bad! */
 	int len=0,tmp,tmp2;
@@ -246,7 +264,8 @@ copypartialandcontinue:
       buffer_putsflush(buffer_2,"ldapbind failed\n");
       return 2;
     }
-    close(sock);
+    if (bench!=2)
+      close(sock);
   }
   if (bench) write(1,"\n",1);
   return 0;
