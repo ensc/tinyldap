@@ -639,17 +639,18 @@ static void tagmatches(uint32* index,size_t elements,struct string* s,
 	setbit(b,rec);
       /* there may be multiple matches.
 	* Look before and after mid, too */
-      for (k=mid-1; k>0; --k) {
-	m=uint32_read((char*)(&index[k]));
-	if ((ft==LESSEQUAL) || (l=match(s,map+m))==0) {
-	  if (index_type==0)
-	    rec=findrec(m);
-	  else if (index_type==1)
-	    rec=uint32_read((char*)(&index[k+elements]));
-	  if (rec>=0)
-	    setbit(b,rec);
-	} else break;
-      }
+      if (mid)	/* thx Andreas Stührk */
+	for (k=mid-1; k>0; --k) {
+	  m=uint32_read((char*)(&index[k]));
+	  if ((ft==LESSEQUAL) || (l=match(s,map+m))==0) {
+	    if (index_type==0)
+	      rec=findrec(m);
+	    else if (index_type==1)
+	      rec=uint32_read((char*)(&index[k+elements]));
+	    if (rec>=0)
+	      setbit(b,rec);
+	  } else break;
+	}
       for (k=mid+1; k<elements; ++k) {
 	m=uint32_read((char*)(&index[k]));
 	if ((ft==GREATEQUAL) || (l=match(s,map+m))==0) {

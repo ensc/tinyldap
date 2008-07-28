@@ -10,3 +10,5 @@ Dirk Meyer helped BSD portability.
 
 Zak Johnson fixed substring matches in ldap_match_mapped.
 
+Andreas Stührk found a possible integer underflow in the indexing code.
+I'd be astounded if someone found a way to exploit it, though.
