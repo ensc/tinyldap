@@ -19,7 +19,7 @@ unsigned long mstorage_increment=4*PAGE_SIZE;
 /* Sadly, mremap is only available on Linux */
 /* Please petition your congressman^Woperating system vendor to include it! */
 
-long mstorage_add(mstorage_t* p,const char* s,unsigned long n) {
+long mstorage_add(mstorage_t* p,const char* s,size_t n) {
   if (p->mapped-p->used<n) {
     if (!p->root) {
       /* nothing allocated.  mmap /dev/zero */

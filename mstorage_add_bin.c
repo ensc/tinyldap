@@ -6,7 +6,7 @@
  *   char 0;
  *   uint32 len;
  *   char data[len] */
-long mstorage_add_bin(mstorage_t* p,const char* s,unsigned long n) {
+long mstorage_add_bin(mstorage_t* p,const char* s,size_t n) {
   unsigned int i;
   static char zero;
   long x;
