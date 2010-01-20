@@ -2363,9 +2363,16 @@ int main(int argc,char* argv[]) {
     buffer_putsflush(buffer_2,"socket failed!\n");
     exit(1);
   }
-  if (socket_bind6_reuse(sock,V6any,389,0)) {
-    buffer_putsflush(buffer_2,"bind failed!\n");
-    exit(1);
+  {
+    char ip[16];
+    char* IP=(char*)V6any;
+    char* x=getenv("IP");
+    if (x && !x[scan_ip6(x,ip)])
+      IP=ip;
+    if (socket_bind6_reuse(sock,IP,389,0)) {
+      buffer_putsflush(buffer_2,"bind failed!\n");
+      exit(1);
+    }
   }
   if (socket_listen(sock,32)) {
     buffer_putsflush(buffer_2,"listen failed!\n");
