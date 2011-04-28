@@ -144,7 +144,7 @@ int main(int argc,char* argv[]) {
   char* destname=argc<3?"data":argv[2];
   char* tempname;
   unsigned long size_of_string_table,indices_offset;
-  long offset_stringtable;
+//  long offset_stringtable;
   char* map;
   uint32 attrofs,classofs;
 
@@ -301,7 +301,7 @@ writeerror:
   uint32_pack(map+4*4,size_of_string_table);	/* size_of_string_table */
 
 //  size_of_string_table=stringtable.used+classes.strings.used+attributes.strings.used;
-  offset_stringtable=5*4;
+//  offset_stringtable=5*4;
   offset_classes=outofs;
 
   munmap(map,5*4);

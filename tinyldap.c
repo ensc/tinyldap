@@ -639,7 +639,7 @@ static void tagmatches(uint32* index,size_t elements,struct string* s,
 	setbit(b,rec);
       /* there may be multiple matches.
 	* Look before and after mid, too */
-      if (mid)	/* thx Andreas Stührk */
+      if (mid)	/* thx Andreas StÃ¼hrk */
 	for (k=mid-1; k>0; --k) {
 	  m=uint32_read((char*)(&index[k]));
 	  if ((ft==LESSEQUAL) || (l=match(s,map+m))==0) {

@@ -1,3 +1,6 @@
+#ifndef ASN1_H
+#define ASN1_H
+
 /* parser and formatter for ASN.1 DER encoding.
  * The parser can read BER encoding, too. */
 
@@ -18,11 +21,17 @@ enum asn1_tagtype {
 enum asn1_tag {
   BOOLEAN=1,
   INTEGER=2,
+  BIT_STRING=3,
   OCTET_STRING=4,
+  OBJECT_IDENTIFIER=6,
   ENUMERATED=10,
   SEQUENCE_OF=16,
   SET_OF=17,
+  UTCTIME=23
 };
+
+/* write variable length integer in the encoding used in tag and oid */
+size_t fmt_asn1tagint(char* dest,unsigned long val);
 
 /* write int in least amount of bytes, return number of bytes */
 /* as used in ASN.1 tag */
@@ -85,11 +94,16 @@ size_t fmt_asn1string(char* dest,enum asn1_tagclass tc,enum asn1_tagtype tt,
 /* write ASN.1 SET */
 #define fmt_asn1SET(dest,l) fmt_asn1transparent(dest,UNIVERSAL,CONSTRUCTED,SET_OF,l)
 
+size_t fmt_asn1OID(char* dest,const unsigned long* array,unsigned long len);
+
 
 /* conventions for the parser routines:
  *   src points to the first byte to parse
  *   max points to the first byte behind the buffer
  *   the return value is the number of bytes parsed or 0 for parse error */
+
+/* parse ASN.1 variable length integer as used in tag and oid */
+size_t scan_asn1tagint(const char* src,const char* max,unsigned long* val);
 
 /* parse ASN.1 tag into a tag class, tag type and tag number */
 size_t scan_asn1tag(const char* src,const char* max,
@@ -119,5 +133,19 @@ size_t scan_asn1BOOLEAN(const char* src,const char* max,unsigned long* l);
 size_t scan_asn1INTEGER(const char* src,const char* max,signed long* l);
 size_t scan_asn1ENUMERATED(const char* src,const char* max,unsigned long* l);
 size_t scan_asn1STRING(const char* src,const char* max,const char** s,size_t* l);
+size_t scan_asn1BITSTRING(const char* src,const char* max,const char** s,size_t* l);
 size_t scan_asn1SEQUENCE(const char* src,const char* max,size_t* len);
 size_t scan_asn1SET(const char* src,const char* max,size_t* len);
+
+/* scan an ASN.1 OID and put the numbers into array.
+ * Return numbers of bytes parsed or 0 on error.
+ * Put at most arraylen longs into array; if the OID is longer, or if array is NULL, return real number in arraylen and return 0
+ * If 0 is returned and arraylen is also 0, there was a parse error */
+size_t scan_asn1oid(const char* src,const char* max,unsigned long* array,unsigned long* arraylen);
+
+struct string {
+  size_t l;
+  const char* s;
+};
+
+#endif

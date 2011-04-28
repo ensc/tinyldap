@@ -2,7 +2,6 @@
 #include <unistd.h>
 #include <stdio.h>
 #include "mmap.h"
-#include "asn1.h"
 #include "ldap.h"
 #endif
 

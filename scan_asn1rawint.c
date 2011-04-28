@@ -3,6 +3,7 @@
 size_t scan_asn1rawint(const char* src,const char* max,size_t len,long* l) {
   size_t i,j;
   long m;
+  if (src>=max) return 0;
   if (*src<0) m=-1; else m=0;
   for (i=j=0; i<len; ++i,++j) {
     if ((m==0 && *src==0) || (m==-1 && *src==-1)) --j;

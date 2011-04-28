@@ -3,7 +3,7 @@
 
 size_t scan_asn1length(const char* src,const char* max,size_t* length) {
   const char* orig=src;
-  if (src>max) return 0;
+  if (src>=max) return 0;
 /* If the highest bit of the first byte is clear, the byte is the length.
  * Otherwise the next n bytes are the length (n being the lower 7 bits) */
   if (*src&0x80) {

@@ -1,3 +1,4 @@
+#define _XOPEN_SOURCE
 #include <sys/types.h>
 #ifdef __dietlibc__
 #include <md5.h>
@@ -7,7 +8,6 @@
 #define MD5Update MD5_Update
 #define MD5Final MD5_Final
 #endif
-#define _XOPEN_SOURCE
 #include <unistd.h>
 #include <stdlib.h>
 #include <alloca.h>

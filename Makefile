@@ -10,7 +10,9 @@ fmt_asn1int.o fmt_asn1string.o fmt_asn1transparent.o scan_asn1tag.o \
 scan_asn1length.o scan_asn1int.o scan_asn1string.o scan_asn1INTEGER.o \
 scan_asn1STRING.o scan_asn1SEQUENCE.o scan_asn1ENUMERATED.o \
 scan_asn1BOOLEAN.o scan_asn1rawint.o scan_asn1SET.o fmt_asn1sint.o \
-fmt_asn1sintpayload.o scan_asn1oid.o
+fmt_asn1sintpayload.o scan_asn1oid.o scan_asn1BITSTRING.o \
+scan_asn1tagint.o fmt_asn1tagint.o fmt_asn1OID.o scan_asn1generic.o \
+fmt_asn1generic.o
 
 ldap.a: scan_ldapmessage.o fmt_ldapmessage.o fmt_ldapbindrequest.o \
 scan_ldapbindrequest.o scan_ldapbindresponse.o scan_ldapresult.o \
@@ -111,6 +113,7 @@ fmt_asn1sint.o: fmt_asn1sint.c asn1.h
 fmt_asn1sintpayload.o: fmt_asn1sintpayload.c asn1.h
 fmt_asn1string.o: fmt_asn1string.c asn1.h
 fmt_asn1tag.o: fmt_asn1tag.c asn1.h
+fmt_asn1tagint.o: fmt_asn1tagint.c asn1.h
 fmt_asn1transparent.o: fmt_asn1transparent.c asn1.h
 fmt_ldapadl.o: fmt_ldapadl.c asn1.h ldap.h
 fmt_ldapava.o: fmt_ldapava.c asn1.h ldap.h
@@ -123,6 +126,8 @@ fmt_ldapsearchfilterstring.o: fmt_ldapsearchfilterstring.c ldap.h
 fmt_ldapsearchrequest.o: fmt_ldapsearchrequest.c asn1.h ldap.h
 fmt_ldapsearchresultentry.o: fmt_ldapsearchresultentry.c asn1.h ldap.h
 fmt_ldapstring.o: fmt_ldapstring.c asn1.h ldap.h
+fmt_asn1OID.o: fmt_asn1OID.c asn1.h
+fmt_asn1generic.o: fmt_asn1generic.c asn1.h
 
 scan_asn1BOOLEAN.o: scan_asn1BOOLEAN.c asn1.h
 scan_asn1ENUMERATED.o: scan_asn1ENUMERATED.c asn1.h
@@ -130,12 +135,14 @@ scan_asn1INTEGER.o: scan_asn1INTEGER.c asn1.h
 scan_asn1SEQUENCE.o: scan_asn1SEQUENCE.c asn1.h
 scan_asn1SET.o: scan_asn1SET.c asn1.h
 scan_asn1STRING.o: scan_asn1STRING.c asn1.h
+scan_asn1BITSTRING.o: scan_asn1BITSTRING.c asn1.h
 scan_asn1int.o: scan_asn1int.c asn1.h
 scan_asn1length.o: scan_asn1length.c asn1.h
 scan_asn1oid.o: scan_asn1oid.c asn1.h
 scan_asn1rawint.o: scan_asn1rawint.c asn1.h
 scan_asn1string.o: scan_asn1string.c asn1.h
 scan_asn1tag.o: scan_asn1tag.c asn1.h
+scan_asn1tagint.o: scan_asn1tagint.c asn1.h
 scan_ldapaddrequest.o: scan_ldapaddrequest.c asn1.h ldap.h
 scan_ldapava.o: scan_ldapava.c asn1.h ldap.h
 scan_ldapbindrequest.o: scan_ldapbindrequest.c asn1.h ldap.h
@@ -148,5 +155,6 @@ scan_ldapsearchfilterstring.o: scan_ldapsearchfilterstring.c ldap.h
 scan_ldapsearchrequest.o: scan_ldapsearchrequest.c asn1.h ldap.h
 scan_ldapsearchresultentry.o: scan_ldapsearchresultentry.c asn1.h ldap.h
 scan_ldapstring.o: scan_ldapstring.c asn1.h ldap.h
+scan_asn1generic.o: scan_asn1generic.c asn1.h
 
 ldap_match_sre.o: ldap_match_sre.c ldap.h

@@ -4,7 +4,6 @@
 #include <string.h>
 #include "byte.h"
 #include "buffer.h"
-#include "asn1.h"
 #include "ldap.h"
 #include "socket.h"
 #include "ip4.h"
@@ -51,7 +50,7 @@ static int ldapbind(int sock) {
 }
 
 int main(int argc,char* argv[]) {
-  int sock;
+  int sock=0;
   char buf[BUFSIZE];
   int len=0;
   char* me;

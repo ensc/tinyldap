@@ -1,5 +1,4 @@
 #include <stdlib.h>
-#include "asn1.h"
 #include "ldap.h"
 
 size_t scan_ldapsearchresultentry(const char* src,const char* max,struct SearchResultEntry* sre) {

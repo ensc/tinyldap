@@ -1,13 +1,9 @@
 #ifndef _LDAP_H
 #define _LDAP_H
 
+#include "asn1.h"
 #include <stddef.h>
 #include <inttypes.h>
-
-struct string {
-  size_t l;
-  const char* s;
-};
 
 int matchstring(struct string* s,const char* c);
 int matchcasestring(struct string* s,const char* c);

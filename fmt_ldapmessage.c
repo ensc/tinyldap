@@ -1,4 +1,3 @@
-#include "asn1.h"
 #include "ldap.h"
 
 size_t fmt_ldapmessage(char* dest,long messageid,long op,size_t len) {

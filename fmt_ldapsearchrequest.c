@@ -1,4 +1,3 @@
-#include "asn1.h"
 #include "ldap.h"
 
 size_t fmt_ldapsearchrequest(char* dest,struct SearchRequest* sr) {

@@ -15,7 +15,7 @@ int main(int argc,char* argv[]) {
   if (!map) {
     buffer_puts(buffer_2,"could not open `");
     buffer_puts(buffer_2,fn);
-    buffer_puts(buffer_2,"´: ");
+    buffer_puts(buffer_2,"': ");
     buffer_puterror(buffer_2);
     buffer_putnlflush(buffer_2);
     exit(1);

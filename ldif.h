@@ -1,7 +1,8 @@
 #define _FILE_OFFSET_BITS 64
 #include <sys/stat.h>
 #include <inttypes.h>
-#include <ldap.h>
+#include "asn1.h"
+#include "ldap.h"
 
 /* how many attributes do we allow per record? */
 #define ATTRIBS 100

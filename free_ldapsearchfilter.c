@@ -1,5 +1,4 @@
 #include <stdlib.h>
-#include "asn1.h"
 #include "ldap.h"
 
 void free_ldapsearchfilter(struct Filter* f) {

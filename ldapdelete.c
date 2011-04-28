@@ -4,7 +4,6 @@
 #include <string.h>
 #include "byte.h"
 #include "buffer.h"
-#include "asn1.h"
 #include "ldap.h"
 #include "socket.h"
 #include "ip4.h"

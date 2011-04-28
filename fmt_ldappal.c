@@ -1,4 +1,3 @@
-#include "asn1.h"
 #include "ldap.h"
 
 size_t fmt_ldappal(char* dest,struct PartialAttributeList* pal) {

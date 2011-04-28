@@ -1,4 +1,3 @@
-#include "asn1.h"
 #include "ldap.h"
 
 size_t scan_ldapresult(const char* src,const char* max,unsigned long* result,

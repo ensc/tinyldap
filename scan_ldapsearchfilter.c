@@ -1,4 +1,3 @@
-#include "asn1.h"
 #include "ldap.h"
 #include <stdlib.h>
 
@@ -40,7 +39,7 @@ size_t scan_ldapsearchfilter(const char* src,const char* max,struct Filter** f) 
   if (tc!=PRIVATE || (tt!=CONSTRUCTED && tag!=7) || tag>9) goto error;
   if (!(tmp=scan_asn1length(src+res,max,&len))) goto error;
   res+=tmp;
-  if (src+res+len>max) goto error;
+  if (src+res+len>=max) goto error;
   if (!(*f=malloc(sizeof(struct Filter)))) goto error;
   (*f)->next=0;
   (*f)->x=0;

@@ -1,6 +1,7 @@
 #define _FILE_OFFSET_BITS 64
 #define MAIN
 
+#include "ldap.h"
 #include <buffer.h>
 #include <stralloc.h>
 #include <str.h>
@@ -11,7 +12,6 @@
 #include <byte.h>
 #include <mmap.h>
 #include <case.h>
-#include <ldap.h>
 #include <uint16.h>
 #include <uint32.h>
 #include <open.h>
@@ -275,7 +275,7 @@ int marshalfilter(stralloc* x,struct assertion* a) {
 
 int marshal(char* map,size_t filelen,const char* filename) {
   size_t filters,acls,i,j,k;
-  size_t filter_offset,acl_offset;
+  size_t filter_offset; //,acl_offset;
   struct acl* a;
   uint32* F,* A;
   uint32 attribute_count;
@@ -396,7 +396,7 @@ nomem:
 
   A=malloc(sizeof(*A)*acls);
   if (!A) goto nomem;
-  acl_offset=F[i]+(acls+1)*sizeof(*A);
+//  acl_offset=F[i]+(acls+1)*sizeof(*A);
 
   i=0;
   for (a=root; a; a=a->next) {
