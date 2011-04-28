@@ -9,6 +9,7 @@ size_t fmt_asn1generic(char* dest,const char* fmt,...) {
   va_start(args,fmt);
   unsigned long* application=0;
   struct string* s;
+  struct oid* o;
   struct string S;
   size_t curlen=0;
   size_t cursor=0;
@@ -31,6 +32,14 @@ size_t fmt_asn1generic(char* dest,const char* fmt,...) {
 	application=NULL;
 	break;
       }
+    case 'b':	// send BIT_STRING, using struct string* as arg (expect l to be in bits, not bytes)
+      s=va_arg(args,struct string*);
+      if (application)
+	curlen=fmt_asn1bitstring(realdest,APPLICATION,PRIMITIVE,*application,s->s,s->l);
+      else
+	curlen=fmt_asn1bitstring(realdest,UNIVERSAL,PRIMITIVE,BIT_STRING,s->s,s->l);
+      application=NULL;
+      break;
     case 'S':	// send OCTET_STRING, using struct string* as arg
       s=va_arg(args,struct string*);
 copystring:
@@ -45,6 +54,14 @@ copystring:
       S.l=strlen(S.s);
       s=&S;
       goto copystring;
+    case 'o':	// send OBJECT_IDENTIFIER, using struct oid* as arg
+      o=va_arg(args,struct oid*);
+      if (application)
+	curlen=fmt_asn1OID(realdest,APPLICATION,PRIMITIVE,*application,o->a,o->l);
+      else
+	curlen=fmt_asn1OID(realdest,UNIVERSAL,PRIMITIVE,OBJECT_IDENTIFIER,o->a,o->l);
+      application=NULL;
+      break;
     case '{':	// start SEQUENCE
       if (application)
 	curlen=fmt_asn1tag(realdest,APPLICATION,CONSTRUCTED,*application);

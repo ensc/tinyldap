@@ -41,6 +41,7 @@ void printasn1(const char* buf,const char* max) {
     case INTEGER: printf("INTEGER"); break;
     case BIT_STRING: printf("BIT_STRING"); break;
     case OCTET_STRING: printf("OCTET_STRING"); break;
+    case OBJECT_IDENTIFIER: printf("OBJECT_IDENTIFIER"); break;
     case ENUMERATED: printf("ENUMERATED"); break;
     case SEQUENCE_OF: printf("SEQUENCE_OF"); break;
     case SET_OF: printf("SET_OF"); break;
@@ -68,11 +69,23 @@ void printasn1(const char* buf,const char* max) {
 	printf("%*s-> \"",indent,"");
 	for (i=0; i<len; ++i) {
 	  if (buf[i]<' ')
-	    printf("\\x%02x",buf[i]);
+	    printf("\\x%02x",(unsigned char)(buf[i]));
 	  else
 	    putchar(buf[i]);
 	}
 	printf("\"\n");
+      } else if (tag==OBJECT_IDENTIFIER) {
+	struct oid o;
+	size_t mlen;
+	unsigned long fnord[100];
+	o.l=100;
+	o.a=fnord;
+	mlen=scan_asn1rawoid(buf,maxstack[sptr],o.a,&o.l);
+	if (mlen) {
+	  printf("%*s-> ",indent,"");
+	  for (i=0; i<o.l; ++i)
+	    printf("%d%s",o.a[i],i+1==o.l?"\n":".");
+	}
       }
     }
 
@@ -96,11 +109,20 @@ void printasn1(const char* buf,const char* max) {
   }
 }
 
+const unsigned long oid[]={1,2,840,113549,1};
+const unsigned long oidlen = sizeof(oid) / sizeof(oid[0]);
+
 main() {
   char buf[1024];
   int l,i;
+  struct oid o;
+  struct string B;
+  B.s="\xfe\x74";
+  B.l=8+6;
+  o.l=oidlen;
+  o.a=oid;
   byte_zero(buf,1024);
-  l=fmt_asn1generic(buf,"a{is}",8,23,"fnord");
+  l=fmt_asn1generic(buf,"a{isbo}",8,23,"fnord",&B,&o);
   printf("formatted into %d bytes\n",l);
   {
     printf("-> ");
@@ -117,13 +139,24 @@ main() {
     unsigned long a2;
     unsigned long b;
     struct string c;
-    l=scan_asn1generic(buf,buf+l,"a{!is}",&a,&a2,&b,&c);
+    struct oid d;
+    struct string e;
+    l=scan_asn1generic(buf,buf+l,"a{!isbo}",&a,&a2,&b,&c,&e,&d);
     printf("%lu\n",l);
     if (l) {
       printf("got application tag %d (should be 8)\n",a);
       printf("got sequence length %d\n",a2);
       printf("got integer %d (should be 23)\n",b);
       printf("got string \"%.*s\" (should be \"fnord\")\n",c.l,c.s);
+
+      printf("got bitstring length %d: ",e.l);
+      for (i=0; i*8<e.l; ++i)
+	printf("%02x",(unsigned char)e.s[i]);
+      printf("\n");
+
+      printf("got oid ");
+      for (i=0; i<d.l; ++i)
+	printf("%d%s",d.a[i],i+1<d.l?".":" (should be 1.2.840.113549.1)\n");
     }
   }
 }

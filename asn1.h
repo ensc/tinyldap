@@ -76,6 +76,11 @@ size_t fmt_asn1transparent(char* dest,enum asn1_tagclass tc,
 size_t fmt_asn1string(char* dest,enum asn1_tagclass tc,enum asn1_tagtype tt,
 		      enum asn1_tag tag,const char* c,size_t l);
 
+/* same but for bitstrings.
+ * l in this case means the number of BITS in c, not bytes */
+size_t fmt_asn1bitstring(char* dest,enum asn1_tagclass tc,enum asn1_tagtype tt,
+			 enum asn1_tag tag,const char* c,size_t l);
+
 /* write ASN.1 OCTET STRING */
 #define fmt_asn1OCTETSTRING(dest,c,l) fmt_asn1string(dest,UNIVERSAL,PRIMITIVE,OCTET_STRING,c,l)
 
@@ -94,7 +99,7 @@ size_t fmt_asn1string(char* dest,enum asn1_tagclass tc,enum asn1_tagtype tt,
 /* write ASN.1 SET */
 #define fmt_asn1SET(dest,l) fmt_asn1transparent(dest,UNIVERSAL,CONSTRUCTED,SET_OF,l)
 
-size_t fmt_asn1OID(char* dest,const unsigned long* array,unsigned long len);
+size_t fmt_asn1OID(char* dest,enum asn1_tagclass tc,enum asn1_tagtype tt,enum asn1_tag tag,const unsigned long* array,unsigned long len);
 
 
 /* conventions for the parser routines:
@@ -141,11 +146,18 @@ size_t scan_asn1SET(const char* src,const char* max,size_t* len);
  * Return numbers of bytes parsed or 0 on error.
  * Put at most arraylen longs into array; if the OID is longer, or if array is NULL, return real number in arraylen and return 0
  * If 0 is returned and arraylen is also 0, there was a parse error */
-size_t scan_asn1oid(const char* src,const char* max,unsigned long* array,unsigned long* arraylen);
+size_t scan_asn1oid(const char* src,const char* max,unsigned long* array,size_t* arraylen);
+/* internal helper, assumes you already read tag and length and max=src+length */
+size_t scan_asn1rawoid(const char* src,const char* max,unsigned long* array,size_t* arraylen);
 
 struct string {
   size_t l;
   const char* s;
+};
+
+struct oid {
+  size_t l;
+  size_t* a;
 };
 
 #endif

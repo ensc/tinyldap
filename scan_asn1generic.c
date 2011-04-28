@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <stdarg.h>
 #include "asn1.h"
 
@@ -36,6 +37,7 @@ size_t scan_asn1generic(const char* src,const char* max,const char* fmt,...) {
 	application=0;
 	break;
       }
+    case 'b':		// s = BIT STRING
     case 's':		// s = STRING
       {
 	struct string* dest=va_arg(args,struct string*);
@@ -47,12 +49,46 @@ size_t scan_asn1generic(const char* src,const char* max,const char* fmt,...) {
 	  if (tc!=APPLICATION) return 0;
 	  *application=tag;
 	} else {
-	  if (tc!=UNIVERSAL || tt!=PRIMITIVE || tag!=OCTET_STRING)
+	  if (tc!=UNIVERSAL || tt!=PRIMITIVE || tag!=(*fmt=='s'?OCTET_STRING:BIT_STRING))
 	    return 0;
+	}
+	if (*fmt=='b') {	// additional checks for bit strings
+	  if (dest->l==0 ||	// length can't be 0 because the format starts with 1 octet that contains the number of unused bits in the last octet
+	      ((unsigned char)(dest->s[0])>7) ||	// it's the number of unused bits in an octet, must be [0..7]
+	      (dest->l==1 && dest->s[0])) return 0;	// if there is no last octet, there can't be any unused bits in there
+	  dest->l=(dest->l-1)*8-dest->s[0];
+	  dest->s+=1;
 	}
 	src+=curlen;
 	application=0;
 	break;
+      }
+    case 'o':		// o == OID
+      {
+	struct oid* dest=va_arg(args,struct oid*);
+	curlen=scan_asn1tag(src,maxstack[curmax],&tc,&tt,&tag);
+	if (!curlen) { if (optional) break; else return 0; }
+	if (application) {
+	  if (tc!=APPLICATION) return 0;
+	  *application=tag;
+	} else {
+	  if (tc!=UNIVERSAL || tt!=PRIMITIVE || tag!=OBJECT_IDENTIFIER)
+	    return 0;
+	}
+	src+=curlen;
+	curlen=scan_asn1length(src,maxstack[curmax],&seqlen);
+	if (!curlen) return 0;
+	src+=curlen;
+	curlen=scan_asn1rawoid(src,src+seqlen,dest->a,&dest->l);
+	if (!curlen) {
+	  if (dest->l && !dest->a) {
+	    dest->a=malloc(dest->l*sizeof(dest->a[0]));
+	    curlen=scan_asn1rawoid(src,src+seqlen,dest->a,&dest->l);
+	  }
+	  if (!curlen) return 0;
+	}
+	src+=curlen;
+	application=0;
       }
     case 'a':		// next tag class is APPLICATION instead of UNIVERSAL; write tag to unsigned long*
       {

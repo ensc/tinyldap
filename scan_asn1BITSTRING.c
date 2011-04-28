@@ -19,7 +19,7 @@ size_t scan_asn1BITSTRING(const char* src,const char* max,const char** s,size_t*
       lastbyte=(*s)[*l+1];
       if (lastbyte & (0xff >> (8-**s)))
 	return 0;
-      *l=*l*8-(unsigned char)(**s);
+      *l=(*l-1)*8-(unsigned char)(**s);
       ++*s;
       return tmp;
     }
