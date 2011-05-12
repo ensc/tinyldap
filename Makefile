@@ -12,7 +12,7 @@ scan_asn1STRING.o scan_asn1SEQUENCE.o scan_asn1ENUMERATED.o \
 scan_asn1BOOLEAN.o scan_asn1rawint.o scan_asn1SET.o fmt_asn1sint.o \
 fmt_asn1sintpayload.o scan_asn1oid.o scan_asn1BITSTRING.o \
 scan_asn1tagint.o fmt_asn1tagint.o fmt_asn1OID.o scan_asn1generic.o \
-fmt_asn1generic.o scan_asn1rawoid.o fmt_asn1bitstring.o
+fmt_asn1generic.o scan_asn1rawoid.o fmt_asn1bitstring.o asn1oid.o
 
 ldap.a: scan_ldapmessage.o fmt_ldapmessage.o fmt_ldapbindrequest.o \
 scan_ldapbindrequest.o scan_ldapbindresponse.o scan_ldapresult.o \
@@ -158,5 +158,7 @@ scan_ldapsearchrequest.o: scan_ldapsearchrequest.c asn1.h ldap.h
 scan_ldapsearchresultentry.o: scan_ldapsearchresultentry.c asn1.h ldap.h
 scan_ldapstring.o: scan_ldapstring.c asn1.h ldap.h
 scan_asn1generic.o: scan_asn1generic.c asn1.h
+
+asn1oid.o: asn1oid.c asn1.h
 
 ldap_match_sre.o: ldap_match_sre.c ldap.h

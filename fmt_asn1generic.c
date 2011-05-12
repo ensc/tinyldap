@@ -14,11 +14,12 @@ size_t fmt_asn1generic(char* dest,const char* fmt,...) {
   size_t curlen=0;
   size_t cursor=0;
   size_t seqlen;
+  unsigned long desttag=0;
   unsigned long appstore;
   while (*fmt) {
     char* realdest=dest?dest+cursor:NULL;
     switch (*fmt) {
-    case 'a':	// make next tag use APPLICATION with this tag
+    case '*':	// make next tag use APPLICATION with this tag
       appstore=va_arg(args,unsigned long);
       application=&appstore;
       break;
@@ -62,14 +63,21 @@ copystring:
 	curlen=fmt_asn1OID(realdest,UNIVERSAL,PRIMITIVE,OBJECT_IDENTIFIER,o->a,o->l);
       application=NULL;
       break;
+    case 'c':	// start context specific section
+      desttag=va_arg(args,unsigned long);
+      // fall through
+    case '[':	// start SET
     case '{':	// start SEQUENCE
       if (application)
 	curlen=fmt_asn1tag(realdest,APPLICATION,CONSTRUCTED,*application);
+      else if (*fmt=='c')
+	curlen=fmt_asn1tag(realdest,PRIVATE,CONSTRUCTED,desttag);
       else
-	curlen=fmt_asn1tag(realdest,UNIVERSAL,CONSTRUCTED,SEQUENCE_OF);
+	curlen=fmt_asn1tag(realdest,UNIVERSAL,CONSTRUCTED,*fmt=='{'?SEQUENCE_OF:SET_OF);
       containerstack[curinstack++]=cursor+curlen;
       application=NULL;
       break;
+    case ']':	// end of SET
     case '}':	// end of SEQUENCE
       /* we just wrote the tag and the sequence.  Now that we wrote the
        * sequence, we know the length it took, and we need to move the
