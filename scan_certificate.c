@@ -3,6 +3,8 @@
 #include "asn1.h"
 #include "str.h"
 #include "textcode.h"
+#include "fmt.h"
+#include "byte.h"
 
 struct x509signature {
   struct string oid;	/* you are not expected to actually decode this */
@@ -45,18 +47,28 @@ static int findindn(struct string* dn,enum x509_oid id,struct string* dest) {
   return 0;
 }
 
-size_t scan_certificate(const char* cert,size_t l, struct x509cert* C) {
+static size_t base64_decode(const char* cert, size_t l, const char* name, char** dest) {
+  /* cert should be something like "-----BEGIN CERTIFICATE-----\n[base64 gunk]\n-----END CERTIFICATE-----\n"
+   * l should be strlen(cert), but cert does not need to be 0-terminated
+   * name should be something like "CERTIFICATE" or "RSA PRIVATE KEY", what you are trying to decode
+   * dest will end up pointing to the decoded data.
+   * return value can be 0 if we can't decode the data and it does not
+   * look like it's a binary certificate.  Or it can be some length
+   * value, in which case dest points to a malloced area of that length
+   * with the decoded data in it. */
+  size_t taglen=strlen(name)+sizeof("-----BEGIN -----")-1;
+  char tag[taglen+1];
   char* c=0,* x;
-  /* if it's base64 encoded, decode first */
-  if (l > 27+25+2 && str_start(cert,"-----BEGIN CERTIFICATE-----"))
+  tag[fmt_strm(tag,"-----BEGIN ",name,"-----")]=0;
+  if (l > 2*taglen && byte_equal(cert,taglen,tag))
 certfound:
   {
     size_t cur,used;
     /* "-----BEGIN CERTIFICATE-----", "-----END CERTIFICATE-----" and newlines */
-    c=malloc((l-27-25-2)/4*3);
+    c=malloc((l-2*taglen)/4*3);
     if (!c) return 0;
     x=c;
-    for (cur=27; cur+26<l;) {
+    for (cur=taglen; cur+taglen-1<l;) {
       size_t next;
       if (cert[cur]=='\r') ++cur;	/* skip line ending */
       if (cert[cur]=='\n') ++cur;
@@ -65,7 +77,8 @@ certfound:
       cur+=next;
       x+=used;
     }
-    if (!str_start(cert+cur,"-----END CERTIFICATE-----")) {
+    if (!str_start(cert+cur,"-----END ") ||
+	byte_diff(cert+cur+sizeof("-----END"),taglen-sizeof("----BEGIN")-1,tag+sizeof("-----BEGIN"))) {
       free(c);
       return 0;
     }
@@ -79,7 +92,7 @@ certfound:
 	a=0;
 	break;
       }
-      if (str_start(cert+i,"-----BEGIN CERTIFICATE-----")) {
+      if (byte_equal(cert+i,taglen,tag)) {
 	cert+=i;
 	l-=i;
 	goto certfound;
@@ -96,6 +109,62 @@ parseerror:
     free(c);
     return 0;
   }
+  *dest=c;
+  return l;
+}
+
+struct rsaprivatekey {
+  size_t* modulus,* publicExponent,* privateExponent,* prime1,* prime2,* exponent1,* exponent2,* coefficient;
+  struct string otherPrimeInfos;
+  size_t* freewhendone;
+};
+
+size_t scan_rsaprivatekey(const char* cert, size_t l, struct rsaprivatekey* C, char** freewhendone) {
+  char* c;
+  size_t maxdigits,ret;
+  unsigned long version;
+  *freewhendone=NULL;
+  l=base64_decode(cert,l,"RSA PRIVATE KEY",&c);
+  if (!l) return 0;
+  if (c!=cert) *freewhendone=c;
+  maxdigits=l/sizeof(size_t)+2;
+  C->freewhendone=malloc(maxdigits*sizeof(size_t)*8);
+  if (!C->freewhendone) {
+fail:
+    free(*freewhendone);
+    freewhendone=NULL;
+    return 0;
+  }
+  C->modulus=C->freewhendone;
+  C->publicExponent=C->modulus+maxdigits;
+  C->privateExponent=C->publicExponent+maxdigits;
+  C->prime1=C->privateExponent+maxdigits;
+  C->prime2=C->prime1+maxdigits;
+  C->exponent1=C->prime2+maxdigits;
+  C->exponent2=C->exponent1+maxdigits;
+  C->coefficient=C->exponent2+maxdigits;
+  C->otherPrimeInfos.l=0;
+  C->otherPrimeInfos.s=NULL;
+  if ((ret=scan_asn1generic(c,c+l,"{iIIIIIIII!}",&version,
+		       C->modulus,C->publicExponent,C->privateExponent,
+		       C->prime1,C->prime2,C->exponent1,C->exponent2,
+		       C->coefficient,&C->otherPrimeInfos))) {
+    if (version!=0 && version!=1) goto fail;
+    if (version==0 && C->otherPrimeInfos.l) goto fail;
+    if (version==1 && !C->otherPrimeInfos.l) goto fail;
+    if (version==0) C->otherPrimeInfos.s=NULL;
+    return ret;
+  } else
+    goto fail;
+}
+
+size_t scan_certificate(const char* cert, size_t l, struct x509cert* C, char** freewhendone) {
+  char* c=0,* x;
+  *freewhendone=NULL;
+  l=base64_decode(cert,l,"CERTIFICATE",&c);
+  if (!l) return 0;
+  if (c!=cert) *freewhendone=c;
+  cert=c;
 
   /* now for the heavy lifting */
   {
@@ -190,7 +259,7 @@ parseerror:
 	    printf("public key algorithm %s\n",oid2string[i].name);
 	    if (oid2string[i].id==X509_ALG_RSA) {
 	      size_t* modulus,* publicExponent;
-	      size_t allocsize=bits.l/(8*sizeof(modulus[0]))+2;
+	      size_t allocsize=bits.l/8+2*sizeof(modulus[0]);
 	      modulus=malloc(allocsize);
 	      publicExponent=malloc(allocsize);
 	      if (!modulus || !publicExponent)
@@ -212,6 +281,7 @@ parseerror:
 		} else
 		  printf("bignum scanning failed!\n");
 	      }
+	      free(modulus); free(publicExponent);
 	      /* for RSA, bits is actually another sequence with two integers, modulus and publicExponent */
 	      printf("pubkeyparams len %lu, bits len %lu\n",pubkeyparams.l,bits.l);
 	    }
@@ -243,12 +313,22 @@ parseerror:
 #include "printasn1.c"
 
 int main(int argc,char* argv[]) {
+  char* freewhendone;
   char* buf;
   size_t l,n;
   struct x509cert c;
+  struct rsaprivatekey k;
 
   buf=mmap_read(argc>1?argv[1]:"test.pem",&l);
   if (!buf) { puts("test.pem not found"); return 1; }
 
-  n=scan_certificate(buf,l,&c);
+  n=scan_certificate(buf,l,&c,&freewhendone);
+  free(freewhendone);
+
+  buf=mmap_read(argc>1?argv[1]:"privatekey.pem",&l);
+  if (!buf) { puts("privatekey.pem not found"); return 1; }
+
+  n=scan_rsaprivatekey(buf,l,&k,&freewhendone);
+  free(freewhendone);
+  free(k.freewhendone);
 }
