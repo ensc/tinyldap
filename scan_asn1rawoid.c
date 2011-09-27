@@ -1,6 +1,6 @@
 #include "asn1.h"
 
-size_t scan_asn1rawoid(const char* src,const char* max,unsigned long* array,size_t* arraylen) {
+size_t scan_asn1rawoid(const char* src,const char* max,size_t* array,size_t* arraylen) {
   const char* orig=src;
   size_t cur=0,al;
   if (!arraylen) return 0;

@@ -3,7 +3,7 @@
 
 all: t1 t2 parse dumpidx idx2ldif addindex bindrequest tinyldap \
 tinyldap_standalone tinyldap_debug ldapclient ldapclient_str \
-md5password mysql2ldif acl dumpacls ldapdelete # t6 # t
+md5password mysql2ldif acl dumpacls ldapdelete asn1dump # t6 # t
 
 asn1.a: fmt_asn1intpayload.o fmt_asn1length.o fmt_asn1tag.o \
 fmt_asn1int.o fmt_asn1string.o fmt_asn1transparent.o scan_asn1tag.o \
@@ -38,7 +38,9 @@ mduptab_init.o mduptab_init_reuse.o mduptab_reset.o
 auth.a: auth.o
 
 DIET=/opt/diet/bin/diet -Os
-CC=gcc
+CROSS=
+#CROSS=i686-mingw32-
+CC=$(CROSS)gcc
 CFLAGS=-pipe -I. -Wall -W -Wextra
 ifneq ($(DEBUG),)
 DIET=/opt/diet/bin/diet
@@ -55,11 +57,15 @@ else
 LIBS+=-lcrypto -lcrypt
 endif
 
+ifeq ($(CROSS),i686-mingw32-)
+EXE=.exe
+endif
+
 %.o: %.c
 	$(DIET) $(CC) $(CFLAGS) -c $<
 
 %.a:
-	ar cru $@ $^
+	$(CROSS)ar cru $@ $^
 
 %: %.c
 	$(DIET) $(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) -lowfat ${LIBS}
@@ -73,6 +79,10 @@ bindrequest tinyldap tinyldap_standalone tinyldap_debug ldapclient ldapclient_st
 idx2ldif: ldap.a
 dumpacls: ldap.a asn1.a
 parse: normalize_dn.o
+asn1dump: asn1dump.c printasn1.c asn1.a
+	$(DIET) $(CC) $(CFLAGS) -o $@$(EXE) $< $(LDFLAGS) -lowfat asn1.a
+
+asn1dump.o: printasn1.c
 
 tinyldap_standalone: tinyldap.c
 	$(DIET) $(CC) $(CFLAGS) -DSTANDALONE -o $@ $^ $(LDFLAGS) -lowfat $(LIBS)
@@ -162,3 +172,6 @@ scan_asn1generic.o: scan_asn1generic.c asn1.h
 asn1oid.o: asn1oid.c asn1.h
 
 ldap_match_sre.o: ldap_match_sre.c ldap.h
+
+windoze:
+	$(MAKE) DIET= CROSS=i686-mingw32- asn1dump

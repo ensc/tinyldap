@@ -16,12 +16,21 @@ size_t fmt_asn1generic(char* dest,const char* fmt,...) {
   size_t seqlen;
   unsigned long desttag=0;
   unsigned long appstore;
+  int stringtype;
   while (*fmt) {
     char* realdest=dest?dest+cursor:NULL;
     switch (*fmt) {
     case '*':	// make next tag use APPLICATION with this tag
       appstore=va_arg(args,unsigned long);
       application=&appstore;
+      break;
+    case '0':	// UNIVERSAL PRIMITIVE NULL length 0
+      if (application)
+	curlen=fmt_asn1tag(realdest,APPLICATION,PRIMITIVE,_NULL);
+      else
+	curlen=fmt_asn1tag(realdest,UNIVERSAL,PRIMITIVE,_NULL);
+      application=NULL;
+      curlen+=fmt_asn1length(realdest?realdest+curlen:NULL,0);
       break;
     case 'i':	// send integer
       {
@@ -41,16 +50,38 @@ size_t fmt_asn1generic(char* dest,const char* fmt,...) {
 	curlen=fmt_asn1bitstring(realdest,UNIVERSAL,PRIMITIVE,BIT_STRING,s->s,s->l);
       application=NULL;
       break;
+    case 'B':
+      stringtype=BIT_STRING;
+      goto stringcopy;
+    case 'A':
+      stringtype=IA5String;
+      goto stringcopy;
+    case 'P':
+      stringtype=PrintableString;
+      goto stringcopy;
     case 'S':	// send OCTET_STRING, using struct string* as arg
+      stringtype=OCTET_STRING;
+stringcopy:
       s=va_arg(args,struct string*);
 copystring:
       if (application)
 	curlen=fmt_asn1string(realdest,APPLICATION,PRIMITIVE,*application,s->s,s->l);
       else
-	curlen=fmt_asn1string(realdest,UNIVERSAL,PRIMITIVE,OCTET_STRING,s->s,s->l);
+	curlen=fmt_asn1string(realdest,UNIVERSAL,PRIMITIVE,stringtype,s->s,s->l);
       application=NULL;
       break;
+    case 't':
+      stringtype=UTCTIME;
+      goto stringcopy_alt;
+    case 'a':
+      stringtype=IA5String;
+      goto stringcopy_alt;
+    case 'p':
+      stringtype=PrintableString;
+      goto stringcopy_alt;
     case 's':	// send OCTET_STRING, using const char* with strlen() as arg
+      stringtype=OCTET_STRING;
+stringcopy_alt:
       S.s=va_arg(args,const char*);
       S.l=strlen(S.s);
       s=&S;
@@ -63,6 +94,13 @@ copystring:
 	curlen=fmt_asn1OID(realdest,UNIVERSAL,PRIMITIVE,OBJECT_IDENTIFIER,o->a,o->l);
       application=NULL;
       break;
+
+    case 'C':	// copy raw ASN.1 DER data, take struct string*
+      s=va_arg(args,struct string*);
+      if (realdest) memcpy(realdest,s->s,s->l);
+      curlen=s->l;
+      break;
+
     case 'c':	// start context specific section
       desttag=va_arg(args,unsigned long);
       // fall through

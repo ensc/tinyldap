@@ -3,6 +3,7 @@
 #include <time.h>
 #include <ctype.h>
 #include "asn1.h"
+#include <string.h>
 
 size_t scan_asn1generic(const char* src,const char* max,const char* fmt,...) {
   size_t curlen,seqlen;

@@ -149,9 +149,9 @@ size_t scan_asn1SET(const char* src,const char* max,size_t* len);
  * Return numbers of bytes parsed or 0 on error.
  * Put at most arraylen longs into array; if the OID is longer, or if array is NULL, return real number in arraylen and return 0
  * If 0 is returned and arraylen is also 0, there was a parse error */
-size_t scan_asn1oid(const char* src,const char* max,unsigned long* array,size_t* arraylen);
+size_t scan_asn1oid(const char* src,const char* max,size_t* array,size_t* arraylen);
 /* internal helper, assumes you already read tag and length and max=src+length */
-size_t scan_asn1rawoid(const char* src,const char* max,unsigned long* array,size_t* arraylen);
+size_t scan_asn1rawoid(const char* src,const char* max,size_t* array,size_t* arraylen);
 
 struct string {
   size_t l;
@@ -171,6 +171,9 @@ enum x509_oid {
   X509_ATTR_GENERATIONQUALIFIER, X509_ATTR_UNIQID, X509_ATTR_DNQUALIFIER,
   X509_ATTR_EMAIL,
 
+  X509_SIGNEDDATA, X509_DATA, X509_CONTENTTYPE, X509_MESSAGEDIGEST, X509_SIGNINGTIME,
+  X509_PKCS2, X509_NETSCAPE_CERTTYPE, X509_SMIME_CAPABILITIES,
+
   X509_EXT_SUBJKEYID, X509_EXT_KEYUSAGE, X509_EXT_PRIVKEYUSAGEPERIOD,
   X509_EXT_SUBJALTNAME, X509_EXT_ISSUERALTNAME, X509_EXT_BASICCONSTRAINTS,
   X509_EXT_CRL_NUMBER, X509_EXT_REASONCODE, X509_EXT_INSTRUCTIONCODE,
@@ -181,7 +184,16 @@ enum x509_oid {
 
   X509_ALG_MD2RSA, X509_ALG_MD4RSA, X509_ALG_MD5RSA, X509_ALG_SHA1RSA,
   X509_ALG_SHA256RSA, X509_ALG_SHA384RSA, X509_ALG_SHA512RSA,
-  X509_ALG_SHA224RSA, X509_ALG_RSA,
+  X509_ALG_SHA224RSA, X509_ALG_RSA, X509_ALG_MD4, X509_ALG_MD5,
+
+  X509_ALG_DES_ECB, X509_ALG_DES_CBC, X509_ALG_DES_OFB64,
+  X509_ALG_DES_CFB64, X509_ALG_RSASIGNATURE, X509_ALG_DSA_2,
+  X509_ALG_DSASHA, X509_ALG_SHARSA, X509_ALG_DES_EDE_ECB, X509_ALG_SHA,
+  X509_ALG_SHA1, X509_ALG_DSASHA1_2, X509_ALG_AES256_CBC,
+  X509_ALG_AES192_CBC, X509_ALG_AES128_CBC, X509_ALG_DES_EDE3_CBC,
+  X509_ALG_RC2_CBC, X509_ALG_RIPEMD,
+
+  X509_ALG_GOSTR3411_94, X509_ALG_GOST28147_89,
 };
 
 extern const struct oidlookup {

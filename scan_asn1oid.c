@@ -1,6 +1,6 @@
 #include "asn1.h"
 
-size_t scan_asn1oid(const char* src,const char* max,unsigned long* array,size_t* arraylen) {
+size_t scan_asn1oid(const char* src,const char* max,size_t* array,size_t* arraylen) {
   size_t res,tlen;
   unsigned long tag,tmp;
   enum asn1_tagclass tc;

@@ -11,7 +11,7 @@ void printasn1(const char* buf,const char* max) {
   maxstack[sptr]=max;
   while (buf<max) {
     size_t i;
-    printf("%*s",indent,"");
+    printf("%*s",(int)indent,"");
     cl=scan_asn1tag(buf,maxstack[sptr],&tc,&tt,&tag);
     if (cl==0) {
       printf("[could not parse tag]\n");
@@ -33,7 +33,7 @@ void printasn1(const char* buf,const char* max) {
     }
     printf(" ");
     if (tc!=UNIVERSAL)
-      printf("%d (0x%x)",tag,tag);
+      printf("%lu (0x%lx)",tag,tag);
     else switch (tag) {
     case 0: printf("EOI"); break;
     case BOOLEAN: printf("BOOLEAN"); break;
@@ -48,7 +48,7 @@ void printasn1(const char* buf,const char* max) {
     case PrintableString: printf("PrintableString"); break;
     case IA5String: printf("IA5String"); break;
     case UTCTIME: printf("UTCTime"); break;
-    default: printf("[unsupported tag 0x%x]",tag); break;
+    default: printf("[unsupported tag 0x%lx]",tag); break;
     }
 
     buf+=cl;
@@ -57,42 +57,44 @@ void printasn1(const char* buf,const char* max) {
       puts("[could not parse length]");
       return;
     }
-    printf(" length %zu\n",len);
+    printf(" length %lu\n",(unsigned long)len);
     buf+=cl;
 
     if (tc==UNIVERSAL && tt==PRIMITIVE) {
       if (tag==INTEGER) {
-	unsigned long l;
+	long l;
 	size_t mlen;
 	mlen=scan_asn1rawint(buf,maxstack[sptr],cl,&l);
 	if (mlen)
-	  printf("%*s-> %ld\n",indent,"",l);
-      } else if (tag==OCTET_STRING || tag==PrintableString || tag==IA5String || tag==UTCTIME) {
-	printf("%*s-> \"",indent,"");
+	  printf("%*s-> %ld\n",(int)indent,"",l);
+      } else if (tag==OCTET_STRING || tag==PrintableString || tag==IA5String || tag==UTCTIME || tag==BIT_STRING) {
+	printf("%*s-> \"",(int)indent,"");
 	for (i=0; i<len; ++i) {
-	  if (buf[i]<' ')
+	  if (buf[i]<' ' || buf[i]=='"' || buf[i]==0x7f || buf[i]=='\\') {
 	    printf("\\x%02x",(unsigned char)(buf[i]));
-	  else
+	    if (i+1<len && isxdigit(buf[i+1]))
+	      printf("\"\"");
+	  } else
 	    putchar(buf[i]);
 	}
 	printf("\"\n");
       } else if (tag==OBJECT_IDENTIFIER) {
 	struct oid o;
 	size_t mlen;
-	unsigned long fnord[100];
+	size_t fnord[100];
 	o.l=100;
 	o.a=fnord;
 	mlen=scan_asn1rawoid(buf,buf+len,o.a,&o.l);
 	if (mlen) {
-	  printf("%*s-> ",indent,"");
+	  printf("%*s-> ",(int)indent,"");
 	  for (i=0; i<o.l; ++i)
-	    printf("%d%s",o.a[i],i+1==o.l?"\n":".");
+	    printf("%lu%s",(unsigned long)o.a[i],i+1==o.l?"\n":".");
 	}
 	i=lookupoid(buf,len);
 	if (i!=(size_t)-1)
-	  printf("%*s(%s)\n",indent,"",oid2string[i].name);
+	  printf("%*s(%s)\n",(int)indent,"",oid2string[i].name);
 	else {
-	  printf("%*s(\"",indent,"");
+	  printf("%*s(\"",(int)indent,"");
 	  for (i=0; i<len; ++i)
 	    printf("\\x%02x",(unsigned char)(buf[i]));
 	  printf("\")\n");
@@ -101,7 +103,7 @@ void printasn1(const char* buf,const char* max) {
     }
 
     if (tt==CONSTRUCTED) {
-      printf("%*s{\n",indent,"");
+      printf("%*s{\n",(int)indent,"");
       indent+=2;
       if (sptr>=99) {
 	printf("too many nested constructed elements!\n");
@@ -114,7 +116,7 @@ void printasn1(const char* buf,const char* max) {
     while (sptr && maxstack[sptr]<=buf) {
       --sptr;
       indent-=2;
-      printf("%*s}\n",indent,"");
+      printf("%*s}\n",(int)indent,"");
     }
 
   }
