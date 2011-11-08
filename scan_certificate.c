@@ -26,6 +26,16 @@ struct x509cert {
   struct x509signature sig;
 };
 
+struct rsaprivatekey {
+  size_t* modulus,* publicExponent,* privateExponent,* prime1,* prime2,* exponent1,* exponent2,* coefficient;
+  struct string otherPrimeInfos;
+  size_t* freewhendone;
+};
+
+struct dsaprivatekey {
+}
+
+
 void printasn1(const char* buf,const char* max);
 
 static int findindn(struct string* dn,enum x509_oid id,struct string* dest) {
@@ -112,12 +122,6 @@ parseerror:
   *dest=c;
   return l;
 }
-
-struct rsaprivatekey {
-  size_t* modulus,* publicExponent,* privateExponent,* prime1,* prime2,* exponent1,* exponent2,* coefficient;
-  struct string otherPrimeInfos;
-  size_t* freewhendone;
-};
 
 size_t scan_rsaprivatekey(const char* cert, size_t l, struct rsaprivatekey* C, char** freewhendone) {
   char* c;

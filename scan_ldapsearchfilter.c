@@ -39,17 +39,17 @@ size_t scan_ldapsearchfilter(const char* src,const char* max,struct Filter** f) 
   if (tc!=PRIVATE || (tt!=CONSTRUCTED && tag!=7) || tag>9) goto error;
   if (!(tmp=scan_asn1length(src+res,max,&len))) goto error;
   res+=tmp;
-  if (src+res+len>=max) goto error;
+  nmax=src+res+len;
+  if (nmax>max) goto error;
   if (!(*f=malloc(sizeof(struct Filter)))) goto error;
   (*f)->next=0;
   (*f)->x=0;
   (*f)->substrings=0;
-  nmax=src+res+len;
   switch ((*f)->type=tag) {
   case 0:    /*  and             [0] SET OF Filter, */
   case 1:    /*  or              [1] SET OF Filter, */
     (*f)->x=0;
-    while (src+res<max) {
+    while (src+res<nmax) {
       struct Filter* F=(*f)->x;
       if (!(tmp=scan_ldapsearchfilter(src+res,nmax,&(*f)->x))) {
 	if (F) {	/* OK, end of sequence */

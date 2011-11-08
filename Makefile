@@ -173,5 +173,8 @@ asn1oid.o: asn1oid.c asn1.h
 
 ldap_match_sre.o: ldap_match_sre.c ldap.h
 
+privatekey.pem:
+	openssl genrsa -out $@
+
 windoze:
 	$(MAKE) DIET= CROSS=i686-mingw32- asn1dump
