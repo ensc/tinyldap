@@ -32,7 +32,12 @@ static unsigned long messageid=1;
 static int ldapbind(int sock) {
   char outbuf[1024];
   int s=100;
-  size_t len=fmt_ldapbindrequest(outbuf+s,3,"","");
+  char* u=getenv("LDAP_USER"),* p=getenv("LDAP_PASSWD");
+  if (!u) u="";
+  if (!p) p="";
+  if (strlen(u)>100 || strlen(p)>100)
+    return 0;
+  size_t len=fmt_ldapbindrequest(outbuf+s,3,u,p);
   size_t hlen=fmt_ldapmessage(0,messageid,BindRequest,len);
   size_t res,Len;
   unsigned long op,result;
@@ -74,9 +79,11 @@ int main(int argc,char* argv[]) {
 
   if (argc<4) {
 usage:
-    buffer_putsflush(buffer_2,"usage: ldapclient ip baseObject filter [foo...]\n");
+    buffer_puts(buffer_2,"usage: ldapclient ip baseObject filter [foo...]\n");
     if (bench)
-      buffer_putsflush(buffer_2,"and set $NUM to the number of iterations,\nand $CONNECT to anything to do only one connection (instead of one per request).\n");
+      buffer_puts(buffer_2,"and set $NUM to the number of iterations,\nand $CONNECT to anything to do only one connection (instead of one per request).\n");
+    buffer_putsflush(buffer_2,"To use basic authentication, set $LDAP_USER to the dn and $LDAP_PASSWD to the password.\n"
+		     "Note that this is for debugging in trusted environments only, as other users can see this in ps(8).\n");
     return 0;
   }
   for (durchlauf=0; durchlauf<n; ++durchlauf) {

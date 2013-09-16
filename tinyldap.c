@@ -1544,6 +1544,7 @@ static int handle(int in,int out) {
 		  uint32_unpack(map+indices_offset+4*idx,&j);
 		  uint32_unpack(map+j+8,&authdn);
 		  authdn_str=map+authdn;
+		  authdn=j;
 		  if (!(j=ldap_find_attr_value(j,userPassword_ofs))) {
 		    buffer_putsflush(buffer_2,"no userPassword attribute found, bind failed!\n");
 		    goto authfailure;
@@ -2078,7 +2079,6 @@ resetjournal:
     mduptab_reset(&attributes);
     mduptab_reset(&classes);
     readjournal();
-    ss_data=new_data;
     return;
   }
   /* the data file did not change.  Maybe the journal did. */
@@ -2104,7 +2104,7 @@ resetjournal:
      *   1. size is identical or smaller
      *   2. journal does not end with "\n\n"
      * If we detect meddling we just throw away our journal and read the new one. */
-    int kosher=0;
+    int notkosher=0;
     if (new_journal.st_size>ss_journal.st_size && ss_journal.st_size>2) {
       int fd;
       fd=open("journal",O_RDONLY);
@@ -2113,11 +2113,11 @@ resetjournal:
 	lseek(fd,ss_journal.st_size-2,SEEK_SET);
 	if (read(fd,buf,2)!=2) 
 	  if (buf[0]=='\n' && buf[1]=='\n')
-	    kosher=1;
+	    notkosher=1;
 	close(fd);
       }
     }
-    if (kosher) {
+    if (notkosher) {
       buffer_putsflush(buffer_2,"Unsanctioned journal editing detected!  Re-reading journal.\n");
       goto resetjournal;
     }
@@ -2399,6 +2399,7 @@ again:
       int one=1;
       setsockopt(asock,IPPROTO_TCP,TCP_NODELAY,&one,sizeof(one));
     }
+    update();
 #ifdef DEBUG
     {
       struct pollfd p;

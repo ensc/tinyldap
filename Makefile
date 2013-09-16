@@ -98,8 +98,8 @@ acl: acl.c ldap.a asn1.a
 clean:
 	rm -f t t[1-9] *.[ao] bindrequest tinyldap ldapclient \
 parse tinyldap_standalone tinyldap_debug ldapclient_str addindex \
-dumpidx idx2ldif md5password *.da *.bbg *.bb *.gcov gmon.out *.gcda \
-*.gcno
+dumpidx idx2ldif md5password ldapdelete dumpacls asn1dump acl \
+*.da *.bbg *.bb *.gcov gmon.out *.gcda *.gcno
 
 tar: clean
 	cd ..; tar cvvf tinyldap.tar.bz2 tinyldap --use=bzip2 --exclude capture --exclude CVS --exclude exp.ldif --exclude polyp* --exclude rfc*
