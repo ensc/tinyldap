@@ -336,6 +336,7 @@ void map_datafile(const char* filename) {
       exit(0);
     }
   }
+  load_acls();
 }
 
 /*
@@ -2346,8 +2347,6 @@ int main(int argc,char* argv[]) {
   signal(SIGPIPE,SIG_IGN);
 
   map_datafile(argc>1?argv[1]:"data");
-
-  load_acls();
 
   readjournal();
 
