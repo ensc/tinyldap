@@ -1,7 +1,7 @@
 #include "ldap.h"
 
-static size_t doit(char* dest,struct AttributeDescriptionList* adl,int seq) {
-  struct AttributeDescriptionList* x=adl;
+static size_t doit(char* dest,const struct AttributeDescriptionList* adl,int seq) {
+  const struct AttributeDescriptionList* x=adl;
   size_t sum=0,tmp;
   while (x) {
     sum+=fmt_asn1OCTETSTRING(0,0,x->a.l);
@@ -23,10 +23,10 @@ static size_t doit(char* dest,struct AttributeDescriptionList* adl,int seq) {
   return sum;
 }
 
-size_t fmt_ldapadl(char* dest,struct AttributeDescriptionList* adl) {
+size_t fmt_ldapadl(char* dest,const struct AttributeDescriptionList* adl) {
   return doit(dest,adl,1);
 }
 
-size_t fmt_ldapavl(char* dest,struct AttributeDescriptionList* adl) {
+size_t fmt_ldapavl(char* dest,const struct AttributeDescriptionList* adl) {
   return doit(dest,adl,0);
 }

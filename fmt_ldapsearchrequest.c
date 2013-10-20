@@ -1,6 +1,6 @@
 #include "ldap.h"
 
-size_t fmt_ldapsearchrequest(char* dest,struct SearchRequest* sr) {
+size_t fmt_ldapsearchrequest(char* dest,const struct SearchRequest* sr) {
   size_t l,sum=0;
   sum=fmt_ldapstring(dest,&sr->baseObject);
   if (dest) dest+=sum;

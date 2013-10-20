@@ -16,7 +16,7 @@
                 extensibleMatch [9] MatchingRuleAssertion }
 */
 
-size_t fmt_ldapsubstring(char* dest,struct Substring* s) {
+size_t fmt_ldapsubstring(char* dest,const struct Substring* s) {
   size_t sum=0,tmp=0;
   while (s) {
     tmp=fmt_asn1string(dest,PRIVATE,PRIMITIVE,s->substrtype,s->s.s,s->s.l);
@@ -26,7 +26,7 @@ size_t fmt_ldapsubstring(char* dest,struct Substring* s) {
   return sum;
 }
 
-size_t fmt_ldapsearchfilter(char* dest,struct Filter* f) {
+size_t fmt_ldapsearchfilter(char* dest,const struct Filter* f) {
   size_t sum=0,tmp,savesum;
   if (!f)
     return 0;

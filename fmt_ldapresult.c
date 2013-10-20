@@ -1,7 +1,7 @@
 #include "ldap.h"
 #include "str.h"
 
-size_t fmt_ldapresult(char* dest,long result,char* matcheddn,char* errormessage,char* referral) {
+size_t fmt_ldapresult(char* dest,long result,const char* matcheddn,const char* errormessage,const char* referral) {
   size_t l,sum=0,nlen;
   sum=l=fmt_asn1ENUMERATED(dest,result);
   if (dest) dest+=l;

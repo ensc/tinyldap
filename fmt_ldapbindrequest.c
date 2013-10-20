@@ -3,7 +3,7 @@
 #include "str.h"
 #include "rangecheck.h"
 
-size_t fmt_ldapbindrequest(char* dest,long version,char* name,char* simple) {
+size_t fmt_ldapbindrequest(char* dest,long version,const char* name,const char* simple) {
   size_t l,sum;
   size_t nlen=str_len(name);
   sum=l=fmt_asn1INTEGER(dest,version);

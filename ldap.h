@@ -182,21 +182,21 @@ size_t scan_ldapsearchfilterstring(const char* src,struct Filter** f);
 size_t scan_ldapdeleterequest(const char* src,const char* max,struct string* s);
 size_t scan_ldapmodifydnrequest(const char* src,const char* max,struct ModifyDNRequest* mdr);
 
-size_t fmt_ldapstring(char* dest,struct string* s);
+size_t fmt_ldapstring(char* dest,const struct string* s);
 size_t fmt_ldapmessage(char* dest,long messageid,long op,size_t len);
-size_t fmt_ldapbindrequest(char* dest,long version,char* name,char* simple);
-size_t fmt_ldapsearchfilter(char* dest,struct Filter* f);
-size_t fmt_ldapsearchrequest(char* dest,struct SearchRequest* s);
-size_t fmt_ldapsearchresultentry(char* dest,struct SearchResultEntry* sre);
-size_t fmt_ldapresult(char* dest,long result,char* matcheddn,char* errormessage,char* referral);
-size_t fmt_ldappal(char* dest,struct PartialAttributeList* pal);
-size_t fmt_ldapava(char* dest,struct AttributeValueAssertion* a);
-size_t fmt_ldapadl(char* dest,struct AttributeDescriptionList* adl);
-size_t fmt_ldapavl(char* dest,struct AttributeDescriptionList* adl);
-size_t fmt_ldapmodifyrequest(char* dest,struct ModifyRequest* m);
-size_t fmt_ldapsearchfilterstring(char* dest,struct Filter* f);
-size_t fmt_ldapdeleterequest(char* dest,struct string* s);
-size_t fmt_ldapmodifydnrequest(char* dest,struct ModifyDNRequest* mdr);
+size_t fmt_ldapbindrequest(char* dest,long version,const char* name,const char* simple);
+size_t fmt_ldapsearchfilter(char* dest,const struct Filter* f);
+size_t fmt_ldapsearchrequest(char* dest,const struct SearchRequest* s);
+size_t fmt_ldapsearchresultentry(char* dest,const struct SearchResultEntry* sre);
+size_t fmt_ldapresult(char* dest,long result,const char* matcheddn,const char* errormessage,const char* referral);
+size_t fmt_ldappal(char* dest,const struct PartialAttributeList* pal);
+size_t fmt_ldapava(char* dest,const struct AttributeValueAssertion* a);
+size_t fmt_ldapadl(char* dest,const struct AttributeDescriptionList* adl);
+size_t fmt_ldapavl(char* dest,const struct AttributeDescriptionList* adl);
+size_t fmt_ldapmodifyrequest(char* dest,const struct ModifyRequest* m);
+size_t fmt_ldapsearchfilterstring(char* dest,const struct Filter* f);
+size_t fmt_ldapdeleterequest(char* dest,const struct string* s);
+size_t fmt_ldapmodifydnrequest(char* dest,const struct ModifyDNRequest* mdr);
 
 #define fmt_ldapbindresponse(a,b,c,d,e) fmt_ldapresult(a,b,c,d,e)
 #define fmt_ldapsearchresultdone(a,b,c,d,e) fmt_ldapresult(a,b,c,d,e)

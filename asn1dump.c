@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include "asn1.h"
 #include "mmap.h"
+#include <ctype.h>
 
 #include "printasn1.c"
 
@@ -11,7 +12,7 @@ int main(int argc,char* argv[]) {
   size_t l;
 
   if (argc<2) {
-    printf("usage: asn1dump filename\n");
+    puts("usage: asn1dump filename");
     return 0;
   }
   buf=mmap_read(argv[1],&l);

@@ -7,4 +7,6 @@ acl * self * +a;
 # admins at fefe.de can write in their tree
 acl (dn=*ou=admin,d=fefe,c=de) (dn=*,d=fefe,c=de) * +rwdR;
 # everyone can read everything else
-acl * * * +r;
+#acl * * * +r;
+# authenticated users can read everything else
+acl (dn=*) * * +r;

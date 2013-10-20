@@ -1,6 +1,6 @@
 #include "ldap.h"
 
-size_t fmt_ldappal(char* dest,struct PartialAttributeList* pal) {
+size_t fmt_ldappal(char* dest,const struct PartialAttributeList* pal) {
 //  int l,l2,sum;
   size_t sum,l,l2;
   if (!pal) return 0;

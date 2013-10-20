@@ -3,7 +3,7 @@
 #include "str.h"
 #include "ldap.h"
 
-size_t fmt_ldapsearchfilterstring(char* dest,struct Filter* f) {
+size_t fmt_ldapsearchfilterstring(char* dest,const struct Filter* f) {
   size_t len;
   len = fmt_str(dest,"(");
   switch (f->type) {
