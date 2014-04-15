@@ -8,7 +8,7 @@
 #include "printasn1.c"
 
 int main(int argc,char* argv[]) {
-  char* buf;
+  const char* buf;
   size_t l;
 
   if (argc<2) {

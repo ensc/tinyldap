@@ -50,7 +50,7 @@
 #define HUGE_SIZE_FOR_SANITY_CHECKS 1024*1024
 
 /* basic operation: the whole data file is mmapped read-only at the beginning and stays there. */
-char* map;	/* where the file is mapped */
+const char* map;	/* where the file is mapped */
 size_t filelen;	/* how many bytes are mapped (the whole file) */
 uint32 magic,attribute_count,record_count,indices_offset,size_of_string_table;
 		/* these are the first values from the file, see the file "FORMAT"
@@ -113,7 +113,7 @@ static void fixup(struct Filter* f) {
   case PRESENT:
   case APPROX:
     {
-      char* x=map+5*4+size_of_string_table;
+      const char* x=map+5*4+size_of_string_table;
       size_t i;
       f->attrofs=f->attrflag=0;
       for (i=0; i<attribute_count; ++i) {
@@ -143,7 +143,7 @@ static void fixup(struct Filter* f) {
 
 static void fixupadl(struct AttributeDescriptionList* a) {
   while (a) {
-    char* x=map+5*4+size_of_string_table;
+    const char* x=map+5*4+size_of_string_table;
     size_t i;
     a->attrofs=0;
     for (i=0; i<attribute_count; ++i) {
@@ -317,7 +317,7 @@ void map_datafile(const char* filename) {
 
   /* look up "dn" and "objectClass" */
   {
-    char* x=map+5*4+size_of_string_table;
+    const char* x=map+5*4+size_of_string_table;
     size_t i;
     dn_ofs=objectClass_ofs=userPassword_ofs=any_ofs=0;
     for (i=0; i<attribute_count; ++i) {
@@ -844,7 +844,7 @@ static int useindex(struct Filter* f,struct bitfield* b) {
       /* now this is not exactly using an index, but a linear search
        * through the record table, but since each check is very cheap,
        * we pretend it's indexed */
-      char* x=map+5*4+size_of_string_table+attribute_count*8;
+      const char* x=map+5*4+size_of_string_table+attribute_count*8;
       size_t i;
       emptyset(b);
       for (i=0; i<record_count; ++i) {
@@ -999,7 +999,7 @@ static void answerwith(uint32 ofs,struct SearchRequest* sr,long messageid,int ou
 
 #if (debug != 0)
   if (debug) {
-    char* x=map+ofs;
+    const char* x=map+ofs;
     uint32 j;
     buffer_putulong(buffer_2,j=uint32_read(x));
     buffer_puts(buffer_2," attributes:\n");
@@ -1039,7 +1039,7 @@ static void answerwith(uint32 ofs,struct SearchRequest* sr,long messageid,int ou
       /* to do that, construct a list of all attributes */
 
       uint32 i;
-      char* x=map+5*4+size_of_string_table+4;
+      const char* x=map+5*4+size_of_string_table+4;
       if (attribute_count>HUGE_SIZE_FOR_SANITY_CHECKS/sizeof(struct AttributeDescriptionList))
 	return;
       adl=alloca((attribute_count)*sizeof(struct AttributeDescriptionList));
@@ -1528,7 +1528,7 @@ static int handle(int in,int out) {
 	      if (err!=success)
 		goto authfailure;
 	      else {
-		char* c=0;
+		const char* c=0;
 		uint32 authdn=0;
 		char* authdn_str=0;
 		if (idx==(size_t)-1) {	// found in journal
@@ -1544,7 +1544,7 @@ static int handle(int in,int out) {
 		  uint32 j;
 		  uint32_unpack(map+indices_offset+4*idx,&j);
 		  uint32_unpack(map+j+8,&authdn);
-		  authdn_str=map+authdn;
+		  authdn_str=(char*)map+authdn;
 		  authdn=j;
 		  if (!(j=ldap_find_attr_value(j,userPassword_ofs))) {
 		    buffer_putsflush(buffer_2,"no userPassword attribute found, bind failed!\n");
@@ -1634,7 +1634,7 @@ authfailure:
 	    if (indexable(sr.filter)) {
 	      reply_with_index(&sr,&messageid,out);
 	    } else {
-	      char* x=map+5*4+size_of_string_table+attribute_count*8;
+	      const char* x=map+5*4+size_of_string_table+attribute_count*8;
 	      size_t i;
 #if (debug != 0)
 	      if (debug) buffer_putsflush(buffer_2,"query can NOT be answered with index!\n");
@@ -1946,7 +1946,7 @@ static unsigned char* bstrdup(unsigned char* c) {
 }
 
 static unsigned char* bstrdup_attrib(unsigned char* c) {
-  char* x=map+5*4+size_of_string_table;
+  const char* x=map+5*4+size_of_string_table;
   size_t i,l;
   if (*c)
     l=str_len((char*)c)+1;

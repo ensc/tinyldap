@@ -1,25 +1,27 @@
 #include <inttypes.h>
 #include "asn1.h"
 
-size_t scan_asn1length(const char* src,const char* max,size_t* length) {
-  const char* orig=src;
-  if (src>=max) return 0;
-/* If the highest bit of the first byte is clear, the byte is the length.
- * Otherwise the next n bytes are the length (n being the lower 7 bits) */
-  if (*src&0x80) {
-    int chars=*src&0x7f;
-    size_t l=0;
-    while (chars>0) {
-      if (++src>=max) return 0;
-      if (l>(((unsigned long)-1)>>8)) return 0;	/* catch integer overflow */
-      l=l*256+(unsigned char)*src;
-      --chars;
-    }
-    *length=l;
-  } else
-    *length=*src&0x7f;
-  src++;
-  if (src+*length>max) return 0;	/* catch integer overflow */
-  if ((uintptr_t)src+*length<(uintptr_t)src) return 0;	/* gcc 4.1 removes this check without the cast to uintptr_t */
-  return src-orig;
+size_t scan_asn1length(const char* src,const char* max,size_t* value) {
+  size_t len=max-src;
+  if (len==0 || len>=-(uintptr_t)src) return 0;
+  unsigned int i,c=*src;
+  size_t l;
+  if ((c&0x80)==0) {
+    l=c&0x7f;
+    i=1;
+  } else {
+    /* Highest bit set: lower 7 bits is the length of the length value in bytes. */
+    c&=0x7f;
+    if (!c) return 0;		/* length 0x80 means indefinite length encoding, not supported here */
+    l=(unsigned char)src[1];
+    if (l==0) return 0;		/* not minimally encoded: 0x81 0x00 instead of 0x00 */
+    if (c>sizeof(l)) return 0;	/* too many bytes, does not fit into target integer type */
+    for (i=2; i<=c; ++i)
+      l=l*256+(unsigned char)src[i];
+    if (l<0x7f) return 0;	/* not minimally encoded: 0x81 0x70 instead of 0x70 */
+  }
+  if (l>len-i) return 0;	/* if the length would not fit into the buffer, return 0 */
+  *value=l;
+  return i;
 }
+

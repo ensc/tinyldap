@@ -89,7 +89,7 @@ int main(int argc,char* argv[]) {
     if (strchr(argv[3],'f')) fastindex=1;
     if (strchr(argv[3],'h')) mode=HASHTABLE;
   }
-  map=mmap_read(filename,&filelen);
+  map=(char*)mmap_read(filename,&filelen);
   if (!map)
     diesys(111,"Could not open \"",filename,"\"");
   uint32_unpack(map,&magic);
@@ -102,7 +102,7 @@ int main(int argc,char* argv[]) {
 
   {
     unsigned int i;
-    char* x=map+5*4+size_of_string_table;
+    const char* x=map+5*4+size_of_string_table;
     wanted=casesensitive=dn=objectClass=0;
     for (i=0; i<attribute_count; ++i) {
       uint32 j;
@@ -127,7 +127,7 @@ int main(int argc,char* argv[]) {
 
   if (mode==SORTEDTABLE) {
     uint32 i,counted=0;
-    char* x=map+5*4+size_of_string_table+attribute_count*8;
+    const char* x=map+5*4+size_of_string_table+attribute_count*8;
     for (i=0; i<record_count; ++i) {
       uint32 j,k;
       uint32_unpack(x,&j);

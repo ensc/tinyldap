@@ -273,7 +273,7 @@ int marshalfilter(stralloc* x,struct assertion* a) {
   }
 }
 
-int marshal(char* map,size_t filelen,const char* filename) {
+int marshal(const char* map,size_t filelen,const char* filename) {
   size_t filters,acls,i,j,k;
   size_t filter_offset; //,acl_offset;
   struct acl* a;
@@ -358,7 +358,7 @@ nomem:
 	  int found=0;
 	  for (j=0; j<attribute_count; ++j) {
 	    if (!strcmp(map+uint32_read(map+attrtab+j*4),a->attrs[k])) {
-	      a->attrs[k]=map+uint32_read(map+attrtab+j*4);
+	      a->attrs[k]=(char*)map+uint32_read(map+attrtab+j*4);
 	      found=1;
 	      break;
 	    }
@@ -369,7 +369,7 @@ nomem:
 	    * the address where mmap mapped the file. */
 	    char* tmp=a->attrs[k];
   //	  buffer_putmflush(buffer_1,"adding attribute ",a->attrs[k],"\n");
-	    a->attrs[k]=map+filelen+
+	    a->attrs[k]=(char*)map+filelen+
 			2*4+		/* index_type and next */
 			(filters+2)*4+	/* filters_count plus (filter_count+1)*uint32 */
 			x.len;
@@ -489,11 +489,16 @@ shortwrite:
 int main(int argc,char* argv[]) {
   size_t filelen;
   char* filename=argc>1?argv[1]:"data";
-  char* map=mmap_read(filename,&filelen);
+  const char* map=mmap_read(filename,&filelen);
+
+  if (!map) {
+    buffer_putmflush(buffer_2,"Could not open ",filename,"\n");
+    return 0;
+  }
 
   if (filelen<5*4 || uint32_read(map)!=0xfefe1da9) {
     buffer_putsflush(buffer_2,"not a valid tinyldap data file!\n");
-    exit(0);
+    return 0;
   }
 
   if (readacls("acls")==-1) die(1,"readacls failed");

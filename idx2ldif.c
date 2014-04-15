@@ -39,7 +39,7 @@ int main(int argc,char* argv[]) {
   int verbose=1;
   unsigned long filelen;
   char* fn=argc<2?"data":argv[1];
-  char* map=mmap_read(fn,&filelen);
+  const char* map=mmap_read(fn,&filelen);
   uint32 magic,attribute_count,record_count,indices_offset,size_of_string_table;
   if (!map) {
     buffer_puts(buffer_2,"could not open ");
@@ -57,7 +57,7 @@ int main(int argc,char* argv[]) {
 
   if (verbose) {
     unsigned long i;
-    char* x=map+5*4+size_of_string_table+attribute_count*8;
+    const char* x=map+5*4+size_of_string_table+attribute_count*8;
     for (i=0; i<record_count; ++i) {
       uint32 j,k;
       uint32_unpack(x,&j);

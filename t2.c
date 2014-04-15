@@ -84,7 +84,7 @@ int main(int argc,char* argv[]) {
 #if 1
   unsigned long size;
 //  char* ldapsequence=mmap_read("req",&size);
-  char* ldapsequence=mmap_read(argc>1?argv[1]:"/tmp/ldap/127.000.000.001.00389-127.000.000.001.38433",&size);
+  const char* ldapsequence=mmap_read(argc>1?argv[1]:"/tmp/ldap/127.000.000.001.00389-127.000.000.001.38433",&size);
   unsigned long messageid, op, len;
   int res;
   unsigned long done=0;
