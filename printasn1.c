@@ -81,8 +81,8 @@ void printasn1(const char* buf,const char* max) {
       } else if (tag==OBJECT_IDENTIFIER) {
 	struct oid o;
 	size_t mlen;
-	size_t fnord[100];
-	o.l=100;
+	size_t fnord[1000];
+	o.l=1000;
 	o.a=fnord;
 	mlen=scan_asn1rawoid(buf,buf+len,o.a,&o.l);
 	if (mlen) {

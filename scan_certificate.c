@@ -32,10 +32,6 @@ struct rsaprivatekey {
   size_t* freewhendone;
 };
 
-struct dsaprivatekey {
-}
-
-
 void printasn1(const char* buf,const char* max);
 
 static int findindn(struct string* dn,enum x509_oid id,struct string* dest) {
@@ -175,8 +171,8 @@ size_t scan_certificate(const char* cert, size_t l, struct x509cert* C, char** f
     unsigned long tagforversion;	// must be 0
     unsigned long version;
     struct string oidalg,algparams,pubkeyalg,extensions,oidsig,sigrest,sigdata;
-    size_t i;
-    if (scan_asn1generic(cert,cert+l,"{{ci]i{o!}{!}{uu}{!}{!}!}{o!}b}",
+    size_t n,i;
+    if ((n=scan_asn1generic(cert,cert+l,"{{ci]i{o!}{!}{uu}{!}{!}!}{o!}b}",
 			 &tagforversion,
 			 &version,
 			 &C->serial,
@@ -186,7 +182,7 @@ size_t scan_certificate(const char* cert, size_t l, struct x509cert* C, char** f
 			 &C->subject,
 			 &pubkeyalg,
 			 &extensions,
-			 &oidsig, &sigrest, &sigdata)) {
+			 &oidsig, &sigrest, &sigdata))) {
 
       if (version==0)
 	printf("X.509 certificate\n");
@@ -304,10 +300,13 @@ size_t scan_certificate(const char* cert, size_t l, struct x509cert* C, char** f
 	  printf("could not parse public key part!\n");
       }
 
+      return n;
+
+    } else {
+      printasn1(cert,cert+l);
+      return 0;
     }
   }
-
-//  printasn1(cert,cert+l);
 
 }
 
@@ -318,7 +317,7 @@ size_t scan_certificate(const char* cert, size_t l, struct x509cert* C, char** f
 
 int main(int argc,char* argv[]) {
   char* freewhendone;
-  char* buf;
+  const char* buf;
   size_t l,n;
   struct x509cert c;
   struct rsaprivatekey k;
@@ -327,12 +326,16 @@ int main(int argc,char* argv[]) {
   if (!buf) { puts("test.pem not found"); return 1; }
 
   n=scan_certificate(buf,l,&c,&freewhendone);
+  if (!n)
+    printf("failed to parse certificate\n");
   free(freewhendone);
 
   buf=mmap_read(argc>1?argv[1]:"privatekey.pem",&l);
   if (!buf) { puts("privatekey.pem not found"); return 1; }
 
   n=scan_rsaprivatekey(buf,l,&k,&freewhendone);
+  if (!n)
+    printf("failed to parse rsa private key\n");
   free(freewhendone);
   free(k.freewhendone);
 }

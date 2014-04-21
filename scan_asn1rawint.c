@@ -12,7 +12,7 @@ size_t scan_asn1rawint(const char* src,const char* max,size_t len,long* l) {
     if (len>sizeof(m)+1) return 0;	// value too large, does not fit
   } else
     if (len>sizeof(m)) return 0;	// value too large, does not fit
-  if (src+len>=max) return 0;		// input buffer not sufficient
+  if (src+len>max) return 0;		// input buffer not sufficient
   for (i=0; i<len; ++i) {
     m=(m<<8)|(unsigned char)src[i];
   }
