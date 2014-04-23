@@ -25,19 +25,26 @@ size_t scan_asn1generic(const char* src,const char* max,const char* fmt,...) {
     case '?':		// ? = rest is optional (until end of sequence)
       optional=1;
       break;
+    case 'B':		// B = BOOLEAN
     case 'i':		// i = INTEGER
       {
 	long* dest=va_arg(args,long*);
-	*dest=0;
-	curlen=scan_asn1int(src,maxstack[curmax],&tc,&tt,&tag,dest);
+	int* bdest=(int*)dest;
+	long l;
+	if (*fmt=='B') *bdest=0; else *dest=0;
+	curlen=scan_asn1int(src,maxstack[curmax],&tc,&tt,&tag,&l);
 	if (application) {
 	  if (tc!=APPLICATION) return 0;
 	  *application=tag;
 	} else {
-	  if (tc!=UNIVERSAL || tt!=PRIMITIVE || tag!=INTEGER)
+	  if (tc!=UNIVERSAL || tt!=PRIMITIVE || tag!=(*fmt=='B'?BOOLEAN:INTEGER))
 	    return 0;
 	}
 	if (!curlen) { if (optional) break; else return 0; }
+	if (*fmt=='B')
+	  *bdest=l;
+	else
+	  *dest=l;
 	src+=curlen;
 	application=NULL;
 	break;

@@ -208,10 +208,12 @@ size_t lookupoid(const char* oid,size_t l);
 size_t scan_asn1generic(const char* src,const char* max,const char* fmt,...);
 size_t fmt_asn1generic(char* dest,const char* fmt,...);
 /* the format string works like this:
- *   'i'	next argument is a long* (scan) or unsigned long (fmt)
+ *   'i'	parse INTEGER; next argument is a long* (scan) or unsigned long (fmt)
+ *   'B'	parse BOOLEAN; next argument is an int* (scan) or int (fmt)
  *   '*'	(fmt only) next argument is an unsigned long, tag type is set to APPLICATION and tag is set to that argument
  *   '*'	(scan only) next argument is an unsigned long*; for next tag, expect tag type to be APPLICATION and write tag to this unsigned long*
  *   'b'	next argument is a struct string* but the length l in it is in bits, not bytes; if the length is not a multiple of 8, the unused bits are at the end of the last byte in the string
+ *   'I'	(fmt only) next argument is struct string *, send as BIT_STRING
  *   'S'	(fmt only) next argument is struct string *, send as OCTET_STRING
  *   's'	(fmt only) next argument is const char*, use strlen and send as OCTET_STRING
  *   's'	(scan only) next argument is struct string*, parse OCTET_STRING into it

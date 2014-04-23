@@ -32,6 +32,17 @@ size_t fmt_asn1generic(char* dest,const char* fmt,...) {
       application=NULL;
       curlen+=fmt_asn1length(realdest?realdest+curlen:NULL,0);
       break;
+    case 'B':	// send boolean
+      {
+	int i=va_arg(args,int);
+	if (i!=0 && i!=1) return 0;
+	if (application)
+	  curlen=fmt_asn1int(realdest,APPLICATION,PRIMITIVE,*application,i);
+	else
+	  curlen=fmt_asn1int(realdest,UNIVERSAL,PRIMITIVE,BOOLEAN,i);
+	application=NULL;
+	break;
+      }
     case 'i':	// send integer
       {
 	unsigned long i=va_arg(args,unsigned long);
@@ -50,7 +61,7 @@ size_t fmt_asn1generic(char* dest,const char* fmt,...) {
 	curlen=fmt_asn1bitstring(realdest,UNIVERSAL,PRIMITIVE,BIT_STRING,s->s,s->l);
       application=NULL;
       break;
-    case 'B':
+    case 'I':
       stringtype=BIT_STRING;
       goto stringcopy;
     case 'A':

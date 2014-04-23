@@ -270,20 +270,22 @@ size_t scan_certificate(const char* cert, size_t l, struct x509cert* C, char** f
 		    printf("public exponent %lu\n",publicExponent[1]);
 		  else
 		    printf("public exponent is larger than a word?!\n");
-		  printf("modulus: ");
+		  printf("modulus:\n  ");
 		  for (i=1; i<=modulus[0]; ++i) {
 		    size_t j,k;
 		    for (j=0, k=modulus[i]; j<sizeof(modulus[0]); ++j) {
-		      printf("%02lx:",(k>>((sizeof(modulus[0])*8)-(j+1)*8))&0xff);
+		      printf("%02lx%s",(k>>((sizeof(modulus[0])*8)-(j+1)*8))&0xff,i==modulus[0] && j==sizeof(modulus[0])-1?"":":");
 		    }
-		    if ((i-1)%4==3 || i==modulus[0]) printf("\n");
+		    if ((i-1)%4==3)
+		      if (i==modulus[0])
+			printf("\n");
+		      else
+			printf("\n  ");
 		  }
 		} else
 		  printf("bignum scanning failed!\n");
 	      }
 	      free(modulus); free(publicExponent);
-	      /* for RSA, bits is actually another sequence with two integers, modulus and publicExponent */
-	      printf("pubkeyparams len %lu, bits len %lu\n",pubkeyparams.l,bits.l);
 	    }
 	  } else {
 	    unsigned long temp[100];
@@ -298,6 +300,53 @@ size_t scan_certificate(const char* cert, size_t l, struct x509cert* C, char** f
 
 	} else
 	  printf("could not parse public key part!\n");
+
+	// parse x.509v3 extensions
+	if (version!=2 && extensions.l) {
+	  printf("Not X.509v3 but extensions present!?\n");
+	} else if (extensions.l) {
+	  const char* c=extensions.s;
+	  const char* max=extensions.s+extensions.l;
+	  struct string extoid,extval;
+	  unsigned long noextensions;
+	  if (c!=max) {
+	    size_t n=scan_asn1generic(c,max,"c{!}}!",&noextensions,&extensions,&extval);
+	    if (n==0 || extval.l>0) {
+	      printf("failed to parse X.509v3 extensions!\n");
+	      c=max;
+	    } else {
+	      c=extensions.s;
+	      max=extensions.s+extensions.l;
+	    }
+	  }
+	  while (c<max) {
+	    size_t n=scan_asn1generic(c,max,"{os}",&extoid,&extval);
+	    if (n) {
+	      size_t i=lookupoid(extoid.s,extoid.l);
+	      if (i!=(size_t)-1) {
+		printf("X.509 extension %s\n",oid2string[i].name);
+	      } else {
+		unsigned long temp[100];
+		size_t len=100;
+		if (scan_asn1rawoid(extoid.s,extoid.s+extoid.l,temp,&len)) {
+		  printf("Unknown X.509v3 extension (oid ");
+		  for (i=0; i<len; ++i)
+		    printf("%lu%s",temp[i],i+1<len?".":")\n");
+		} else
+		  printf("Failed to parse X.509v3 extension OID\n");
+	      }
+	      c+=n;
+	    } else {
+	      printf("X.509v3 extension parse error!\n");
+	      printasn1(c,max);
+	      break;
+	    }
+	  }
+	}
+	/*
+			 &extensions,
+			 &oidsig, &sigrest, &sigdata))) {
+	 */
       }
 
       return n;
