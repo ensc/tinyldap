@@ -1797,25 +1797,25 @@ authfailure:
 	      }
 	    } else
 	      err=insufficientAccessRights;
-	  } else
-	    err=protocolError;
 
-	  buffer_put(buffer_1,ar.entry.s,ar.entry.l);
-	  buffer_putsflush(buffer_1,"\n");
-	  if (verbose) { /* iterate all attributes */
-	    struct Addition * x;
-	    struct AttributeDescriptionList * y;
-	    for (x = &ar.a;x;x=x->next) {
-	      for (y = &x->vals;y;y=y->next) {
-		buffer_put(buffer_1,x->AttributeDescription.s,x->AttributeDescription.l);
-		buffer_puts(buffer_1,": ");
-		buffer_put(buffer_1,y->a.s,y->a.l);
-		buffer_putsflush(buffer_1,"\n");
+	    buffer_put(buffer_1,ar.entry.s,ar.entry.l);
+	    buffer_putsflush(buffer_1,"\n");
+	    if (verbose) { /* iterate all attributes */
+	      struct Addition * x;
+	      struct AttributeDescriptionList * y;
+	      for (x = &ar.a;x;x=x->next) {
+		for (y = &x->vals;y;y=y->next) {
+		  buffer_put(buffer_1,x->AttributeDescription.s,x->AttributeDescription.l);
+		  buffer_puts(buffer_1,": ");
+		  buffer_put(buffer_1,y->a.s,y->a.l);
+		  buffer_putsflush(buffer_1,"\n");
+		}
 	      }
 	    }
-	  }
 
-	  free_ldapaddrequest(&ar);
+	    free_ldapaddrequest(&ar);
+	  } else
+	    err=protocolError;
 
 	  {
 	    char outbuf[1024];
