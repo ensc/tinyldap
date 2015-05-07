@@ -32,6 +32,9 @@ struct rsaprivatekey {
   size_t* freewhendone;
 };
 
+struct dsaprivatekey {
+};
+
 void printasn1(const char* buf,const char* max);
 
 static int findindn(struct string* dn,enum x509_oid id,struct string* dest) {
@@ -379,7 +382,7 @@ int main(int argc,char* argv[]) {
     printf("failed to parse certificate\n");
   free(freewhendone);
 
-  buf=mmap_read(argc>1?argv[1]:"privatekey.pem",&l);
+  buf=mmap_read(argc>2?argv[2]:"privatekey.pem",&l);
   if (!buf) { puts("privatekey.pem not found"); return 1; }
 
   n=scan_rsaprivatekey(buf,l,&k,&freewhendone);

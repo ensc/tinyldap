@@ -3,7 +3,7 @@
 
 all: t1 t2 parse dumpidx idx2ldif addindex bindrequest tinyldap \
 tinyldap_standalone tinyldap_debug ldapclient ldapclient_str \
-md5password mysql2ldif acl dumpacls ldapdelete asn1dump # t6 # t
+md5password mysql2ldif acl dumpacls ldapdelete asn1dump tls.a x # t6 # t
 
 asn1.a: fmt_asn1intpayload.o fmt_asn1length.o fmt_asn1tag.o \
 fmt_asn1int.o fmt_asn1string.o fmt_asn1transparent.o scan_asn1tag.o \
@@ -36,6 +36,13 @@ mstorage_init.o mstorage_init_persistent.o mstorage_unmap.o \
 mduptab_init.o mduptab_init_reuse.o mduptab_reset.o
 
 auth.a: auth.o
+
+tls.a: fmt_tls_clienthello.o init_tls_context.o \
+fmt_tls_serverhello.o fmt_tls_alert.o fmt_tls_packet.o \
+tls_cipherprio.o fmt_tls_alert_pkt.o fmt_tls_handshake_cert.o \
+fmt_tls_handshake_certs_header.o fmt_tls_serverhellodone.o \
+tls_accept.o tls_connect.o tls_doread.o tls_dowrite.o
+
 
 DIET=/opt/diet/bin/diet -Os
 CROSS=
@@ -171,10 +178,31 @@ scan_asn1generic.o: scan_asn1generic.c asn1.h
 
 asn1oid.o: asn1oid.c asn1.h
 
+init_tls_context.o: init_tls_context.c tinytls.h
+fmt_tls_clienthello.o: fmt_tls_clienthello.c tinytls.h
+
 ldap_match_sre.o: ldap_match_sre.c ldap.h
+
+x: tls.a
 
 privatekey.pem:
 	openssl genrsa -out $@
 
 windoze:
 	$(MAKE) DIET= CROSS=i686-mingw32- asn1dump
+
+fmt_tls_alert.o: fmt_tls_alert.c tinytls.h asn1.h
+fmt_tls_alert_pkt.o: fmt_tls_alert_pkt.c tinytls.h asn1.h
+fmt_tls_clienthello.o: fmt_tls_clienthello.c tinytls.h asn1.h
+fmt_tls_handshake_cert.o: fmt_tls_handshake_cert.c tinytls.h asn1.h
+fmt_tls_handshake_certs_header.o: fmt_tls_handshake_certs_header.c \
+ tinytls.h asn1.h
+fmt_tls_packet.o: fmt_tls_packet.c tinytls.h asn1.h
+fmt_tls_serverhello.o: fmt_tls_serverhello.c tinytls.h asn1.h
+fmt_tls_serverhellodone.o: fmt_tls_serverhellodone.c tinytls.h asn1.h
+init_tls_context.o: init_tls_context.c tinytls.h asn1.h
+tls_accept.o: tls_accept.c tinytls.h asn1.h
+tls_cipherprio.o: tls_cipherprio.c
+tls_connect.o: tls_connect.c tinytls.h asn1.h
+tls_doread.o: tls_doread.c tinytls.h asn1.h
+tls_dowrite.o: tls_dowrite.c tinytls.h asn1.h
