@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <byte.h>
 #include "ldap.h"
 
 #if 0
@@ -19,7 +20,7 @@
 size_t scan_ldapmodifyrequest(const char* src,const char* max,struct ModifyRequest* m) {
   size_t res,tmp,oslen; /* outer sequence length */
   struct Modification* last=0;
-  m->m.next=0;
+  byte_zero(m,sizeof(*m));
   if (!(res=scan_ldapstring(src,max,&m->object))) goto error;
   if (!(tmp=scan_asn1SEQUENCE(src+res,max,&oslen))) goto error;
   res+=tmp;
@@ -31,6 +32,7 @@ size_t scan_ldapmodifyrequest(const char* src,const char* max,struct ModifyReque
     if (last) {
       struct Modification* cur;
       if (!(cur=malloc(sizeof(struct Modification)))) goto error;
+      byte_zero(cur,sizeof(*cur));
       last->next=cur; last=cur;
     } else
       last=&m->m;
@@ -59,8 +61,8 @@ size_t scan_ldapmodifyrequest(const char* src,const char* max,struct ModifyReque
 	ilast=&last->vals;
 	while (src+res<iimax) {
 	  if (!(*ilast=malloc(sizeof(struct AttributeDescriptionList)))) goto error;
+	  byte_zero(*ilast,sizeof(**ilast));
 	  if (!(tmp=scan_ldapstring(src+res,imax,&(*ilast)->a))) goto error;
-	  (*ilast)->next=0;
 	  ilast=&(*ilast)->next;
 	  res+=tmp;
 	}

@@ -1,5 +1,7 @@
 /* needs stdio.h and asn1.h included */
 
+#include <ctype.h>
+
 void printasn1(const char* buf,const char* max) {
   const char* maxstack[100];
   size_t sptr=0;
