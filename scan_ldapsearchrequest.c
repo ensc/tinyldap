@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include "ldap.h"
 
 size_t scan_ldapsearchrequest(const char* src,const char* max,
@@ -34,10 +35,9 @@ size_t scan_ldapsearchrequest(const char* src,const char* max,
     for (;;) {
       if (src+res>nmax) goto error;
       if (src+res==nmax) break;
-      if (!*a) *a=malloc(sizeof(struct AttributeDescriptionList));
+      if (!*a) *a=calloc(1,sizeof(struct AttributeDescriptionList));
       if (!*a) goto error;
-      (*a)->next=0;
-      if (!(tmp=scan_ldapstring(src+res,nmax,&(*a)->a))) goto error;
+      if (!(tmp=scan_ldapstring(src+res,nmax,&(*a)->a))) { free(*a); goto error; }
       res+=tmp;
       a=&(*a)->next;
     }
@@ -52,4 +52,5 @@ void free_ldapsearchrequest(struct SearchRequest* s) {
   if (s->attributes)
     free_ldapadl(s->attributes->next);
   free_ldapsearchfilter(s->filter);
+  memset(s,0,sizeof(*s));
 }

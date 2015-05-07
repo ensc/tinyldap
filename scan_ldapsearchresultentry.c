@@ -37,6 +37,7 @@ size_t scan_ldapsearchresultentry(const char* src,const char* max,struct SearchR
   return res;
 error:
   freepal(sre->attributes);
+  sre->attributes=0;
   return 0;
 }
 

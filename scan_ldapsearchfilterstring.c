@@ -52,7 +52,7 @@ scan_filterlist:
 substring:
 	  while (*s!=')') {
 	    size_t i,j;
-	    struct Substring* substring=malloc(sizeof(struct Substring));
+	    struct Substring* substring=calloc(1,sizeof(struct Substring));
 	    if (!substring) goto error;
 	    substring->s.s=s;
 	    i=str_chr(s,')');
