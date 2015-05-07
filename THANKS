@@ -14,4 +14,5 @@ Andreas Stührk found a possible integer underflow in the indexing code.
 I'd be astounded if someone found a way to exploit it, though.
 
 Andreas also ran tinyldap in afl and found two double frees.
-At least one of them looks like it might be exploitable.
+At least one of them looks like it might be exploitable if you are not
+using dietlibc.
