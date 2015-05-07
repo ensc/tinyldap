@@ -6,7 +6,6 @@ size_t fmt_asn1generic(char* dest,const char* fmt,...) {
   size_t containerstack[100];
   size_t curinstack=0;
   va_list args;
-  va_start(args,fmt);
   unsigned long* application=0;
   struct string* s;
   struct oid* o;
@@ -17,6 +16,7 @@ size_t fmt_asn1generic(char* dest,const char* fmt,...) {
   unsigned long desttag=0;
   unsigned long appstore;
   int stringtype;
+  va_start(args,fmt);
   while (*fmt) {
     char* realdest=dest?dest+cursor:NULL;
     switch (*fmt) {
@@ -35,7 +35,10 @@ size_t fmt_asn1generic(char* dest,const char* fmt,...) {
     case 'B':	// send boolean
       {
 	int i=va_arg(args,int);
-	if (i!=0 && i!=1) return 0;
+	if (i!=0 && i!=1) {
+	  va_end(args);
+	  return 0;
+	}
 	if (application)
 	  curlen=fmt_asn1int(realdest,APPLICATION,PRIMITIVE,*application,i);
 	else
@@ -133,7 +136,10 @@ stringcopy_alt:
        * sequence data backwards to make room to write the ASN.1 length */
       {
 	char* anfang;
-	if (!curinstack) return 0;
+	if (!curinstack) {
+	  va_end(args);
+	  return 0;
+	}
 	anfang=dest+containerstack[--curinstack];
 	seqlen=dest+cursor-anfang;
 	curlen=fmt_asn1length(NULL,seqlen);
@@ -146,5 +152,6 @@ stringcopy_alt:
     cursor+=curlen;
     ++fmt;
   }
+  va_end(args);
   return cursor;
 }

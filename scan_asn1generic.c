@@ -34,13 +34,13 @@ size_t scan_asn1generic(const char* src,const char* max,const char* fmt,...) {
 	if (*fmt=='B') *bdest=0; else *dest=0;
 	curlen=scan_asn1int(src,maxstack[curmax],&tc,&tt,&tag,&l);
 	if (application) {
-	  if (tc!=APPLICATION) return 0;
+	  if (tc!=APPLICATION) goto error;
 	  *application=tag;
 	} else {
 	  if (tc!=UNIVERSAL || tt!=PRIMITIVE || tag!=(*fmt=='B'?BOOLEAN:INTEGER))
-	    return 0;
+	    goto error;
 	}
-	if (!curlen) { if (optional) break; else return 0; }
+	if (!curlen) { if (optional) break; else goto error; }
 	if (*fmt=='B')
 	  *bdest=l;
 	else
@@ -53,8 +53,8 @@ size_t scan_asn1generic(const char* src,const char* max,const char* fmt,...) {
       {
 	size_t* dest=va_arg(args,size_t*);
 	size_t len,tmp,tlen,j,t;
-	if (!(len=scan_asn1tag(src,maxstack[curmax],&tc,&tt,&tag))) return 0;
-	if (!(tmp=scan_asn1length(src+len,maxstack[curmax],&tlen))) return 0;
+	if (!(len=scan_asn1tag(src,maxstack[curmax],&tc,&tt,&tag))) goto error;
+	if (!(tmp=scan_asn1length(src+len,maxstack[curmax],&tlen))) goto error;
 	len+=tmp;
 	j=0; t=1;
 	src+=len;
@@ -101,18 +101,18 @@ stringmain:
 	dest->l=0;
 	dest->s=0;
 	curlen=scan_asn1string(src,maxstack[curmax],&tc,&tt,&tag,&dest->s,&dest->l);
-	if (!curlen) { if (optional) break; else return 0; }
+	if (!curlen) { if (optional) break; else goto error; }
 	if (application) {
-	  if (tc!=APPLICATION) return 0;
+	  if (tc!=APPLICATION) goto error;
 	  *application=tag;
 	} else {
 	  if (tc!=UNIVERSAL || tt!=PRIMITIVE || tag!=wantedtag)
-	    return 0;
+	    goto error;
 	}
 	if (wantedtag==BIT_STRING) {	// additional checks for bit strings
 	  if (dest->l==0 ||	// length can't be 0 because the format starts with 1 octet that contains the number of unused bits in the last octet
 	      ((unsigned char)(dest->s[0])>7) ||	// it's the number of unused bits in an octet, must be [0..7]
-	      (dest->l==1 && dest->s[0])) return 0;	// if there is no last octet, there can't be any unused bits in there
+	      (dest->l==1 && dest->s[0])) goto error;	// if there is no last octet, there can't be any unused bits in there
 	  dest->l=(dest->l-1)*8-dest->s[0];
 	  dest->s+=1;
 	} else if (wantedtag==PrintableString) {
@@ -128,10 +128,10 @@ stringmain:
 		&& dest->s[i]!='/'
 		&& dest->s[i]!=':'
 		&& dest->s[i]!='?'
-		&& dest->s[i]!=' ') return 0;
+		&& dest->s[i]!=' ') goto error;
 	} else if (wantedtag==IA5String) {
 	  for (i=0; i<dest->l; ++i)	// IA5String is an ASCII string, which means 0 <= s[i] <= 127
-	    if ((unsigned char)(dest->s[i]) > 127) return 0;
+	    if ((unsigned char)(dest->s[i]) > 127) goto error;
 	} else if (wantedtag==UTCTIME) {
 	  size_t j;
 	  struct tm t;
@@ -144,50 +144,50 @@ stringmain:
 		YYMMDDhhmmss+hh'mm'
 		YYMMDDhhmmss-hh'mm'
 	   */
-	  if (dest->l<11 || dest->l>17) return 0;
+	  if (dest->l<11 || dest->l>17) goto error;
 	  j=(dest->s[0]-'0')*10+dest->s[1]-'0';
 	  t.tm_year=j+(j<70)*100;
 
 	  for (i=0; i<10; ++i)
-	    if (!isdigit(dest->s[i])) return 0;
+	    if (!isdigit(dest->s[i])) goto error;
 	  j=(dest->s[2]-'0')*10+dest->s[3]-'0';		// is the month plausible?
-	  if (j<1 || j>12) return 0;
+	  if (j<1 || j>12) goto error;
 	  t.tm_mon=j-1;
 	  j=(dest->s[4]-'0')*10+dest->s[5]-'0';		// is the day plausible?
-	  if (j<1 || j>31) return 0;
+	  if (j<1 || j>31) goto error;
 	  t.tm_mday=j;
 	  j=(dest->s[6]-'0')*10+dest->s[7]-'0';		// is the hour plausible?
-	  if (j>23) return 0;
+	  if (j>23) goto error;
 	  t.tm_hour=j;
 	  j=(dest->s[8]-'0')*10+dest->s[9]-'0';		// is the minutes plausible?
-	  if (j>59) return 0;
+	  if (j>59) goto error;
 	  t.tm_min=j;
 	  i=10;
 	  if (isdigit(dest->s[10])) {
 	    i+=2;
 	    j=(dest->s[10]-'0')*10+dest->s[11]-'0';		// is the seconds plausible?
-	    if (j>59) return 0;
+	    if (j>59) goto error;
 	    t.tm_sec=j;
 	  }
 	  *desttime=mktime(&t);
 	  if (dest->s[i]=='+' || dest->s[i]=='-') {
 	    size_t j;
-	    if (dest->l!=15) return 0;
+	    if (dest->l!=15) goto error;
 	    for (j=i; j<i+4; ++j)
-	      if (!isdigit(dest->s[j])) return 0;
+	      if (!isdigit(dest->s[j])) goto error;
 	    j=(dest->s[i]-'0')*10+dest->s[i+1]-'0';		// is the offset minutes plausible?
-	    if (j>59) return 0;
+	    if (j>59) goto error;
 	    if (dest->s[i]=='+')
 	      *desttime+=j*60;
 	    else
 	      *desttime-=j*60;
 	    j=(dest->s[i+2]-'0')*10+dest->s[i+3]-'0';		// is the offset seconds plausible?
-	    if (j>59) return 0;
+	    if (j>59) goto error;
 	    if (dest->s[i]=='+')
 	      *desttime+=j;
 	    else
 	      *desttime-=j;
-	  } else if (dest->s[i]!='Z') return 0;
+	  } else if (dest->s[i]!='Z') goto error;
 	}
 	src+=curlen;
 	application=NULL;
@@ -197,17 +197,17 @@ stringmain:
       {
 	struct string* dest=va_arg(args,struct string*);
 	curlen=scan_asn1tag(src,maxstack[curmax],&tc,&tt,&tag);
-	if (!curlen) { if (optional) break; else return 0; }
+	if (!curlen) { if (optional) break; else goto error; }
 	if (application) {
-	  if (tc!=APPLICATION) return 0;
+	  if (tc!=APPLICATION) goto error;
 	  *application=tag;
 	} else {
 	  if (tc!=UNIVERSAL || tt!=PRIMITIVE || tag!=OBJECT_IDENTIFIER)
-	    return 0;
+	    goto error;
 	}
 	src+=curlen;
 	curlen=scan_asn1length(src,maxstack[curmax],&seqlen);
-	if (!curlen) return 0;
+	if (!curlen) goto error;
 	src+=curlen;
 	dest->s=src;
 	dest->l=seqlen;
@@ -227,24 +227,23 @@ stringmain:
     case '{':		// { = SEQUENCE
       {
 	curlen=scan_asn1tag(src,maxstack[curmax],&tc,&tt,&tag);
-	if (!curlen) { if (optional) break; else return 0; }
+	if (!curlen) { if (optional) break; else goto error; }
 	if (application) {
-	  if (tc!=APPLICATION || tt!=CONSTRUCTED) return 0;
+	  if (tc!=APPLICATION || tt!=CONSTRUCTED) goto error;
 	  *application=tag;
 	} else {
 	  if (*fmt=='c') {
 	    if (tc!=PRIVATE || tt!=CONSTRUCTED)
-	      return 0;
+	      goto error;
 	    *desttag=tag;
 	  } else {
 	    if (tc!=UNIVERSAL || tt!=CONSTRUCTED || tag!=(*fmt=='{'?SEQUENCE_OF:SET_OF))
-	      return 0;
+	      goto error;
 	  }
 	}
 	src+=curlen;
 	curlen=scan_asn1length(src,maxstack[curmax],&seqlen);
-	if (!curlen) return 0;
-	if (curmax>99) return 0;
+	if (!curlen || curmax>99) goto error;
 	maxstack[++curmax]=src+curlen+seqlen;
 	src+=curlen;
 	application=NULL;
@@ -262,16 +261,19 @@ stringmain:
     case '}':		// } = end of SEQUENCE
       {
 	optional=0;
-	if (curmax==0) return 0;
+	if (curmax==0) goto error;
 	src=maxstack[curmax];
 	--curmax;
 	break;
       }
     default:
-      return 0;
+      goto error;
     }
     ++fmt;
   }
   va_end(args);
   return src-orig;
+error:
+  va_end(args);
+  return 0;
 }
