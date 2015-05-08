@@ -43,7 +43,6 @@ tls_cipherprio.o fmt_tls_alert_pkt.o fmt_tls_handshake_cert.o \
 fmt_tls_handshake_certs_header.o fmt_tls_serverhellodone.o \
 tls_accept.o tls_connect.o tls_doread.o tls_dowrite.o
 
-
 DIET=/opt/diet/bin/diet -Os
 CROSS=
 #CROSS=i686-mingw32-
@@ -100,13 +99,19 @@ tinyldap_debug: tinyldap.c
 acl: acl.c ldap.a asn1.a
 	$(DIET) $(CC) $(CFLAGS) -o acl acl.c -I. ldap.a asn1.a -lowfat $(LIBS)
 
+.PHONY: test
+test: test/bind test/ebind
+	make -C test
+
+test/%: test/%.c asn1.a ldap.a
+	$(DIET) $(CC) $(CFLAGS) -o $@ $^ ldap.a asn1.a -lowfat $(LIBS)
 
 .PHONY: clean tar
 clean:
 	rm -f t t[1-9] *.[ao] bindrequest tinyldap ldapclient \
 parse tinyldap_standalone tinyldap_debug ldapclient_str addindex \
 dumpidx idx2ldif md5password ldapdelete dumpacls asn1dump acl \
-*.da *.bbg *.bb *.gcov gmon.out *.gcda *.gcno
+*.da *.bbg *.bb *.gcov gmon.out *.gcda *.gcno test/bind bind/ebind
 
 tar: clean
 	cd ..; tar cvvf tinyldap.tar.bz2 tinyldap --use=bzip2 --exclude capture --exclude CVS --exclude exp.ldif --exclude polyp* --exclude rfc*

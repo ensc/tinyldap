@@ -6,3 +6,7 @@ Other than that, tinyldap does not trust anyone :-)
 
 tinyldap can (and should) be run as non-root, via tcpserver, in a chroot
 jail.
+
+If you worry about memory consumption, set resource limits before
+running tinyldap, e.g. with softlimit from daemontools or limit/ulimit
+in your shell.
