@@ -47,6 +47,8 @@
 #define debug 0
 #endif
 
+const char journalfilename[]="journal";
+
 #define HUGE_SIZE_FOR_SANITY_CHECKS 1024*1024
 
 /* basic operation: the whole data file is mmapped read-only at the beginning and stays there. */
@@ -1725,7 +1727,7 @@ authfailure:
 		/* 3. apply modifications to record to get new record */
 		if (!applymodreq(hn,&mr,&sre)) {
 		  /* 4. write record to journal */
-		  int fd=open("journal",O_WRONLY|O_APPEND|O_CREAT,0600);
+		  int fd=open(journalfilename,O_WRONLY|O_APPEND|O_CREAT,0600);
 		  if (fd==-1)
 		    err=operationsError;
 		  else {
@@ -1786,7 +1788,7 @@ authfailure:
 	      }
 	      if (err==success) {
 		/* 3. write record to journal */
-		int fd=open("journal",O_WRONLY|O_APPEND|O_CREAT,0600);
+		int fd=open(journalfilename,O_WRONLY|O_APPEND|O_CREAT,0600);
 		if (fd==-1)
 		  err=operationsError;
 		else {
@@ -1858,7 +1860,7 @@ authfailure:
 	      }
 	      if (err==success) {
 		/* 3. write record to journal */
-		int fd=open("journal",O_WRONLY|O_APPEND|O_CREAT,0600);
+		int fd=open(journalfilename,O_WRONLY|O_APPEND|O_CREAT,0600);
 		if (fd==-1)
 		  err=operationsError;
 		else {
@@ -2050,7 +2052,7 @@ static void readjournal() {
   ldif_parse_callback=parse_callback;
   mduptab_init(&attributes);
   mduptab_init(&classes);
-  if (ldif_parse("journal",0,&ss_journal)) {
+  if (ldif_parse(journalfilename,0,&ss_journal)) {
     buffer_putsflush(buffer_2,"Failed to parse journal!\n");
     exit(1);
   }
@@ -2083,7 +2085,7 @@ resetjournal:
     return;
   }
   /* the data file did not change.  Maybe the journal did. */
-  if (stat("journal",&new_journal)==-1) {
+  if (stat(journalfilename,&new_journal)==-1) {
     /* no journal; that means:
      * a) there never was one, totaly read-only data
      * b) there was one, but it has now been incorporated into the main database
@@ -2108,7 +2110,7 @@ resetjournal:
     int notkosher=0;
     if (new_journal.st_size>ss_journal.st_size && ss_journal.st_size>2) {
       int fd;
-      fd=open("journal",O_RDONLY);
+      fd=open(journalfilename,O_RDONLY);
       if (fd!=-1) {
 	char buf[2];
 	lseek(fd,ss_journal.st_size-2,SEEK_SET);
@@ -2122,7 +2124,7 @@ resetjournal:
       buffer_putsflush(buffer_2,"Unsanctioned journal editing detected!  Re-reading journal.\n");
       goto resetjournal;
     }
-    if (ldif_parse("journal",ss_journal.st_size,&ss_journal)) {
+    if (ldif_parse(journalfilename,ss_journal.st_size,&ss_journal)) {
       buffer_putsflush(buffer_2,"Failed to parse journal!\n");
       exit(1);
     }
@@ -2329,6 +2331,169 @@ static void answerwithjournal(struct SearchRequest* sr,long messageid,int out) {
   }
 }
 
+#if !defined(NO_SECCOMP) && defined(__linux__) && (defined(__i386__) || defined(__x86_64__)) && !defined(STANDALONE)
+#define SECCOMP
+#endif
+#ifdef SECCOMP
+
+#include <sys/prctl.h>
+#include <linux/unistd.h>
+#include <linux/audit.h>
+#include <linux/filter.h>
+#include <linux/seccomp.h>
+
+#ifndef SECCOMP_MODE_FILTER
+# define SECCOMP_MODE_FILTER	2 /* uses user-supplied filter. */
+# define SECCOMP_RET_KILL	0x00000000U /* kill the task immediately */
+# define SECCOMP_RET_TRAP	0x00030000U /* disallow and force a SIGSYS */
+# define SECCOMP_RET_ALLOW	0x7fff0000U /* allow */
+struct seccomp_data {
+    int nr;
+    __u32 arch;
+    __u64 instruction_pointer;
+    __u64 args[6];
+};
+#endif
+#ifndef SYS_SECCOMP
+# define SYS_SECCOMP 1
+#endif
+
+#define syscall_nr (offsetof(struct seccomp_data, nr))
+
+#if defined(__i386__)
+# define REG_SYSCALL	REG_EAX
+# define ARCH_NR	AUDIT_ARCH_I386
+#elif defined(__x86_64__)
+# define REG_SYSCALL	REG_RAX
+# define ARCH_NR	AUDIT_ARCH_X86_64
+#else
+# error "Platform does not support seccomp filter yet"
+#endif
+
+#define ALLOW_SYSCALL(name) \
+	BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_##name, 0, 1), \
+	BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW)
+
+static int install_syscall_filter(void) {
+  /* Linux allows a process to restrict itself (and potential children)
+   * in what syscalls can be issued.  The mechanism is called
+   * seccomp-filter or "seccomp mode 2".  It works by reusing the
+   * Berkeley Packet Filter, which is meant for PCAP-style packet
+   * filtering expressions like "only TCP packets, please".  But it is
+   * really a bytecode that has to be passed inside an array, and each
+   * instruction is constructed using scary looking macros.  The basics
+   * are not so bad, however.  We have two registers, one accumulator
+   * and one index register (which is not used in this part of the
+   * code), and instead of a network packet we are operating on a
+   * certain struct with the syscall info, which is called seccomp_data
+   * (reproduced above). */
+  struct sock_filter filter[] = {
+    /* validate architecture to avoid x32-on-x86_64 syscall aliasing shenanigans */
+
+    /* BPF_LD = load, BPF_W = word, BPF_ABS = absolute offset */
+    BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, arch)),
+    /* BPF_JMP+BPF_JEQ+BPF_K = compare accumulator to constant (in our
+     * case, ARCH_NR), and skip the next instruction if equal */
+    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, ARCH_NR, 1, 0),
+    /* "return SECCOMP_RET_KILL", tell seccomp to kill the process */
+    BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL),
+
+    /* load the syscall number */
+    BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, nr)),
+
+    /* and now a list of allowed syscalls */
+    ALLOW_SYSCALL(rt_sigreturn),
+#ifdef __NR_sigreturn
+    ALLOW_SYSCALL(sigreturn),
+#endif
+    ALLOW_SYSCALL(exit_group),
+    ALLOW_SYSCALL(exit),
+
+    ALLOW_SYSCALL(read),
+    ALLOW_SYSCALL(write),
+
+    /* we need a special case for open.
+     * we want open to succeed, but only if it's on the journal */
+    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_open, 0, 8),
+    /* it's open(2).  Load first argument into accumulator (first
+     * argument is filename, second is mode). */
+    BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, args[0])),
+    /* make sure it is journalfilename */
+    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (uintptr_t)journalfilename, 0, 1),
+    /* "return SECCOMP_RET_ALLOW", tell seccomp to allow the syscall */
+    BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW),
+    /* If we get here, it's not journalfilename. The only other file we allow is the data
+     * file, and that is only opened read-only. So check that mode is O_RDONLY */
+    BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, args[1])),
+    /* mode & O_ACCMODE */
+    BPF_STMT(BPF_ALU+BPF_AND+BPF_K, O_ACCMODE),
+    /* if (mode & O_ACCMODE) == O_RDONLY goto ALLOW */
+    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, O_RDONLY, 0, 1),
+    BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW),
+    /* otherwise kill the process */
+    BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL),
+
+    ALLOW_SYSCALL(close),
+
+    /* for syslog() */
+#ifdef __NR__llseek
+    ALLOW_SYSCALL(_llseek),
+#else
+    ALLOW_SYSCALL(lseek),
+#endif
+#ifdef __NR_fstat64
+    ALLOW_SYSCALL(fstat64),
+    ALLOW_SYSCALL(stat64),
+#else
+    ALLOW_SYSCALL(fstat),
+    ALLOW_SYSCALL(stat),
+#endif
+
+    /* for reading from the socket */
+#ifdef DEBUG
+    ALLOW_SYSCALL(poll),
+#endif
+
+    /* for malloc / calloc */
+#ifdef __dietlibc__
+    ALLOW_SYSCALL(mmap),
+    ALLOW_SYSCALL(mremap),
+#else
+    ALLOW_SYSCALL(brk),
+    ALLOW_SYSCALL(mmap),
+#endif
+
+#ifdef __NR_socketcall
+    ALLOW_SYSCALL(socketcall),
+#else
+    ALLOW_SYSCALL(setsockopt),
+#endif
+
+    /* if none of these syscalls matched, kill the process */
+    BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL)
+  };
+  struct sock_fprog prog = {
+    .len = (unsigned short)(sizeof(filter)/sizeof(filter[0])),
+    .filter = filter
+  };
+
+  /* see linux/Documentation/prctl/no_new_privs.txt */
+  if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
+    /* if this fails, we are running on an ancient kernel without
+     * seccomp support; nothing we can do about it, really. */
+    return -1;
+  }
+
+  /* see linux/Documentation/prctl/seccomp_filter.txt */
+  if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog)) {
+    /* if this happens, we are running on a kernel without seccomp
+     * filters support; nothing we can do about it, really. */
+    return -1;
+  }
+  return 0;
+}
+#endif
+
 /*
                  _
  _ __ ___   __ _(_)_ __
@@ -2347,6 +2512,10 @@ int main(int argc,char* argv[]) {
   signal(SIGPIPE,SIG_IGN);
 
   map_datafile(argc>1?argv[1]:"data");
+
+#ifdef SECCOMP
+  install_syscall_filter();
+#endif
 
   readjournal();
 
