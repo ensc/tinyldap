@@ -601,11 +601,13 @@ static void tagmatches(uint32* index,size_t elements,struct string* s,
 		       struct bitfield* b,int (*match)(struct string* s,const char* c),
 		       uint32 index_type,enum FilterType ft) {
   uint32 bottom=0;
-  uint32 top=elements;
+  uint32 top=elements-1;
   uint32 mid,k,m;
   long rec;
   rec=0;
   emptyset(b);
+
+  if (!elements) return;
 
   while ((top>=bottom)) {
     int l;
