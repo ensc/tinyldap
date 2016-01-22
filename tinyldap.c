@@ -1450,7 +1450,7 @@ void reply_with_index(struct SearchRequest* sr,unsigned long* messageid,int out)
 	uint32_unpack(map+indices_offset+4*i,&j);
 	if (ldap_match_mapped(j,sr)) {
 	  if (sr->sizeLimit && sr->sizeLimit<++returned)
-	    break;
+	    return;
 	  answerwith(j,sr,*messageid,out);
 	}
       }
