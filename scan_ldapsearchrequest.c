@@ -11,9 +11,11 @@ size_t scan_ldapsearchrequest(const char* src,const char* max,
   s->filter=0;
   if (!(res=scan_ldapstring(src,max,&s->baseObject))) goto error;
   if (!(tmp=scan_asn1ENUMERATED(src+res,max,&etmp))) goto error;
-  if (etmp>2) goto error; s->scope=etmp; res+=tmp;
+  if (etmp>2) goto error;
+  s->scope=etmp; res+=tmp;
   if (!(tmp=scan_asn1ENUMERATED(src+res,max,&etmp))) goto error;
-  if (etmp>3) goto error; s->derefAliases=etmp; res+=tmp;
+  if (etmp>3) goto error;
+  s->derefAliases=etmp; res+=tmp;
   if (!(tmp=scan_asn1INTEGER(src+res,max,&ltmp)) || ltmp<0) goto error;
   s->sizeLimit=(unsigned long)ltmp;
   res+=tmp;

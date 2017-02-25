@@ -50,7 +50,7 @@ CC=$(CROSS)gcc
 CFLAGS=-pipe -I. -Wall -W -Wextra
 ifneq ($(DEBUG),)
 DIET=/opt/diet/bin/diet
-CFLAGS=-pipe -I. -Wall -W -g -fstack-protector
+CFLAGS=-pipe -I. -Wall -W -Wextra -g -fstack-protector
 endif
 ifeq ($(COVERAGE),1)
 DIET=
@@ -111,6 +111,7 @@ clean:
 	rm -f t t[1-9] *.[ao] bindrequest tinyldap ldapclient \
 parse tinyldap_standalone tinyldap_debug ldapclient_str addindex \
 dumpidx idx2ldif md5password ldapdelete dumpacls asn1dump acl \
+mysql2ldif x \
 *.da *.bbg *.bb *.gcov gmon.out *.gcda *.gcno test/bind bind/ebind
 
 tar: clean

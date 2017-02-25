@@ -30,8 +30,6 @@ char pkt[]=
 "\x00\x01\x01\x15\x03\x03\x00\x02\x02\x30";
 
 int main() {
-  char buf[200];
-  size_t l;
   struct ssl_context sc;
   int fd;
 
@@ -43,6 +41,8 @@ int main() {
       diesys(1,"connect");
 
 #if 0
+  size_t l;
+  char buf[200];
   init_tls_context_norandom(&sc,NULL);
   printf("%zu\n",fmt_tls_serverhello(NULL,pkt,sizeof(pkt),&sc));
   init_tls_context_norandom(&sc,"blog.fefe.de");

@@ -573,6 +573,16 @@ static inline void fillset(struct bitfield* b) {
   for (i=0; i<record_set_length; ++i) b->bits[i]=(unsigned long)-1;
 }
 
+static inline void invertset(struct bitfield* b) {
+  size_t i;
+  b->first=0;
+#ifdef RANGECHECK
+  b->n=
+#endif
+  b->last=record_count;
+  for (i=0; i<record_set_length; ++i) b->bits[i] = ~b->bits[i];
+}
+
 /* basic bit-set support: set one bit to 1 */
 static inline void setbit(struct bitfield* b,size_t bit) {
 #ifdef RANGECHECK
@@ -645,7 +655,7 @@ static void tagmatches(uint32* index,size_t elements,struct string* s,
       /* there may be multiple matches.
 	* Look before and after mid, too */
       if (mid)	/* thx Andreas Stührk */
-	for (k=mid-1; k>0; --k) {
+	for (k=mid-1; k!=(uint32_t)-1; --k) {
 	  m=uint32_read((char*)(&index[k]));
 	  if ((ft==LESSEQUAL) || (l=match(s,map+m))==0) {
 	    if (index_type==0)
@@ -819,11 +829,16 @@ static int useindex(struct Filter* f,struct bitfield* b) {
       }
       return ok;
     }
-#if 0
-  /* doesn't make much sense to try to speed up negated queries */
   case NOT:
-    return indexable(y);
-#endif
+    {
+      if (y) {
+	emptyset(b);
+	useindex(y,b);
+	invertset(b);
+      } else
+	emptyset(b);
+      return 1;
+    }
   case SUBSTRING:
     if (f->substrings->substrtype!=prefix) return 0;
     {

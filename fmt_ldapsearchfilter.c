@@ -20,7 +20,8 @@ size_t fmt_ldapsubstring(char* dest,const struct Substring* s) {
   size_t sum=0,tmp=0;
   while (s) {
     tmp=fmt_asn1string(dest,PRIVATE,PRIMITIVE,s->substrtype,s->s.s,s->s.l);
-    if (dest) dest+=tmp; sum+=tmp;
+    if (dest) dest+=tmp;
+    sum+=tmp;
     s=s->next;
   }
   return sum;

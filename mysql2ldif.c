@@ -26,7 +26,7 @@ int main() {
   static array fn;	/* field names */
   static char* table;
   int mode=0;
-  int pkey;
+  int pkey=-1;
 
   while (buffer_getnewline_sa(buffer_0,&sa)==1) {
     ++line;
@@ -132,7 +132,7 @@ int main() {
 	    parseerror("expected NULL, 'string' or 1234");
 	  ++n;
 	}
-	if (!c[pkey]) {
+	if (pkey==-1 || !c[pkey]) {
 	  parseerror("primary key empty");
 	}
 	buffer_putm(buffer_1,"dn: ",c[pkey],"\nobjectClass: mysql2ldif\n");

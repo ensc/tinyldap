@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
 
 tls_error_code tls_doread(uintptr_t fd,struct ssl_context* sc) {
   size_t l;

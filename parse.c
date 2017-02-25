@@ -110,20 +110,23 @@ int ldif_callback(struct ldaprec* l) {
   uint32_pack(x+4,0);
 
 //  ofs=recofs;
-  if (buffer_put(&rbuf,x,8)) return -1; recofs+=8;
+  if (buffer_put(&rbuf,x,8)) return -1;
+  recofs+=8;
 //  if ((ofs=mstorage_add(&records,x,8))==(uint32)-1) return -1;
 
   uint32_pack(x,l->dn);
   uint32_pack(x+4,oc);
 
-  if (buffer_put(&rbuf,x,8)) return -1; recofs+=8;
+  if (buffer_put(&rbuf,x,8)) return -1;
+  recofs+=8;
 //  if (mstorage_add(&records,x,8)==-1) return -1;
 
   for (i=0; i<l->n; ++i) {
     if (l->a[i].name==objectClass && l->a[i].value==(uint32)-1) continue;
     uint32_pack(x,l->a[i].name);
     uint32_pack(x+4,l->a[i].value);
-    if (buffer_put(&rbuf,x,8)) return -1; recofs+=8;
+    if (buffer_put(&rbuf,x,8)) return -1;
+    recofs+=8;
 //    if (mstorage_add(&records,x,8)==-1) return -1;
   }
 //  uint32_pack(x,ofs);

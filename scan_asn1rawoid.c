@@ -18,8 +18,8 @@ size_t scan_asn1rawoid(const char* src,const char* max,size_t* array,size_t* arr
       b+=(a-2)*40;
       a=2;
     }
-    if (array && cur<al) array[cur]=a; ++cur;
-    if (array && cur<al) array[cur]=b; ++cur;
+    if (array && cur+1<al) { array[cur]=a; array[cur+1]=b; }
+    cur+=2;
   }
 
   for (++src; src<max; ) {
@@ -28,7 +28,8 @@ size_t scan_asn1rawoid(const char* src,const char* max,size_t* array,size_t* arr
     if (!(i=scan_asn1tagint(src,max,&tmp)))
       return 0;
     src+=i;
-    if (array && cur<al) array[cur]=tmp; ++cur;
+    if (array && cur<al) array[cur]=tmp;
+    ++cur;
   }
 
   /* if we got this far, then we have an OID, but it might not have fit */

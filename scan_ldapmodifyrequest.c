@@ -40,7 +40,8 @@ size_t scan_ldapmodifyrequest(const char* src,const char* max,struct ModifyReque
     if (!(tmp=scan_asn1SEQUENCE(src+res,max,&islen))) goto error;
     res+=tmp;
     if (!(tmp=scan_asn1ENUMERATED(src+res,max,&etmp))) goto error;
-    if (etmp>2) goto error; last->operation=etmp; res+=tmp;
+    if (etmp>2) goto error;
+    last->operation=etmp; res+=tmp;
     {
       size_t iislen;	/* urgh, _three_ levels of indirection */
       const char* imax;

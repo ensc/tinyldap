@@ -46,7 +46,8 @@ mergesub:
       int first=1;
       printf("%.*s has ",(int)f->ava.desc.l,f->ava.desc.s);
       while (s) {
-	if (!first) printf(" and "); first=0;
+	if (!first) printf(" and ");
+	first=0;
 	switch(s->substrtype) {
 	case prefix: printf("prefix \""); break;
 	case any: printf("substr \""); break;
