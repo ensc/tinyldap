@@ -2471,14 +2471,19 @@ static int install_syscall_filter(void) {
     ALLOW_SYSCALL(poll),
 #endif
 
+#ifdef __NR__ftruncate64
+    ALLOW_SYSCALL(ftruncate64),
+#endif
+    ALLOW_SYSCALL(ftruncate),
+
     /* for malloc / calloc */
 #ifdef __dietlibc__
     ALLOW_SYSCALL(mmap),
-    ALLOW_SYSCALL(mremap),
 #else
     ALLOW_SYSCALL(brk),
     ALLOW_SYSCALL(mmap),
 #endif
+    ALLOW_SYSCALL(mremap),
 
 #ifdef __NR_socketcall
     ALLOW_SYSCALL(socketcall),
