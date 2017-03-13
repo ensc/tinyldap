@@ -2487,7 +2487,8 @@ static int install_syscall_filter(void) {
 
 #ifdef __NR_socketcall
     ALLOW_SYSCALL(socketcall),
-#else
+#endif
+#ifdef __NR_setsockopt
     ALLOW_SYSCALL(setsockopt),
 #endif
 
