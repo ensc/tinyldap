@@ -109,8 +109,9 @@ nomem:
   do {
     uint32_t tmp, val;
     base64=binary=0;
-    n=ofs+buffer_get_token(b,buf+ofs,8192-ofs,":",1);
+    n=ofs+buffer_get_token(b,buf+ofs,8192-ofs,":\n",2);
     if (n==ofs) break;
+    if (buf[0]=='#') continue;	/* comment line */
     i=scan_whitenskip(buf,n);
     if (buf[byte_chr(buf+i,n-i,'\n')]=='\n') {
       buffer_puts(buffer_2,"LDIF parse error: no key:value in line ");
