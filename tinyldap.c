@@ -833,7 +833,7 @@ static int useindex(struct Filter* f,struct bitfield* b) {
     {
       if (y) {
 	emptyset(b);
-	useindex(y,b);
+	if (!useindex(y,b)) return 0;
 	invertset(b);
       } else
 	emptyset(b);
@@ -1411,8 +1411,7 @@ static int lookupdn(struct string* dn,size_t* index, struct hashnode** hn) {
     struct bitfield result;
     size_t i;
     result.bits=alloca(record_set_length*sizeof(unsigned long));
-    useindex(&f,&result);
-    if (result.first>result.last)
+    if (!useindex(&f,&result) || result.first>result.last)
       return 0;
 //    assert(result.last<=record_count);
     for (i=result.first; i<=result.last; ) {
@@ -1453,7 +1452,10 @@ void reply_with_index(struct SearchRequest* sr,unsigned long* messageid,int out)
   /* Use the index to find matching data.  Put the offsets
     * of the matches in a table.  Use findrec to locate
     * the records that point to the data. */
-  useindex(sr->filter,&result);
+  if (!useindex(sr->filter,&result)) {
+    result.first=0; result.last=record_count;
+    fillset(&result);
+  }
 //	      assert(result.last<=record_count);
   for (i=result.first; i<=result.last; ) {
     size_t ni=i+8*sizeof(long);
