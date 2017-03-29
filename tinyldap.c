@@ -463,7 +463,7 @@ static int indexable(struct Filter* f) {
     }
     /* fall through */
   case PRESENT:
-    return 1;
+    return 0;
 #if 0
   /* doesn't make much sense to try to speed up negated queries */
   case NOT:
@@ -859,6 +859,8 @@ static int useindex(struct Filter* f,struct bitfield* b) {
     }
     return 0;
   case PRESENT:
+    return 0;
+#if 0
     {
       /* now this is not exactly using an index, but a linear search
        * through the record table, but since each check is very cheap,
@@ -873,6 +875,7 @@ static int useindex(struct Filter* f,struct bitfield* b) {
       }
       return 1;
     }
+#endif
   case LESSEQUAL:
   case GREATEQUAL:
   case EQUAL:

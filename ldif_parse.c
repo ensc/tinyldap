@@ -110,8 +110,14 @@ nomem:
     uint32_t tmp, val;
     base64=binary=0;
     n=ofs+buffer_get_token(b,buf+ofs,8192-ofs,":",1);
-    if (n==0) break;
+    if (n==ofs) break;
     i=scan_whitenskip(buf,n);
+    if (buf[byte_chr(buf+i,n-i,'\n')]=='\n') {
+      buffer_puts(buffer_2,"LDIF parse error: no key:value in line ");
+      buffer_putulong(buffer_2,lines);
+      buffer_putnlflush(buffer_2);
+      exit(1);
+    }
     buf[n]=0;
     if ((i2=str_chr(buf,';'))<(unsigned int)n) {
       buf[i2]=0;
@@ -169,10 +175,23 @@ lookagain:
 	  }
 	  if (base64) {
 	    len=unbase64(payload.s);
+	    if (len==0) {
+	      buffer_puts(buffer_2,"LDIF parse error: base64 decoding failed in line ");
+	      buffer_putulong(buffer_2,lines);
+	      buffer_putnlflush(buffer_2);
+	      exit(1);
+	    }
 	    if (!binary) { payload.s[len]=0; ++len; }
 	  } else {
+	    size_t sl;
 	    len=n;
-	    scan_ldapescape(payload.s,payload.s,&len);
+	    sl=scan_ldapescape(payload.s,payload.s,&len);
+	    if (sl!=payload.len-1) {
+	      buffer_puts(buffer_2,"LDIF parse error: LDIF de-escaping failed in line ");
+	      buffer_putulong(buffer_2,lines);
+	      buffer_putnlflush(buffer_2);
+	      exit(1);
+	    }
 	    payload.s[len]=0;
 	    ++len;
 	  }
@@ -243,6 +262,12 @@ lookagain:
       }
       if (base64) {
 	len=unbase64(payload.s);
+	if (len==0) {
+	  buffer_puts(buffer_2,"LDIF parse error: base64 decoding failed in line ");
+	  buffer_putulong(buffer_2,lines);
+	  buffer_putnlflush(buffer_2);
+	  exit(1);
+	}
 	if (!binary) { payload.s[len]=0; ++len; }
       } else {
 	len=n;
