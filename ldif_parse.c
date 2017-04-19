@@ -40,7 +40,7 @@ static void addattribute(struct ldaprec** l,uint32_t name,uint32_t val) {
       (*l)->a[(*l)->n].value=val;
       ++(*l)->n;
     } else {
-      buffer_puts(buffer_2,"LDIF parse error: too many attributes!: ");
+      buffer_puts(buffer_2,"\r\n\nLDIF parse error: too many attributes!: ");
       buffer_puts(buffer_2,attributes.Strings->root+name);
       buffer_puts(buffer_2," in line ");
       buffer_putulong(buffer_2,lines);
@@ -91,7 +91,7 @@ static inline int add_normalized(const char* s,long len) {
   return val;
 }
 
-static int parserec(buffer* b, struct ldaprec** l) {
+static int parserec(buffer* b, struct ldaprec** l,const char* filename) {
   char buf[8192];
   int n,i,eof=0,ofs=0;
   unsigned int i2;
@@ -100,7 +100,7 @@ static int parserec(buffer* b, struct ldaprec** l) {
 
   if (!(*l=malloc(sizeof(struct ldaprec)))) {
 nomem:
-    buffer_putsflush(buffer_2,"out of memory!\n");
+    buffer_putsflush(buffer_2,"\r\n\nout of memory!\n");
     return 1;
   }
   (*l)->dn=-1;
@@ -109,14 +109,26 @@ nomem:
   do {
     uint32_t tmp, val;
     base64=binary=0;
+    buf[ofs]=0;
     n=ofs+buffer_get_token(b,buf+ofs,8192-ofs,":\n",2);
-    if (n==ofs) break;
-    if (buf[0]=='#') continue;	/* comment line */
+    if (n==ofs) {
+      if (buf[ofs]==0) eof=1;
+      break;
+    }
+    if (buf[0]=='#') {	/* comment line */
+      while (n>=8192-ofs || buf[n]==':') {
+	/* if we got a partial line or the comment contained a colon, do over */
+	ofs=0;
+	n=buffer_get_token(b,buf,8192,"\n",1);
+      }
+      ++lines;
+      continue;
+    }
     i=scan_whitenskip(buf,n);
     if (buf[byte_chr(buf+i,n-i,'\n')]=='\n') {
-      buffer_puts(buffer_2,"LDIF parse error: no key:value in line ");
-      buffer_putulong(buffer_2,lines);
-      buffer_putnlflush(buffer_2);
+      buffer_putm(buffer_2,"\r\n\n",filename,":");
+      buffer_putulong(buffer_2,lines+1);
+      buffer_putsflush(buffer_2,": error: no key:value found\n");
       exit(1);
     }
     buf[n]=0;
@@ -177,9 +189,9 @@ lookagain:
 	  if (base64) {
 	    len=unbase64(payload.s);
 	    if (len==0) {
-	      buffer_puts(buffer_2,"LDIF parse error: base64 decoding failed in line ");
-	      buffer_putulong(buffer_2,lines);
-	      buffer_putnlflush(buffer_2);
+	      buffer_putm(buffer_2,"\r\n\n",filename,":");
+	      buffer_putulong(buffer_2,lines+1);
+	      buffer_putsflush(buffer_2,": error: base64 decoding failed\n");
 	      exit(1);
 	    }
 	    if (!binary) { payload.s[len]=0; ++len; }
@@ -188,9 +200,9 @@ lookagain:
 	    len=n;
 	    sl=scan_ldapescape(payload.s,payload.s,&len);
 	    if (sl!=payload.len-1) {
-	      buffer_puts(buffer_2,"LDIF parse error: LDIF de-escaping failed in line ");
-	      buffer_putulong(buffer_2,lines);
-	      buffer_putnlflush(buffer_2);
+	      buffer_putm(buffer_2,"\r\n\n",filename,":");
+	      buffer_putulong(buffer_2,lines+1);
+	      buffer_putsflush(buffer_2,": error: LDIF de-escaping failed\n");
 	      exit(1);
 	    }
 	    payload.s[len]=0;
@@ -264,9 +276,9 @@ lookagain:
       if (base64) {
 	len=unbase64(payload.s);
 	if (len==0) {
-	  buffer_puts(buffer_2,"LDIF parse error: base64 decoding failed in line ");
-	  buffer_putulong(buffer_2,lines);
-	  buffer_putnlflush(buffer_2);
+	  buffer_putm(buffer_2,"\r\n\n",filename,":");
+	  buffer_putulong(buffer_2,lines+1);
+	  buffer_putsflush(buffer_2,": error: base64 decoding failed\n");
 	  exit(1);
 	}
 	if (!binary) { payload.s[len]=0; ++len; }
@@ -305,6 +317,12 @@ lookagain:
     addattribute(l,tmp,val);
 #endif
   } while (!eof);
+  if (!eof) {
+    buffer_putm(buffer_2,"\r\n\n",filename,":");
+    buffer_putulong(buffer_2,lines+1);
+    buffer_putsflush(buffer_2,": error: parse error (maybe 2nd empty line?)\n");
+    exit(1);
+  }
   if ((*l)->dn==(uint32_t)-1) return 0;
   if (ldif_parse_callback && ldif_parse_callback(*l)==-1) return -1;
   if ((*l)->dn==(uint32_t)-1 && ((*l)->next)) {
@@ -338,7 +356,7 @@ int ldif_parse(const char* filename,off_t fromofs,struct stat* ss) {
   objectClass=mduptab_adds(&attributes,"objectClass");
   lines=0;
   {
-    int res=parserec(tmp,&first);
+    int res=parserec(tmp,&first,filename);
     if (ss) {
       fstat(fd,ss);
       /* the file size may have changed between parserec hitting EOF and
