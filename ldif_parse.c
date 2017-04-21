@@ -1,19 +1,19 @@
 #define _FILE_OFFSET_BITS 64
 #include <alloca.h>
-#include <buffer.h>
-#include <scan.h>
-#include <open.h>
+#include <libowfat/buffer.h>
+#include <libowfat/scan.h>
+#include <libowfat/open.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include "mduptab.h"
 #include "mstorage.h"
-#include "str.h"
+#include <libowfat/str.h>
 #include "ldif.h"
-#include "byte.h"
-#include "textcode.h"
-#include "stralloc.h"
-#include "uint32.h"
+#include <libowfat/byte.h>
+#include <libowfat/textcode.h>
+#include <libowfat/stralloc.h>
+#include <libowfat/uint32.h>
 
 mduptab_t attributes,classes;
 mstorage_t stringtable;

@@ -8,9 +8,9 @@
 #define MD5Final MD5_Final
 #endif
 #include <string.h>
-#include "buffer.h"
-#include "str.h"
-#include "textcode.h"
+#include <libowfat/buffer.h>
+#include <libowfat/str.h>
+#include <libowfat/textcode.h>
 
 int main(int argc,char* argv[]) {
   unsigned char digest[17];

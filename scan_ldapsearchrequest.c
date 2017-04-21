@@ -39,7 +39,7 @@ size_t scan_ldapsearchrequest(const char* src,const char* max,
       if (src+res==nmax) break;
       if (!*a) *a=calloc(1,sizeof(struct AttributeDescriptionList));
       if (!*a) goto error;
-      if (!(tmp=scan_ldapstring(src+res,nmax,&(*a)->a))) { free(*a); goto error; }
+      if (!(tmp=scan_ldapstring(src+res,nmax,&(*a)->a))) { goto error; }
       res+=tmp;
       a=&(*a)->next;
     }

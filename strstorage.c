@@ -1,5 +1,5 @@
 #include <stdlib.h>
-#include "byte.h"
+#include <libowfat/byte.h>
 #include "strstorage.h"
 
 #define PAGESIZE 4096

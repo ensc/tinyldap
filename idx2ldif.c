@@ -1,11 +1,11 @@
 #include <alloca.h>
 #include <ctype.h>
 #include <stdlib.h>
-#include "buffer.h"
-#include "mmap.h"
-#include "uint32.h"
+#include <libowfat/buffer.h>
+#include <libowfat/mmap.h>
+#include <libowfat/uint32.h>
 #include "bstr.h"
-#include "textcode.h"
+#include <libowfat/textcode.h>
 #include <assert.h>
 
 static void dumpbstr(const char* c) {

@@ -1,5 +1,5 @@
 #include "tinytls.h"
-#include "uint16.h"
+#include <libowfat/uint16.h>
 
 size_t fmt_tls_packet(char* dest,enum contenttype ct, size_t len) {
   if (len>0xffff) return 0;

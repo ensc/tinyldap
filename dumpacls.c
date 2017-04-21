@@ -1,11 +1,11 @@
 #include <stdlib.h>
 #include <assert.h>
-#include "buffer.h"
-#include "mmap.h"
-#include "uint16.h"
-#include "uint32.h"
+#include <libowfat/buffer.h>
+#include <libowfat/mmap.h>
+#include <libowfat/uint16.h>
+#include <libowfat/uint32.h>
 #include "ldap.h"
-#include "byte.h"
+#include <libowfat/byte.h>
 
 int main(int argc,char* argv[]) {
   unsigned long filelen;

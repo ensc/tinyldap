@@ -1,11 +1,11 @@
-#include <buffer.h>
-#include <scan.h>
-#include <open.h>
+#include <libowfat/buffer.h>
+#include <libowfat/scan.h>
+#include <libowfat/open.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include "strduptab.h"
 #include "strstorage.h"
-#include "str.h"
+#include <libowfat/str.h>
 
 /* how many attributes do we allow per record? */
 #define ATTRIBS 8

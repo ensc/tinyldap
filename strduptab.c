@@ -1,8 +1,8 @@
 #include <stdlib.h>
-#include "str.h"
+#include <libowfat/str.h>
 #include "strduptab.h"
 #include "strstorage.h"
-#include "str.h"
+#include <libowfat/str.h>
 
 #define PAGESIZE 4096
 

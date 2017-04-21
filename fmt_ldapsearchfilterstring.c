@@ -1,6 +1,6 @@
-#include "fmt.h"
-#include "byte.h"
-#include "str.h"
+#include <libowfat/fmt.h>
+#include <libowfat/byte.h>
+#include <libowfat/str.h>
 #include "ldap.h"
 
 size_t fmt_ldapsearchfilterstring(char* dest,const struct Filter* f) {

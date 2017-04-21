@@ -1,5 +1,5 @@
 #include "tinytls.h"
-#include "uint16.h"
+#include <libowfat/uint16.h>
 #include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>

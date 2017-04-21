@@ -1,8 +1,8 @@
 #include "tinytls.h"
 #include <stdlib.h>
-#include "uint16.h"
-#include "uint32.h"
-#include "buffer.h"
+#include <libowfat/uint16.h>
+#include <libowfat/uint32.h>
+#include <libowfat/buffer.h>
 #include <string.h>
 
 inline int puts(const char* s) {
@@ -35,7 +35,7 @@ tls_error_code tls_connect(uintptr_t fd,struct ssl_context* sc) {
     puts("WRITE_CLIENTHELLO");
     r=tls_dowrite(fd,sc);
     if (r!=OK) return r;
-    r=READ_SERVERHELLO;
+    // r=READ_SERVERHELLO;	// since we fall through, don't do dead store
     sc->ofsinmessage=0;
     // fall through
 
@@ -66,7 +66,7 @@ decodeerror:
       sc->cipher=cipher;
       sc->compressionmethod=0;
     }
-    r=READ_CERT;
+    // r=READ_CERT;		// since we fall through, this would be a dead store
     sc->ofsinmessage=0;
     // fall through
 
@@ -96,7 +96,7 @@ decodeerror:
       }
     }
 
-    r=READ_SERVERHELLODONE;
+    // r=READ_SERVERHELLODONE;	// since we fall through, this would be a dead store
     sc->ofsinmessage=0;
     // fall through
 

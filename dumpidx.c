@@ -1,7 +1,7 @@
 #include <stdlib.h>
-#include "buffer.h"
-#include "mmap.h"
-#include "uint32.h"
+#include <libowfat/buffer.h>
+#include <libowfat/mmap.h>
+#include <libowfat/uint32.h>
 
 int main(int argc,char* argv[]) {
   int verbose=0;

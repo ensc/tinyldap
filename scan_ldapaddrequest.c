@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include "ldap.h"
-#include "buffer.h"
-#include "byte.h"
+#include <libowfat/buffer.h>
+#include <libowfat/byte.h>
 
 #if 0
         AddRequest ::= [APPLICATION 8] SEQUENCE {

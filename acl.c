@@ -2,20 +2,20 @@
 #define MAIN
 
 #include "ldap.h"
-#include <buffer.h>
-#include <stralloc.h>
-#include <str.h>
-#include <uint32.h>
+#include <libowfat/buffer.h>
+#include <libowfat/stralloc.h>
+#include <libowfat/str.h>
 #include <string.h>
-#include <errmsg.h>
-#include <fmt.h>
-#include <byte.h>
-#include <mmap.h>
-#include <case.h>
-#include <uint16.h>
-#include <uint32.h>
-#include <open.h>
+#include <libowfat/errmsg.h>
+#include <libowfat/fmt.h>
+#include <libowfat/byte.h>
+#include <libowfat/mmap.h>
+#include <libowfat/case.h>
+#include <libowfat/uint16.h>
+#include <libowfat/uint32.h>
+#include <libowfat/open.h>
 #include <unistd.h>
+#include <assert.h>
 
 const char Any[]="*";
 const char Self[]="self";
@@ -306,6 +306,11 @@ int marshal(const char* map,size_t filelen,const char* filename) {
   buffer_putulong(buffer_1,filters);
   buffer_putsflush(buffer_1," filters.\n");
 
+  if (acls==0) {
+    buffer_putsflush(buffer_1,"No ACLs defined. We are done here.\n");
+    exit(0);
+  }
+
   F=malloc(sizeof(*F)*(filters+1));
 
   filter_offset=filelen+(filters+4)*sizeof(*F);	/* 2 uints for index header, 1 uint filters_count, then filter_count+1 uint32 in F */
@@ -332,6 +337,11 @@ nomem:
   }
   attribute_count=uint32_read(map+4);
   attrtab=5*4+uint32_read(map+16);
+
+  if (attribute_count == 0) {
+    buffer_putsflush(buffer_2,"malformed data file (attribute_count zero!?)\n");
+    exit(1);
+  }
   /* here we need to have each attribute mentioned in any ACL
    * point to the proper offset in the data file.  But what if an ACL
    * mentions an attribute that never occurs in any of the records?  In
@@ -345,7 +355,7 @@ nomem:
     for (a=root; a; a=a->next) {
       unsigned int l=0;
 //      printf("a->anum = %lu\nsizeof(*a->attrs) = %lu\n",a->anum,sizeof(*a->attrs));
-      if (!(a->attrs=malloc(a->anum*sizeof(*a->attrs))))
+      if (!(a->attrs=calloc(a->anum,sizeof(*a->attrs))))
 	goto nomem;
       a->attrs[l]=a->attrib; ++l;
       if (a->attrib!=Any) {
@@ -354,6 +364,7 @@ nomem:
 	    a->attrib[k]=0;
 	    a->attrs[l]=a->attrib+k+1;
 	  }
+	assert(l==a->anum);	// this is for the benefit of clang's static analyzer
 	for (k=0; k<a->anum; ++k) {
 	  int found=0;
 	  for (j=0; j<attribute_count; ++j) {
@@ -457,6 +468,7 @@ nomem:
 		      y.len);		/* marshalled acls */
     if (write(fd,tmp,8)!=8) {
 shortwrite:
+      free(A); free(F);
       ftruncate(fd,filelen);
       close(fd);
       diesys(1,"short write");
@@ -481,6 +493,7 @@ shortwrite:
     /* write marshalled acl data */
     if (write(fd,y.s,y.len) != (ssize_t)y.len) goto shortwrite;
   }
+  free(A); free(F);
   close(fd);
   return 0;
 }

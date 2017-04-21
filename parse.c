@@ -9,13 +9,13 @@
 #include <sys/shm.h>
 #include <stdlib.h>
 #include <string.h>
-#include "buffer.h"
+#include <libowfat/buffer.h>
 #include "ldif.h"
 #include "mduptab.h"
-#include "uint32.h"
-#include "byte.h"
-#include "fmt.h"
-#include "errmsg.h"
+#include <libowfat/uint32.h>
+#include <libowfat/byte.h>
+#include <libowfat/fmt.h>
+#include <libowfat/errmsg.h>
 
 /* these are defined in ldif_parse.c.
  * We extern them here so we can initialize them.
@@ -280,7 +280,7 @@ writeerror:
     len = outofs;
 
     indices_offset=len;
-    len+=record_count*4;
+    // len+=record_count*4;	// not actually needed after this
 
     if (buffer_put(&outbuf,(char*)offsets,sizeof(uint32)*record_count)) diesys(1,"short write (disk full?)");
     free(offsets);

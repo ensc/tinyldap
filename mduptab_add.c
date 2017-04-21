@@ -1,10 +1,10 @@
 #include <stdlib.h>
 #include <string.h>
-#include "str.h"
+#include <libowfat/str.h>
 #include "bstr.h"
 #include "mstorage.h"
 #include "mduptab.h"
-#include "uint32.h"
+#include <libowfat/uint32.h>
 
 long mduptab_add(mduptab_t* t,const char* s,size_t len) {
   unsigned int i;

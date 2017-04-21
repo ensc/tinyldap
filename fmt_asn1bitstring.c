@@ -1,5 +1,5 @@
 #include "asn1.h"
-#include "byte.h"
+#include <libowfat/byte.h>
 
 /* like fmt_asn1string, but l is in BITS, not BYTES */
 size_t fmt_asn1bitstring(char* dest,enum asn1_tagclass tc,enum asn1_tagtype tt,enum asn1_tag tag,const char* c,size_t l) {

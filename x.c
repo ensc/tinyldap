@@ -1,7 +1,7 @@
 #include "tinytls.h"
-#include "errmsg.h"
-#include "ip4.h"
-#include "socket.h"
+#include <libowfat/errmsg.h>
+#include <libowfat/ip4.h>
+#include <libowfat/socket.h>
 #include <stdio.h>
 
 

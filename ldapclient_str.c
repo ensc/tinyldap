@@ -1,13 +1,13 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <string.h>
-#include "byte.h"
-#include "buffer.h"
+#include <libowfat/byte.h>
+#include <libowfat/buffer.h>
 #include "ldap.h"
-#include "socket.h"
-#include "ip4.h"
-#include "str.h"
-#include "open.h"
+#include <libowfat/socket.h>
+#include <libowfat/ip4.h>
+#include <libowfat/str.h>
+#include <libowfat/open.h>
 
 #define BUFSIZE 8192
 

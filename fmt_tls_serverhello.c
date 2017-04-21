@@ -1,5 +1,5 @@
-#include "uint16.h"
-#include "uint32.h"
+#include <libowfat/uint16.h>
+#include <libowfat/uint32.h>
 #include "tinytls.h"
 #include <stdio.h>
 #include <string.h>
@@ -115,7 +115,7 @@ invalid:
     sc->compressionmethod=0;
     if (hostlen!=-1) {
       char* sn;
-      if (!(sn=malloc(hostlen+1))) {
+      if ((sn=malloc(hostlen+1))) {
 	memcpy(sn,host,hostlen);
 	sn[hostlen]=0;
 	sc->servername=sn;

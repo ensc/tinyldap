@@ -1,7 +1,7 @@
 #include <unistd.h>
 #include "ldap.h"
-#include "byte.h"
-#include "case.h"
+#include <libowfat/byte.h>
+#include <libowfat/case.h>
 #include <ctype.h>
 
 static int matchcasestr(struct string* a,struct string* b) {

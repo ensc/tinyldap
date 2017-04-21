@@ -1,9 +1,9 @@
-#include <stralloc.h>
-#include <buffer.h>
-#include <array.h>
-#include <fmt.h>
-#include <errmsg.h>
-#include <str.h>
+#include <libowfat/stralloc.h>
+#include <libowfat/buffer.h>
+#include <libowfat/array.h>
+#include <libowfat/fmt.h>
+#include <libowfat/errmsg.h>
+#include <libowfat/str.h>
 #include <ctype.h>
 
 #define _BSD_SOURCE

@@ -5,7 +5,7 @@
 #include <fcntl.h>
 #include <sys/shm.h>
 #include <stdio.h>
-#include "byte.h"
+#include <libowfat/byte.h>
 #include "mstorage.h"
 
 #ifndef PAGE_SIZE

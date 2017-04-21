@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include "ldap.h"
-#include "str.h"
+#include <libowfat/str.h>
 
 size_t scan_ldapsearchfilterstring(const char* src,struct Filter** f) {
   char* s=(char*)src;

@@ -1,5 +1,5 @@
 #include "asn1.h"
-#include "byte.h"
+#include <libowfat/byte.h>
 
 size_t fmt_asn1transparent(char* dest,enum asn1_tagclass tc,enum asn1_tagtype tt,enum asn1_tag tag,size_t l) {
   size_t len,tmp;

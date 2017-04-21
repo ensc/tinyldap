@@ -1,7 +1,7 @@
 #include <string.h>
-#include "case.h"
+#include <libowfat/case.h>
 #include "ldif.h"
-#include "str.h"
+#include <libowfat/str.h>
 
 /* behave like strcmp, but also return 0 if s is a prefix of c. */
 int matchcaseprefix(struct string* s,const char* c) {

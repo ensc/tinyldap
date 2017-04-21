@@ -1,8 +1,8 @@
 #include <stdio.h>
-#include <byte.h>
+#include <libowfat/byte.h>
 #include <stdlib.h>
 #include "asn1.h"
-#include "mmap.h"
+#include <libowfat/mmap.h>
 #include <ctype.h>
 
 #include "printasn1.c"

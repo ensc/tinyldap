@@ -1,7 +1,8 @@
 #include "tinytls.h"
-#include "uint16.h"
-#include "uint32.h"
+#include <libowfat/uint16.h>
+#include <libowfat/uint32.h>
 #include <time.h>
+#include <string.h>
 
 size_t fmt_tls_clienthello(char* dest, struct ssl_context* sc) {
   size_t hnextlen=sc->servername?strlen(sc->servername)+9:0;

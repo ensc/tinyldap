@@ -1,7 +1,7 @@
 #DEBUG=1
 #COVERAGE=1
 
-all: t1 t2 parse dumpidx idx2ldif addindex bindrequest tinyldap \
+all: libowfat-warning t1 t2 parse dumpidx idx2ldif addindex bindrequest tinyldap \
 tinyldap_standalone tinyldap_debug ldapclient ldapclient_str \
 md5password mysql2ldif acl dumpacls ldapdelete asn1dump tls.a x # t6 # t
 
@@ -75,6 +75,14 @@ endif
 
 %: %.c
 	$(DIET) $(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) -lowfat ${LIBS}
+
+.PHONY: libowfat-warning
+libowfat-warning:
+	@echo "#include <textcode.h>" > a.c
+	@($(DIET) $(CC) $(CFLAGS) -c a.c >/dev/null 2>&1 && echo "WARNING: libowfat has moved the header files from foo.h to libowfat/foo.h\nWARNING: you still have foo.h! Please update your libowfat!") || exit 0
+	@echo "#include <libowfat/textcode.h>" > a.c
+	@$(DIET) $(CC) $(CFLAGS) -c a.c >/dev/null 2>&1 || echo "WARNING: this package needs libowfat; get it from https://www.fefe.de/libowfat/"
+	@rm -f a.c a.o
 
 t1 parse: ldif.a storage.a
 t2: ldap.a asn1.a

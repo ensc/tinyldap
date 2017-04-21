@@ -1,6 +1,6 @@
 #include <string.h>
-#include "str.h"
-#include "uint32.h"
+#include <libowfat/str.h>
+#include <libowfat/uint32.h>
 
 int bstr_diff(const char* a,const char* b) {
   const char* A,* B;

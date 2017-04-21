@@ -1,7 +1,7 @@
 #ifndef INCLUDE
 #include <unistd.h>
 #include <stdio.h>
-#include "mmap.h"
+#include <libowfat/mmap.h>
 #include "ldap.h"
 #endif
 

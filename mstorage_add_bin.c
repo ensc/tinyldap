@@ -1,4 +1,4 @@
-#include "uint32.h"
+#include <libowfat/uint32.h>
 #include "mstorage.h"
 
 /* this is tinyldap specific.  If the data contains at least one 0-byte,

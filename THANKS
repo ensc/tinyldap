@@ -18,3 +18,5 @@ At least one of them looks like it might be exploitable if you are not
 using dietlibc.
 
 Georg Lehner found problems in the indexing code.
+
+Simon Rettberg found a double free in an error path.

@@ -2,13 +2,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "byte.h"
-#include "buffer.h"
+#include <libowfat/byte.h>
+#include <libowfat/buffer.h>
 #include "ldap.h"
-#include "socket.h"
-#include "ip4.h"
-#include "str.h"
-#include "textcode.h"
+#include <libowfat/socket.h>
+#include <libowfat/ip4.h>
+#include <libowfat/str.h>
+#include <libowfat/textcode.h>
 
 #include <fcntl.h>
 #include <sys/socket.h>
@@ -41,11 +41,6 @@ int main(int argc,char* argv[]) {
   int sock;
   char buf[BUFSIZE];
   int len=0;
-  char* me;
-  if ((me=strrchr(argv[0],'/')))
-    ++me;
-  else
-    me=argv[0];
 
   if (argc<2) {
 usage:

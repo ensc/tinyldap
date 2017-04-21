@@ -5,11 +5,11 @@
 #include <string.h>
 #include <strings.h>
 #include <errno.h>
-#include "buffer.h"
-#include "mmap.h"
-#include "uint32.h"
+#include <libowfat/buffer.h>
+#include <libowfat/mmap.h>
+#include <libowfat/uint32.h>
 #include "mstorage.h"
-#include <errmsg.h>
+#include <libowfat/errmsg.h>
 #include <ctype.h>
 #include <stdlib.h>
 

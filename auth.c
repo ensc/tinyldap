@@ -14,9 +14,9 @@
 #include <string.h>
 #include "ldap.h"
 #include "auth.h"
-#include "str.h"
-#include "textcode.h"
-#include "byte.h"
+#include <libowfat/str.h>
+#include <libowfat/textcode.h>
+#include <libowfat/byte.h>
 
 int check_password(const char* fromdb,struct string* plaintext) {
   if (str_start(fromdb,"{MD5}")) {

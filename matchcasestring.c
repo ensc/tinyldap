@@ -1,4 +1,4 @@
-#include "case.h"
+#include <libowfat/case.h>
 #include "bstr.h"
 #include "ldif.h"
 

@@ -1,6 +1,7 @@
 #include "tinytls.h"
-#include "open.h"
+#include <libowfat/open.h>
 #include <unistd.h>
+#include <string.h>
 
 void init_tls_context_norandom(struct ssl_context* sc, const char* servername) {
   memset(sc,0,sizeof *sc);

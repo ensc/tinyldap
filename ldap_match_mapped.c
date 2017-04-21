@@ -1,8 +1,8 @@
 #include "ldif.h"
-#include "byte.h"
-#include "str.h"
-#include "uint32.h"
-#include "case.h"
+#include <libowfat/byte.h>
+#include <libowfat/str.h>
+#include <libowfat/uint32.h>
+#include <libowfat/case.h>
 #include <ctype.h>
 #include <unistd.h>
 #include <stdio.h>

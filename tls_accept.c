@@ -62,7 +62,7 @@ nocert:
       x+=fmt_tls_serverhellodone(x);
     }
 
-    r=WRITE_SERVERHELLO;
+    // r=WRITE_SERVERHELLO;	// dead store because we fall through
     sc->ofsinmessage=0;
     // fall through
 

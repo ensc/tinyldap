@@ -2,13 +2,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "byte.h"
-#include "buffer.h"
+#include <libowfat/byte.h>
+#include <libowfat/buffer.h>
 #include "ldap.h"
-#include "socket.h"
-#include "ip4.h"
-#include "str.h"
-#include "textcode.h"
+#include <libowfat/socket.h>
+#include <libowfat/ip4.h>
+#include <libowfat/str.h>
+#include <libowfat/textcode.h>
 
 #include <fcntl.h>
 #include <sys/socket.h>
@@ -254,7 +254,7 @@ nextmessage:
 	    /* copy partial message */
 copypartialandcontinue:
 	    byte_copy(buf,len-cur,buf+cur);
-	    len-=cur; cur=0;
+	    len-=cur;
 	  }
 	}
 

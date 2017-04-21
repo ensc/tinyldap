@@ -1,4 +1,4 @@
-#include <byte.h>
+#include <libowfat/byte.h>
 #include "ldap.h"
 #include <stdlib.h>
 

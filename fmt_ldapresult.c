@@ -1,5 +1,5 @@
 #include "ldap.h"
-#include "str.h"
+#include <libowfat/str.h>
 
 size_t fmt_ldapresult(char* dest,long result,const char* matcheddn,const char* errormessage,const char* referral) {
   size_t l,sum=0,nlen;
@@ -14,7 +14,7 @@ size_t fmt_ldapresult(char* dest,long result,const char* matcheddn,const char* e
   if (referral && *referral) {
     nlen=str_len(referral);
     l=fmt_asn1OCTETSTRING(dest,referral,nlen);
-    sum+=l; if (dest) dest+=l;
+    sum+=l;
   }
   return sum;
 }
