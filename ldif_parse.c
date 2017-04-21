@@ -323,7 +323,10 @@ lookagain:
     buffer_putsflush(buffer_2,": error: parse error (maybe 2nd empty line?)\n");
     exit(1);
   }
-  if ((*l)->dn==(uint32_t)-1) return 0;
+  if ((*l)->dn==(uint32_t)-1) {
+    stralloc_free(&payload);
+    return 0;
+  }
   if (ldif_parse_callback && ldif_parse_callback(*l)==-1) return -1;
   if ((*l)->dn==(uint32_t)-1 && ((*l)->next)) {
     struct ldaprec* m=(*l)->next;
