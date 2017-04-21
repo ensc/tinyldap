@@ -52,7 +52,7 @@ error:
 
 void free_ldapsearchrequest(struct SearchRequest* s) {
   if (s->attributes)
-    free_ldapadl(s->attributes->next);
+    free_ldapadl(s->attributes);
   free_ldapsearchfilter(s->filter);
   memset(s,0,sizeof(*s));
 }
