@@ -8,7 +8,7 @@
 #include <libowfat/byte.h>
 
 int main(int argc,char* argv[]) {
-  unsigned long filelen;
+  size_t filelen;
   char* fn=argc<2?"data":argv[1];
   const char* map=mmap_read(fn,&filelen);
   uint32 magic,attribute_count,record_count,indices_offset,size_of_string_table,acl_ofs;

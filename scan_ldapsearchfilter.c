@@ -32,7 +32,8 @@
 size_t scan_ldapsearchfilter(const char* src,const char* max,struct Filter** f) {
   enum asn1_tagclass tc;
   enum asn1_tagtype tt;
-  size_t tag,len,res,tmp;
+  size_t len,res,tmp;
+  unsigned long tag;
   const char* nmax;
   *f=0;
   if (!(res=scan_asn1tag(src,max,&tc,&tt,&tag))) goto error;

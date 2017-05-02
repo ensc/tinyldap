@@ -1,6 +1,6 @@
 #include "asn1.h"
 
-size_t fmt_asn1OID(char* dest,enum asn1_tagclass tc,enum asn1_tagtype tt,enum asn1_tag tag,const unsigned long* array,unsigned long len) {
+size_t fmt_asn1OID(char* dest,enum asn1_tagclass tc,enum asn1_tagtype tt,enum asn1_tag tag,const size_t* array,size_t len) {
   size_t i,l,l2;
   if (len<2) return 0;
   for (l=1,i=2; i<len; ++i) {

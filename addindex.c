@@ -64,7 +64,7 @@ uint32 hashmapped(uint32 ofs,int ignorecase) {
 
 int main(int argc,char* argv[]) {
   enum { SORTEDTABLE, HASHTABLE } mode;
-  unsigned long filelen;
+  size_t filelen;
   char* filename=argv[1];
   uint32 magic,attribute_count,record_count,indices_offset,size_of_string_table;
   uint32 wanted,casesensitive,dn,objectClass;

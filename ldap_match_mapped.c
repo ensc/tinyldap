@@ -14,7 +14,7 @@ extern uint32 magic,attribute_count,record_count,indices_offset,size_of_string_t
 extern uint32 dn_ofs,objectClass_ofs;
 
 int substringmatch(struct Substring* x,const char* attr,int ignorecase) {
-  int (*diff)(const void* a, unsigned long len, const void* b);
+  int (*diff)(const void* a, size_t len, const void* b);
   if (ignorecase)
     diff=case_diffb;
   else

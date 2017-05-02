@@ -45,7 +45,7 @@ static int ldap_match_present_sre(struct SearchResultEntry* sre,struct string* s
 }
 
 static int substrmatch(struct Substring* x,struct string* s,int ignorecase) {
-  int (*diff)(const void* a, unsigned long len, const void* b);
+  int (*diff)(const void* a, size_t len, const void* b);
   if (ignorecase)
     diff=case_diffb;
   else

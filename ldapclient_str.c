@@ -19,7 +19,8 @@ static int ldapbind(int sock) {
   int len=fmt_ldapbindrequest(outbuf+s,3,"","");
   int hlen=fmt_ldapmessage(0,messageid,BindRequest,len);
   int res;
-  unsigned long op,Len,result;
+  unsigned long op,result;
+  size_t Len;
   struct string matcheddn,errormessage,referral;
   fmt_ldapmessage(outbuf+s-hlen,messageid,BindRequest,len);
   if (write(sock,outbuf+s-hlen,len+hlen)!=len+hlen) return 0;;
@@ -97,7 +98,8 @@ usage:
       char* max;
       struct SearchResultEntry sre;
       for (;;) {
-	unsigned long slen,mid,op;
+	unsigned long mid,op;
+	size_t slen;
 	tmp=read(sock,buf+len,sizeof(buf)-len);
 	if (tmp<=0) {
 	  buffer_putsflush(buffer_2,"read error.\n");

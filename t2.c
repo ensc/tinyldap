@@ -83,16 +83,17 @@ mergesub:
 #ifndef INCLUDE
 int main(int argc,char* argv[]) {
 #if 1
-  unsigned long size;
+  size_t size;
 //  char* ldapsequence=mmap_read("req",&size);
   const char* ldapsequence=mmap_read(argc>1?argv[1]:"/tmp/ldap/127.000.000.001.00389-127.000.000.001.38433",&size);
-  unsigned long messageid, op, len;
+  unsigned long messageid, op;
+  size_t len;
   int res;
   unsigned long done=0;
   while (done<size) {
     printf("scan_ldapmessage: %d\n",res=scan_ldapmessage(ldapsequence+done,ldapsequence+size,&messageid,&op,&len));
     if (!res) { puts("punt!"); break; }
-    printf("message id %lu, op %lu, len %lu\n",messageid,op,len);
+    printf("message id %lu, op %lu, len %zu\n",messageid,op,len);
     switch (op) {
     case BindRequest:
       puts("  >> BindRequest <<");

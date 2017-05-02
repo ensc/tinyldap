@@ -28,7 +28,8 @@ size_t scan_ldapmodifyrequest(const char* src,const char* max,struct ModifyReque
   max=src+res+oslen;
   if (src+res>=max) goto error;		/* need at least one record */
   do {
-    size_t islen, etmp;
+    size_t islen;
+    unsigned long etmp;
     if (last) {
       struct Modification* cur;
       if (!(cur=malloc(sizeof(struct Modification)))) goto error;

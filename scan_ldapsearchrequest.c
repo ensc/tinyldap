@@ -7,6 +7,7 @@ size_t scan_ldapsearchrequest(const char* src,const char* max,
   size_t res,tmp;
   unsigned long etmp;
   signed long ltmp;
+  size_t stmp;
   s->attributes=0;
   s->filter=0;
   if (!(res=scan_ldapstring(src,max,&s->baseObject))) goto error;
@@ -27,10 +28,10 @@ size_t scan_ldapsearchrequest(const char* src,const char* max,
   if (!(tmp=scan_ldapsearchfilter(src+res,max,&s->filter))) goto error;
   res+=tmp;
   /* now for the attributelist */
-  if (!(tmp=scan_asn1SEQUENCE(src+res,max,&etmp))) goto error;
+  if (!(tmp=scan_asn1SEQUENCE(src+res,max,&stmp))) goto error;
   res+=tmp;
   {
-    const char* nmax=src+res+etmp;
+    const char* nmax=src+res+stmp;
 //#define nmax max
     struct AttributeDescriptionList** a=&s->attributes;
     if (nmax>max) goto error;

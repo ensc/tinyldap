@@ -37,7 +37,7 @@ static void dumpbstr(const char* c) {
 
 int main(int argc,char* argv[]) {
   int verbose=1;
-  unsigned long filelen;
+  size_t filelen;
   char* fn=argc<2?"data":argv[1];
   const char* map=mmap_read(fn,&filelen);
   uint32 magic,attribute_count,record_count,indices_offset,size_of_string_table;
