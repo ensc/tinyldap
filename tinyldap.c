@@ -133,6 +133,7 @@ static void fixup(struct Filter* f) {
 	buffer_putsflush(buffer_2,"\"!\n");
       }
     }
+    /* fall through */
   case AND:
   case OR:
   case NOT:

@@ -117,6 +117,7 @@ alertfail:
     sc->message.l=7;
     r=tls_dowrite(fd,sc);
     if (r!=OK) return r;
+    /* fall through */
 
   default:
     sc->state=FAIL;
