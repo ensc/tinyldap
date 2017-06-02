@@ -46,7 +46,7 @@ scan_filterlist:
 	if (*(++s)=='*') {
 	  if (*(++s)==')') {
 	    (*f)->type=PRESENT;
-	    return s-src;
+	    return s-src+1;
 	  }
 	 (*f)->type=SUBSTRING;
 substring:

@@ -51,7 +51,7 @@ size_t fmt_ldapsearchfilter(char* dest,const struct Filter* f) {
     }
     break;
   case PRESENT:
-    return fmt_asn1string(dest,PRIVATE,PRIMITIVE,(enum asn1_tag)f->type,f->ava.desc.s,f->ava.desc.l);
+    sum=fmt_asn1string(dest,PRIVATE,PRIMITIVE,(enum asn1_tag)f->type,f->ava.desc.s,f->ava.desc.l);
     break;
   default: return 0;
   }
@@ -61,6 +61,9 @@ size_t fmt_ldapsearchfilter(char* dest,const struct Filter* f) {
     if (dest) sum+=fmt_ldapsearchfilter(dest+sum,f->next); 
     else sum+=fmt_ldapsearchfilter(dest,f->next);
   }
+
+  if (f->type==PRESENT)
+    return sum;
 
   tmp=fmt_asn1length(0,savesum);
   if (!dest) return sum+tmp+1;
