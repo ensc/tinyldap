@@ -13,3 +13,10 @@ size_t scan_asn1tagint(const char* src,const char* max,unsigned long* val) {
   *val=l;
   return src-orig+1;
 }
+
+#ifdef UNITTEST
+#include <assert.h>
+
+int main() {
+}
+#endif

@@ -1,5 +1,11 @@
 #include "asn1.h"
 
+#ifdef UNITTEST
+#undef UNITTEST
+#include "scan_asn1tagint.c"
+#define UNITTEST
+#endif
+
 size_t scan_asn1tag(const char* src,const char* max,enum asn1_tagclass* tc,enum asn1_tagtype* tt,unsigned long* tag) {
   if (max<=src) return 0;
   *tc=(*src&0xC0);
@@ -15,3 +21,16 @@ size_t scan_asn1tag(const char* src,const char* max,enum asn1_tagclass* tc,enum 
     return 1;
   }
 }
+
+#ifdef UNITTEST
+#include <assert.h>
+#include <string.h>
+
+int main() {
+  enum asn1_tagclass tc;
+  enum asn1_tagtype tt;
+  unsigned long tag;
+  char buf[10];
+  strcpy(buf,"\x01"); assert(scan_asn1tag(buf,buf+10,&tc,&tt,&tag)==1 && tc==UNIVERSAL && tt==PRIMITIVE && tag==BOOLEAN);
+}
+#endif
