@@ -20,6 +20,8 @@ mstorage_t stringtable;
 uint32_t dn, objectClass;
 unsigned long lines;
 
+unsigned long recstart;
+
 /* this is called after each record.
  * If it returns -1, ldif_parse will exit immediately.
  * If it returns 0, ldif_parse will continue parsing and overwrite the
@@ -234,7 +236,21 @@ lookagain:
 //	    write(2,"h",1);
 	    goto nomem;
 	  }
+	if (tmp==(uint32_t)dn && (*l)->dn!=(uint32_t)-1) {
+	  buffer_putm(buffer_2,"\r\n\n",filename,":");
+	  buffer_putulong(buffer_2,recstart+1);
+	  buffer_putsflush(buffer_2,": error: record has two dn entries\n");
+	  exit(1);
+	}
 	addattribute(l,tmp,val);
+
+	if ((*l)->dn==(uint32_t)-1) {
+	  buffer_putm(buffer_2,"\r\n\n",filename,":");
+	  buffer_putulong(buffer_2,recstart+1);
+	  buffer_putsflush(buffer_2,": error: record without dn\n");
+	  exit(1);
+	}
+	recstart=lines;
 
 	m=0;
 	if (ldif_parse_callback) {
@@ -314,6 +330,12 @@ lookagain:
 //	write(2,"l",1);
 	goto nomem;
       }
+    if (tmp==(uint32_t)dn && (*l)->dn!=(uint32_t)-1) {
+      buffer_putm(buffer_2,"\r\n\n",filename,":");
+      buffer_putulong(buffer_2,recstart+1);
+      buffer_putsflush(buffer_2,": error: record has two dn entries\n");
+      exit(1);
+    }
     addattribute(l,tmp,val);
 #endif
   } while (!eof);
