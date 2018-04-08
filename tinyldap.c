@@ -2490,6 +2490,7 @@ static int install_syscall_filter(void) {
     ALLOW_SYSCALL(mmap),
 #endif
     ALLOW_SYSCALL(mremap),
+    ALLOW_SYSCALL(munmap),
 
 #ifdef __NR_socketcall
     ALLOW_SYSCALL(socketcall),
