@@ -149,11 +149,12 @@ nomem:
       char dummy;
       int res;
       /* read line, skipping initial whitespace */
-      for (n=0; (res=buffer_getc(b,&dummy))==1; ) {
+//      for (n=0; (res=buffer_getc(b,&dummy))==1; ) {
+      for (n=0; (res=buffer_GETC(b,&dummy))==1; ) {
 	if (dummy=='\n') { ++lines; break; }
 	if (!n && dummy==':' && base64==0) { base64=1; continue; }
 	if (!n && (dummy==' ' || dummy=='\t')) continue;
-	if (!stralloc_append(&payload,&dummy)) {
+	if (!stralloc_APPEND(&payload,&dummy)) {
 //	  write(2,"c",1);
 	  goto nomem;
 	}
