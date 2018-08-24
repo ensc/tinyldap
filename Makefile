@@ -5,6 +5,9 @@ all: libowfat-warning t1 t2 parse dumpidx idx2ldif addindex bindrequest tinyldap
 tinyldap_standalone tinyldap_debug ldapclient ldapclient_str \
 md5password mysql2ldif acl dumpacls ldapdelete asn1dump tls.a x # t6 # t
 
+pic pie:
+	$(MAKE) all PIC=-fPIC LDFLAGS=-fpie
+
 asn1.a: fmt_asn1intpayload.o fmt_asn1length.o fmt_asn1tag.o \
 fmt_asn1int.o fmt_asn1string.o fmt_asn1transparent.o scan_asn1tag.o \
 scan_asn1length.o scan_asn1int.o scan_asn1string.o scan_asn1INTEGER.o \
@@ -56,6 +59,8 @@ ifeq ($(COVERAGE),1)
 DIET=
 CFLAGS=-pipe -I. -g -fprofile-arcs -ftest-coverage
 endif
+
+CFLAGS+=$(PIC)
 
 ifneq ($(DIET),)
 LIBS+=-llatin1
