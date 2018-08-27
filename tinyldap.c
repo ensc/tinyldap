@@ -882,8 +882,10 @@ static int useindex(struct Filter* f,struct bitfield* b) {
   case EQUAL:
     {
       uint32 ofs;
+      // record_count is in uint32, so x4 */
       for (ofs=indices_offset+record_count*4; ofs<filelen;) {
 	uint32 index_type,next,indexed_attribute;
+	// see FORMAT for explanation
 	index_type=uint32_read(map+ofs);
 	next=uint32_read(map+ofs+4);
 	indexed_attribute=uint32_read(map+ofs+8);
