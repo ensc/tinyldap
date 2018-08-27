@@ -764,7 +764,8 @@ static int useindex(struct Filter* f,struct bitfield* b) {
 	  uint32 hashtab=ofs+16;
 	  uint32 hashval=f->attrflag&1?hash_tolower((unsigned char*)f->ava.value.s,f->ava.value.l):hash((unsigned char*)f->ava.value.s,f->ava.value.l);
 	  uint32 hashofs=uint32_read(map+hashtab+(hashval%hashtabsize)*4);
-	  if (hashofs==0) return 1;
+	  emptyset(b);
+	  if (hashofs==(uint32)-1) return 1;
 	  if (hashofs<ofs)
 	    /* direct hit */
 	    setbit(b,hashofs);

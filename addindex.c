@@ -13,6 +13,8 @@
 #include <ctype.h>
 #include <stdlib.h>
 
+#include <stdio.h>
+
 mstorage_t idx;
 char* map;
 
@@ -275,6 +277,7 @@ int main(int argc,char* argv[]) {
     maxcoll=nmaxcoll=nmincoll=0; mincoll=-1;
     for (; i<maxtabsize; ++i) {
       uint32 j,k,chains;
+      if ((i&1)==0 || (i%3)==0 || (i%5)==0 || (i%7)==0) continue;
       memset(tab,0,i*sizeof(struct htentry));
       for (j=k=chains=0; j<counted; ++j) {
 	uint32 l=y[j].hashcode%i;
@@ -342,11 +345,14 @@ int main(int argc,char* argv[]) {
       uint32_pack(dest+3*4,maxtabsize);		/* hash table size in uint32s */
       x=dest+4*4;
       z=x+maxtabsize*4;
+//      printf("hashtab starts at %lu, has %u entries, ends at %lu\n",x-map,maxtabsize,z-map);
       for (j=0; j<maxtabsize; ++j) {
 	if (tab[j].count==0) {
-	  uint32_pack(x,0);
+//	  printf("tab[%u] = []\n",j);
+	  uint32_pack(x,-1);
 	  x+=4;
 	} else if (tab[j].count==1) {
+//	  printf("tab[%u] = [%u]\n",j,tab[j].x[0]);
 	  uint32_pack(x,tab[j].x[0]);
 	  x+=4;
 	} else if (tab[j].count>1) {
@@ -355,10 +361,13 @@ int main(int argc,char* argv[]) {
 	  x+=4;
 	  uint32_pack(z,tab[j].count);
 	  z+=4;
+//	  printf("tab[%u] = [",j);
 	  for (k=0; k<tab[j].count; ++k) {
+//	    printf("%u%s",tab[j].x[k],k+1<tab[j].count ? "," : "");
 	    uint32_pack(z,tab[j].x[k]);
 	    z+=4;
 	  }
+//	  printf("]\n");
 	}
       }
     }
