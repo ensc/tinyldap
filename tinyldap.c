@@ -1778,8 +1778,8 @@ authfailure:
 	    char outbuf[1024];
 	    int s=100;
 	    int len=fmt_ldapresult(outbuf+s,err,"","","");
-	    int hlen=fmt_ldapmessage(0,messageid,AddResponse,len);
-	    fmt_ldapmessage(outbuf+s-hlen,messageid,AddResponse,len);
+	    int hlen=fmt_ldapmessage(0,messageid,ModifyResponse,len);
+	    fmt_ldapmessage(outbuf+s-hlen,messageid,ModifyResponse,len);
 	    write(out,outbuf+s-hlen,len+hlen);
 	  }
 

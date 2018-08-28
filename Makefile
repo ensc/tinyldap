@@ -29,7 +29,8 @@ scan_ldapmodifyrequest.o scan_ldapaddrequest.o bstrlen.o bstrfirst.o \
 bstrstart.o free_ldapadl.o free_ldappal.o free_ldapsearchfilter.o \
 scan_ldapsearchfilterstring.o free_ldapsearchresultentry.o \
 fmt_ldapsearchfilterstring.o ldap_match_sre.o \
-fmt_ldapdeleterequest.o scan_ldapdeleterequest.o normalize_dn.o
+fmt_ldapdeleterequest.o scan_ldapdeleterequest.o normalize_dn.o \
+fmt_ldapmodifyrequest.o
 
 ldif.a: ldif_parse.o ldap_match_mapped.o
 
