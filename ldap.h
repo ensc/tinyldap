@@ -194,6 +194,7 @@ size_t fmt_ldapava(char* dest,const struct AttributeValueAssertion* a);
 size_t fmt_ldapadl(char* dest,const struct AttributeDescriptionList* adl);
 size_t fmt_ldapavl(char* dest,const struct AttributeDescriptionList* adl);
 size_t fmt_ldapmodifyrequest(char* dest,const struct ModifyRequest* m);
+size_t fmt_ldapaddrequest(char* dest,const struct AddRequest* m);
 size_t fmt_ldapsearchfilterstring(char* dest,const struct Filter* f);
 size_t fmt_ldapdeleterequest(char* dest,const struct string* s);
 size_t fmt_ldapmodifydnrequest(char* dest,const struct ModifyDNRequest* mdr);
