@@ -68,11 +68,12 @@ int main(int argc,char* argv[]) {
   enum { SORTEDTABLE, HASHTABLE } mode;
   size_t filelen;
   char* filename=argv[1];
+  const char* lookfor=argv[2];
   uint32 magic,attribute_count,record_count,indices_offset,size_of_string_table;
   uint32 wanted,casesensitive,dn,objectClass;
-  int ignorecase,fastindex;
+  int ignorecase,fastindex,onlywithpassword;
 
-  ignorecase=fastindex=0;
+  ignorecase=fastindex=onlywithpassword=0;
 
   errmsg_iam("addindex");
   mstorage_init(&idx);
@@ -81,7 +82,8 @@ int main(int argc,char* argv[]) {
     buffer_putsflush(buffer_2,"usage: ./addindex filename attribute [i][f][h]\n"
 		     "if i is present, make index case insensitive.\n"
 		     "if f is present, make index twice as large, but quicker.\n"
-		     "if h is present, make it a hash index (only accelerates direct lookups)\n");
+		     "if h is present, make it a hash index (only accelerates direct lookups)\n"
+		     "if u is present with h, only hash entries with userPassword\n");
     return 1;
   }
 
@@ -90,7 +92,18 @@ int main(int argc,char* argv[]) {
     if (strchr(argv[3],'i')) ignorecase=1;
     if (strchr(argv[3],'f')) fastindex=1;
     if (strchr(argv[3],'h')) mode=HASHTABLE;
+    if (strchr(argv[3],'u')) onlywithpassword=1;
   }
+
+  if (mode!=HASHTABLE && onlywithpassword)
+    die(111,"u only implemented with h\n");
+
+  if (onlywithpassword && strcmp(lookfor,"dn"))
+    die(111,"u only works if attribute is dn\n");
+
+  if (onlywithpassword)
+    lookfor="userPassword";
+
   map=(char*)mmap_read(filename,&filelen);
   if (!map)
     diesys(111,"Could not open \"",filename,"\"");
@@ -112,7 +125,7 @@ int main(int argc,char* argv[]) {
 //      buffer_puts(buffer_1,map+j); buffer_putsflush(buffer_1,"\n");
       if (!strcasecmp(map+j,"dn")) dn=j;
       if (!strcasecmp(map+j,"objectClass")) objectClass=j;
-      if (!strcasecmp(map+j,argv[2])) {
+      if (!strcasecmp(map+j,lookfor)) {
 //	buffer_putsflush(buffer_2,"found attribute!\n");
 	wanted=j; casesensitive=x+attribute_count*4-map;
 	uint32_unpack(map+casesensitive,&j);
@@ -216,7 +229,7 @@ int main(int argc,char* argv[]) {
     uint32 maxcoll,mincoll,cmaxcoll,nmaxcoll,nmincoll,cmincoll;
     uint32 indexsize;
     cmaxcoll=cmincoll=0;	/* shut gcc up */
-    if (wanted==dn)
+    if (wanted==dn && !onlywithpassword)
       counted=record_count;
     else {
       x=map+5*4+size_of_string_table+attribute_count*8;
@@ -259,9 +272,16 @@ int main(int argc,char* argv[]) {
 	for (; j>2; --j) {
 	  uint32_unpack(x,&k);
 	  if (k==wanted) {
-	    y[cur].recnum=i;
-	    y[cur].hashcode=hashmapped(k,ignorecase);
-	    ++cur;
+	    if (onlywithpassword) {
+	      uint32_unpack(x-8,&k);
+	      y[cur].recnum=i;
+	      y[cur].hashcode=hashmapped(k,ignorecase);
+	      ++cur;
+	    } else {
+	      y[cur].recnum=i;
+	      y[cur].hashcode=hashmapped(k,ignorecase);
+	      ++cur;
+	    }
 	  }
 	  x+=8;
 	}
@@ -274,46 +294,48 @@ int main(int argc,char* argv[]) {
     maxtabsize=counted+counted/8;
     tab=malloc(maxtabsize*sizeof(struct htentry));
     if (!tab) die(111,"out of memory");
-    maxcoll=nmaxcoll=nmincoll=0; mincoll=-1;
-    for (; i<maxtabsize; ++i) {
-      uint32 j,k,chains;
-      if ((i&1)==0 || (i%3)==0 || (i%5)==0 || (i%7)==0) continue;
-      memset(tab,0,i*sizeof(struct htentry));
-      for (j=k=chains=0; j<counted; ++j) {
-	uint32 l=y[j].hashcode%i;
-	if (++tab[l].count>1) ++k;
-	if (tab[l].count==2) ++chains;
+    if (maxtabsize > 100) {
+      maxcoll=nmaxcoll=nmincoll=0; mincoll=-1;
+      for (; i<maxtabsize; ++i) {
+	uint32 j,k,chains;
+	if ((i&1)==0 || (i%3)==0 || (i%5)==0 || (i%7)==0) continue;
+	memset(tab,0,i*sizeof(struct htentry));
+	for (j=k=chains=0; j<counted; ++j) {
+	  uint32 l=y[j].hashcode%i;
+	  if (++tab[l].count>1) ++k;
+	  if (tab[l].count==2) ++chains;
+	}
+	if (k>maxcoll) {
+	  nmaxcoll=i;
+	  maxcoll=k;
+	  cmaxcoll=chains;
+	}
+	if (k<mincoll) {
+	  nmincoll=i;
+	  mincoll=k;
+	  cmincoll=chains;
+	}
       }
-      if (k>maxcoll) {
-	nmaxcoll=i;
-	maxcoll=k;
-	cmaxcoll=chains;
-      }
-      if (k<mincoll) {
-	nmincoll=i;
-	mincoll=k;
-	cmincoll=chains;
-      }
+      buffer_puts(buffer_1," done.\nminimum collisions at ");
+      buffer_putulong(buffer_1,nmincoll);
+      buffer_puts(buffer_1,": ");
+      buffer_putulong(buffer_1,mincoll);
+      buffer_puts(buffer_1," (");
+      buffer_putulong(buffer_1,cmincoll);
+      buffer_puts(buffer_1," chains), maximum collisions at ");
+      buffer_putulong(buffer_1,nmaxcoll);
+      buffer_puts(buffer_1,": ");
+      buffer_putulong(buffer_1,maxcoll);
+      buffer_puts(buffer_1," (");
+      buffer_putulong(buffer_1,cmaxcoll);
+      buffer_putsflush(buffer_1," chains).\n");
+      if (!nmincoll)
+	die(111,"can''t happen error: table size zero!?");
+      maxtabsize=nmincoll;
+    } else {
+      buffer_putsflush(buffer_1," done.\n");
     }
-    buffer_putsflush(buffer_1," done.\n");
-    buffer_puts(buffer_1,"minimum collisions at ");
-    buffer_putulong(buffer_1,nmincoll);
-    buffer_puts(buffer_1,": ");
-    buffer_putulong(buffer_1,mincoll);
-    buffer_puts(buffer_1," (");
-    buffer_putulong(buffer_1,cmincoll);
-    buffer_puts(buffer_1," chains), maximum collisions at ");
-    buffer_putulong(buffer_1,nmaxcoll);
-    buffer_puts(buffer_1,": ");
-    buffer_putulong(buffer_1,maxcoll);
-    buffer_puts(buffer_1," (");
-    buffer_putulong(buffer_1,cmaxcoll);
-    buffer_putsflush(buffer_1," chains).\n");
 
-    if (!nmincoll)
-      die(111,"can''t happen error: table size zero!?");
-
-    maxtabsize=nmincoll;
     memset(tab,0,maxtabsize*sizeof(struct htentry));
 
     for (j=0; j<counted; ++j) {
@@ -344,7 +366,10 @@ int main(int argc,char* argv[]) {
       dest=map+filelen;
       uint32_pack(dest,3);			/* index type 3 == hash table */
       uint32_pack(dest+4,filelen+indexsize);	/* offset of next index */
-      uint32_pack(dest+2*4,wanted);		/* indexed attribute */
+      if (onlywithpassword)
+	uint32_pack(dest+2*4,dn);		/* indexed attribute */
+      else
+	uint32_pack(dest+2*4,wanted);		/* indexed attribute */
       uint32_pack(dest+3*4,maxtabsize);		/* hash table size in uint32s */
       x=dest+4*4;
       z=x+maxtabsize*4;
