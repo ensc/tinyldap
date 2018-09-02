@@ -310,6 +310,9 @@ int main(int argc,char* argv[]) {
     buffer_putulong(buffer_1,cmaxcoll);
     buffer_putsflush(buffer_1," chains).\n");
 
+    if (!nmincoll)
+      die(111,"can''t happen error: table size zero!?");
+
     maxtabsize=nmincoll;
     memset(tab,0,maxtabsize*sizeof(struct htentry));
 
@@ -371,6 +374,10 @@ int main(int argc,char* argv[]) {
 	}
       }
     }
+
+    for (j=0; j<maxtabsize; ++j)
+      free(tab[j].x);
+    free(tab);
 
     munmap(map,filelen);
   } else

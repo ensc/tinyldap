@@ -746,10 +746,13 @@ static uint32 hash_tolower(const unsigned char* c,size_t keylen) {
  * matches are verified with ldap_match_mapped, so the index can also
  * be used if it only helps eliminate some of the possible matches (for
  * example an AND query where only one of the involved attributes has an
- * index). */
+ * index). Return 1 is index helped, 0 if not. */
 static int useindex(struct Filter* f,struct bitfield* b) {
   struct Filter* y=f->x;
-  if (!f) return 1;
+  if (!f) {
+    emptyset(b);
+    return 1;
+  }
 
   if (f->type==EQUAL) {		/* prefer a hash index if there is one */
     uint32 ofs;
@@ -842,7 +845,7 @@ static int useindex(struct Filter* f,struct bitfield* b) {
       return 1;
     }
   case SUBSTRING:
-    if (f->substrings->substrtype!=prefix) return 0;
+    if (f->substrings->substrtype!=prefix) { emptyset(b); return 0; }
     {
       uint32 ofs;
       for (ofs=indices_offset+record_count*4; ofs<filelen;) {
@@ -859,8 +862,10 @@ static int useindex(struct Filter* f,struct bitfield* b) {
 	ofs=next;
       }
     }
+    emptyset(b);
     return 0;
   case PRESENT:
+    emptyset(b);
     return 0;
 #if 0
     {
@@ -901,6 +906,7 @@ static int useindex(struct Filter* f,struct bitfield* b) {
     }
     /* fall through */
   default:
+    emptyset(b);
     return 0;
   }
 }
@@ -2459,6 +2465,17 @@ static int install_syscall_filter(void) {
     /* otherwise kill the process */
     BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL),
 
+    /* glibc switched to openat instead of open */
+    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_openat, 0, 8),
+    BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, args[1])),
+    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (uintptr_t)journalfilename, 0, 1),
+    BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW),
+    BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, args[2])),
+    BPF_STMT(BPF_ALU+BPF_AND+BPF_K, O_ACCMODE),
+    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, O_RDONLY, 0, 1),
+    BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW),
+    BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL),
+
     ALLOW_SYSCALL(close),
 
     /* for syslog() */
@@ -2629,7 +2646,7 @@ again:
   }
   handle(0,1);
 #endif
-  return 0;
+  _exit(0);	// glibc does some bizarre shit after main that trip our seccomp jail, like getpid, gettid, prctl
 }
 
 /* vim:tw=90:

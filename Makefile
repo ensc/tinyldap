@@ -211,6 +211,9 @@ privatekey.pem:
 windoze:
 	$(MAKE) DIET= CROSS=i686-mingw32- asn1dump
 
+static-analyzer:
+	/opt/llvm/bin/scan-build --use-cc=/opt/llvm/bin/clang make DIET= -j4
+
 fmt_tls_alert.o: fmt_tls_alert.c tinytls.h asn1.h
 fmt_tls_alert_pkt.o: fmt_tls_alert_pkt.c tinytls.h asn1.h
 fmt_tls_clienthello.o: fmt_tls_clienthello.c tinytls.h asn1.h
