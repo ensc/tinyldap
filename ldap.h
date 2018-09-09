@@ -5,6 +5,7 @@
 #include <inttypes.h>
 #include "asn1.h"
 
+/* return zero if same, otherwise nonzero */
 int matchstring(struct string* s,const char* c);
 int matchcasestring(struct string* s,const char* c);
 int matchprefix(struct string* s,const char* c);

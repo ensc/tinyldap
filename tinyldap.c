@@ -1431,8 +1431,14 @@ static int lookupdn(struct string* dn,size_t* index, struct hashnode** hn) {
       }
       for (; i<=result.last; ++i) {
 	if (isset(&result,i)) {
-	  *index=i;
-	  return 1;
+	  uint32 j;
+	  uint32_unpack(map+indices_offset+4*i,&j);
+	  uint32 k;
+	  uint32_unpack(map+j+8,&k);
+	  if (!matchstring(dn,map+k)) {
+	    *index=i;
+	    return 1;
+	  }
 	}
       }
     }
