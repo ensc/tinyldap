@@ -2624,9 +2624,14 @@ int main(int argc,char* argv[]) {
     char ip[16];
     char* IP=(char*)V6any;
     char* x=getenv("IP");
+    const char* Port=getenv("PORT");
+    unsigned long port=389;
+    if (Port && Port[scan_ulong(Port,&port)])
+      port=389;
+    if (port<1 || port>65535) port=389;
     if (x && !x[scan_ip6(x,ip)])
       IP=ip;
-    if (socket_bind6_reuse(sock,IP,389,0)) {
+    if (socket_bind6_reuse(sock,IP,port,0)) {
       buffer_putsflush(buffer_2,"bind failed!\n");
       exit(1);
     }
