@@ -1844,6 +1844,7 @@ authfailure:
 	    } else
 	      err=insufficientAccessRights;
 
+#ifdef DEBUG
 	    buffer_put(buffer_1,ar.entry.s,ar.entry.l);
 	    buffer_putsflush(buffer_1,"\n");
 	    if (verbose) { /* iterate all attributes */
@@ -1858,6 +1859,7 @@ authfailure:
 		}
 	      }
 	    }
+#endif
 
 	    free_ldapaddrequest(&ar);
 	  } else
