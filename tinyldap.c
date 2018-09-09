@@ -17,6 +17,7 @@
 #ifdef STANDALONE
 #include <libowfat/socket.h>
 #include <libowfat/ip6.h>
+#include <libowfat/scan.h>
 #ifdef __FreeBSD__
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -37,6 +38,11 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+
+#if defined(STANDALONE) || defined(DEBUG)
+#include <sys/types.h>
+#include <pwd.h>
+#endif
 
 #ifdef DEBUG
 #include <sys/poll.h>
@@ -2563,6 +2569,33 @@ int main(int argc,char* argv[]) {
   int sock;
 #endif
 
+#if defined(STANDALONE) || defined(DEBUG)
+  uid_t u=-1;
+  gid_t g=-1;
+  {
+    const char* user=getenv("UID");
+    if (user) {
+      const char* group=getenv("GID");
+      unsigned long ul;
+      if (scan_ulong(user,&ul))
+	u=ul;
+      if (group) {
+	if (scan_ulong(group,&ul))
+	  g=ul;
+      } else {
+	struct passwd* p=getpwuid(u);
+	if (p) g=p->pw_gid;
+      }
+    } else if ((user=getenv("USER"))) {
+      struct passwd *p=getpwnam(user);
+      if (p) {
+	u=p->pw_uid;
+	g=p->pw_gid;
+      }
+    }
+  }
+#endif
+
   errmsg_iam("tinyldap");
 
   signal(SIGPIPE,SIG_IGN);
@@ -2597,6 +2630,11 @@ int main(int argc,char* argv[]) {
       buffer_putsflush(buffer_2,"bind failed!\n");
       exit(1);
     }
+  }
+
+  if (setresgid(g,g,g) || setresuid(u,u,u)) {
+    buffer_putsflush(buffer_2,"setresgid/setresuid failed!\n");
+    exit(1);
   }
   if (socket_listen(sock,32)) {
     buffer_putsflush(buffer_2,"listen failed!\n");
