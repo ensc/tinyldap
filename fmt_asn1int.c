@@ -1,5 +1,8 @@
 #include <asn1.h>
 
+/* Store integer l according to ASN.1 DER rules.
+ * Use fmt_asn1INTEGER for default presents for tag.
+ * Return number of bytes needed. Only write if DEST!=NULL */
 size_t fmt_asn1int(char* dest,enum asn1_tagclass tc,enum asn1_tagtype tt,enum asn1_tag tag,unsigned long l) {
   size_t len,tmp;
   /* first the tag */
