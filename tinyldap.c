@@ -362,13 +362,13 @@ void map_datafile(const char* filename) {
 #if (debug != 0)
 /* debugging support functions, adapted from t2.c */
 static void printava(struct AttributeValueAssertion* a,const char* rel) {
-  buffer_puts(buffer_2,"[");
+  buffer_puts(buffer_2,"(");
   buffer_put(buffer_2,a->desc.s,a->desc.l);
-  buffer_puts(buffer_2," ");
+//  buffer_puts(buffer_2," ");
   buffer_puts(buffer_2,rel);
-  buffer_puts(buffer_2," ");
+//  buffer_puts(buffer_2," ");
   buffer_put(buffer_2,a->value.s,a->value.l);
-  buffer_puts(buffer_2,"]");
+  buffer_puts(buffer_2,")");
 }
 
 static void printal(struct AttributeDescriptionList* a) {
@@ -383,20 +383,20 @@ static void printal(struct AttributeDescriptionList* a) {
 static void printfilter(struct Filter* f) {
   switch (f->type) {
   case AND:
-    buffer_puts(buffer_2,"&(");
+    buffer_puts(buffer_2,"(&");
 mergesub:
     printfilter(f->x);
     buffer_puts(buffer_2,")\n");
     break;
   case OR:
-    buffer_puts(buffer_2,"|(");
+    buffer_puts(buffer_2,"(|");
     goto mergesub;
     break;
   case NOT:
-    buffer_puts(buffer_2,"!(");
+    buffer_puts(buffer_2,"(!");
     goto mergesub;
   case EQUAL:
-    printava(&f->ava,"==");
+    printava(&f->ava,"=");
     break;
   case SUBSTRING:
     {
@@ -424,7 +424,7 @@ mergesub:
     printava(&f->ava,"<=");
     break;
   case PRESENT:
-    printava(&f->ava,"\\exist");
+    printava(&f->ava,"=*");
     break;
   case APPROX:
     printava(&f->ava,"\\approx");
@@ -434,7 +434,7 @@ mergesub:
     break;
   }
   if (f->next) {
-    buffer_puts(buffer_2,",");
+//    buffer_puts(buffer_2,",");
     printfilter(f->next);
   }
   buffer_flush(buffer_2);
@@ -1497,6 +1497,7 @@ void reply_with_index(struct SearchRequest* sr,unsigned long* messageid,int out)
 	}
       }
     }
+    if (i==record_count) break;
   }
 }
 
