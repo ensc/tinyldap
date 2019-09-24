@@ -4,7 +4,7 @@
 /* Store big endian, 7 bits at a time, set high bit in all but last byte */
 /* Return number of bytes needed. Only write if dest!=NULL */
 size_t fmt_asn1tagint(char* dest,unsigned long l) {
-  size_t needed=((sizeof l)*7)/8,i;
+  size_t needed=((sizeof l)*8)/7+1,i;
   for (i=1; i<needed; ++i)
     if (!(l>>(i*7)))
       break;
@@ -28,5 +28,6 @@ int main() {
   assert(fmt_asn1tagint(buf,1)==1 && !memcmp(buf,"\x01",1));
   assert(fmt_asn1tagint(buf,0x7f)==1 && !memcmp(buf,"\x7f",1));
   assert(fmt_asn1tagint(buf,0x80)==2 && !memcmp(buf,"\x81\x00",2));
+  assert(fmt_asn1tagint(buf,0xffffffff)==5 && !memcmp(buf,"\x8f\xff\xff\xff\x7f",5));
 }
 #endif
