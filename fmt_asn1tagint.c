@@ -1,22 +1,27 @@
 #include "asn1.h"
 
+static size_t tagintlen(unsigned long l) {
+  size_t i;
+  size_t needed=((sizeof l)*8)/7+1;
+  for (i=1; i<needed; ++i)
+    if (!(l>>(i*7)))
+      break;
+  return i;
+}
+
 /* Common integer storing method, used in tags >= 0x1f and OIDs */
 /* Store big endian, 7 bits at a time, set high bit in all but last byte */
 /* Return number of bytes needed. Only write if dest!=NULL */
 size_t fmt_asn1tagint(char* dest,unsigned long l) {
-  size_t needed=((sizeof l)*8)/7+1,i;
-  for (i=1; i<needed; ++i)
-    if (!(l>>(i*7)))
-      break;
+  size_t bytes = tagintlen(l);
   if (dest) {
-    size_t j=i;
-    while (j) {
+    size_t i, j=bytes, k=bytes;
+    for (i=0; i<k; ++i) {
       --j;
-      *dest=((l>>(j*7))&0x7f) + (j?0x80:0);
-      ++dest;
+      dest[i]=((l>>(j*7))&0x7f) + (j?0x80:0);
     }
   }
-  return i;
+  return bytes;
 }
 
 #ifdef UNITTEST
@@ -25,6 +30,9 @@ size_t fmt_asn1tagint(char* dest,unsigned long l) {
 
 int main() {
   char buf[10];
+  assert(tagintlen(0xfffffffful)==5);
+  assert(fmt_asn1tagint(buf,0xfffffffful)==5 && !memcmp(buf,"\x8f\xff\xff\xff\x7f",5));
+  if (sizeof(long)==8) assert(fmt_asn1tagint(buf,0xfffffffffffffffful)==10 && !memcmp(buf,"\x81\xff\xff\xff\xff\xff\xff\xff\xff\x7f",10));
   assert(fmt_asn1tagint(buf,1)==1 && !memcmp(buf,"\x01",1));
   assert(fmt_asn1tagint(buf,0x7f)==1 && !memcmp(buf,"\x7f",1));
   assert(fmt_asn1tagint(buf,0x80)==2 && !memcmp(buf,"\x81\x00",2));
