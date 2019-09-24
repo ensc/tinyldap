@@ -36,7 +36,7 @@ int main() {
   assert(scan_asn1tagint(buf,buf+1,&l)==0);		// incomplete input
   memcpy(buf,"\xff\xff\xff\xff\xff\xff\xff\xff\xff\x7f",10);
   assert(scan_asn1tagint(buf,buf+10,&l)==0);		// value not representable
-  memcpy(buf,"\x8f\xff\xff\xff\x7f",9);
+  memcpy(buf,"\x8f\xff\xff\xff\x7f",6);
   assert(scan_asn1tagint(buf,buf+10,&l)==5 && l==0xffffffff);		// largest 32-bit
   memcpy(buf,"\xff\xff\xff\xff\xff\xff\xff\xff\x7f",9);
   if (sizeof(l)==8) {
