@@ -2,10 +2,8 @@
 
 static size_t tagintlen(unsigned long l) {
   size_t i;
-  size_t needed=((sizeof l)*8)/7+1;
-  for (i=1; i<needed; ++i)
-    if (!(l>>(i*7)))
-      break;
+  for (i=1; l>0x7f; ++i)
+    l >>= 7;
   return i;
 }
 
@@ -30,6 +28,9 @@ size_t fmt_asn1tagint(char* dest,unsigned long l) {
 
 int main() {
   char buf[10];
+  assert(tagintlen(0)==1);
+  assert(tagintlen(127)==1);
+  assert(tagintlen(128)==2);
   assert(tagintlen(0xfffffffful)==5);
   assert(fmt_asn1tagint(buf,0xfffffffful)==5 && !memcmp(buf,"\x8f\xff\xff\xff\x7f",5));
   if (sizeof(long)==8) assert(fmt_asn1tagint(buf,0xfffffffffffffffful)==10 && !memcmp(buf,"\x81\xff\xff\xff\xff\xff\xff\xff\xff\x7f",10));
