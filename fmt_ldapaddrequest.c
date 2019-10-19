@@ -28,7 +28,7 @@ size_t fmt_ldapaddrequest(char* dest,const struct AddRequest* a) {
     dest += fmt_ldapstring(dest, &x->AttributeDescription);
     dest += fmt_ldapavl(dest, &x->vals);
   }
-  assert(n + fmt_asn1SEQUENCE(NULL, sum) + sum == (size_t)(dest-orig));
+//  assert(n + fmt_asn1SEQUENCE(NULL, sum) + sum == (size_t)(dest-orig));
   return dest-orig;
 }
 
