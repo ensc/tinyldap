@@ -84,8 +84,9 @@ int main() {
   assert(fmt_asn1sintpayload(NULL, 0x80)==2);
   assert(fmt_asn1sintpayload(NULL, 0x7fffffff)==4);
 
-  buf[5]='!';
+  // buf[4] is still '!'
   assert(fmt_asn1sintpayload(buf,-2147483648)==4 && !memcmp(buf,"\x80\x00\x00\x00!",5));
+  buf[5]='!';
   assert(fmt_asn1sintpayload(buf,0xfffffeff)==5 && !memcmp(buf,"\x00\xff\xff\xfe\xff!",6));
   assert(fmt_asn1sintpayload(NULL, 0xfffffeff)==5);
 }
