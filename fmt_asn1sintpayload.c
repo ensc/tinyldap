@@ -23,7 +23,7 @@ static size_t sintpayloadlen(signed long l) {
 }
 
 size_t fmt_asn1intpayload(char* dest,unsigned long l) {
-  size_t needed=intpayloadlen(l);
+  size_t needed=sintpayloadlen(l);
   if (dest) {
     size_t i,n;
     /* need to store big endian */
