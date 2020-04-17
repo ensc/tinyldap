@@ -1,3 +1,5 @@
+1. What ACLs look like
+
 ACLs are:
 
   acl subject object attributes access;
@@ -15,11 +17,68 @@ Example:
 
   acl (dn=cn=root,o=fefe,c=de) (objectClass=*) * +rwdR
 
+	r	read
+	w	write
+	a	add
+	d	delete
+	R	rename DN
+
+The default is: Anonymous user can read all, write none. 
+The first useful ACL is therefore:
+
+  acl * * userPassword -r;
+
+Authenticating against a DN is always allowed. The above ACL prohibits
+getting the (hopefully encrypted) userPassword field content via LDAP.
 
 
-ACLs can have some redundancy in them, so we want to find filter strings
-in ACLs that are the same, and then only evaluate them once.  So we need
-to write the ACLs to disk like this:
+
+2. How they are evaluated
+
+ACLs are matched in the order they are given.
+The first matching ACL wins.
+
+
+
+3. How to apply them
+
+Put the ACLs in a text file, for example "acls".
+Use parse to convert your ldif into a "data" file, then use addindex to
+add indices as usual, then run acl on the new data file. For example,
+here is a Makefile example:
+
+data: ldif
+	$(TINYLDAP)/parse ldif data.new
+	$(TINYLDAP)/addindex data.new dn hu
+	$(TINYLDAP)/addindex data.new danke if
+	$(TINYLDAP)/addindex data.new ts f
+	$(TINYLDAP)/acl data.new
+	chmod a+r data.new
+	mv -f data.new data
+
+Note how the new data file is only moved over the old one after all
+other operations went through without errors.
+
+
+
+4. Where is the code?
+
+The code to read ACLs in text format, parse them, and put them into the
+binary form understood by tinyldap is in acl.c.
+
+The code that applies the ACLs in tinyldap is in the function called
+"checkacls" in tinyldap.c.
+
+
+5. Implementation notes
+
+ACL filters share the syntax of search filters.
+However, because the ACL syntax is limited we expect filters to be used
+more than ones. That's why acl.c will deduplicate filters and tinyldap
+will make sure to only match a filter once, even if it is referenced in
+multiple ACLs.
+
+The on disk format looks like this:
 
 first the filters:
 

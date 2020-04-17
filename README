@@ -6,9 +6,9 @@ This will be encapsulated some more eventually.
 ldapclient is the client test application.  It connects to localhost,
 makes a BindRequest and dumps the BindResponse in human readable form.
 
-tinyldap is the server test application.  It can understand BindRequest,
-some simple forms of SearchRequest, and it can even answer simple
-queries.
+tinyldap is the server test application.  It understands BindRequest,
+SearchRequest, ModifyRequest, AddRequest, and DelRequest. It does not
+yet support ModifyDNRequest.
 
 tinyldap now supports an external database representation with indexes.
 Use "parse" to create the file "data" from an LDIF file called
@@ -32,13 +32,11 @@ parse will now normalize dn before writing it to the index.  That means
 that the attribute names in dn are lowercased, ';' is converted to ','
 and spaces after ';' or ',' are removed.
 
-tinyldap support authentication.  It does not have any real effect yet,
-as tinyldap does not support ACLs, but it can be used to use LDAP for
-password checking.  To use this, you must add an index for "dn".  Most
-programs check by an attribute called "uid", so you should have that as
-well, and put the password into an attribute called "userPassword".  By
-convention, the attribute "homeDirectory" contains $HOME for that user.
-tinyldap support three kinds of passwords here:
+tinyldap supports authentication.  To use this, you must add an index
+for "dn".  Most programs check by an attribute called "uid", so you
+should have that as well, and put the password into an attribute called
+"userPassword".  By convention, the attribute "homeDirectory" contains
+$HOME for that user.  tinyldap support three kinds of passwords here:
 
   - straight MD5
     I think I took this scheme from OpenLDAP.  It's just the straight
@@ -47,6 +45,9 @@ tinyldap support three kinds of passwords here:
     userPassword: {MD5}CY9rzUYh03PK3k6DJie09g==
     You can use "md5password" (part of the tinyldap distribution) to
     calculate these passwords.
+
+    NOTE: MD5 is insecure and this method uses no salt. If you have a
+    choice, never use it!
 
   - crypt(3)
     This means you can simply copy the password from /etc/shadow.
