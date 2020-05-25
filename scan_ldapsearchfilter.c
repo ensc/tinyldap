@@ -101,6 +101,7 @@ size_t scan_ldapsearchfilter(const char* src,const char* max,struct Filter** f) 
     res+=len;
     break;
   case 9:    /*  extensibleMatch [9] MatchingRuleAssertion } */
+  default:
     goto error;
   }
   return res;

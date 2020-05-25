@@ -235,7 +235,9 @@ stringmain:
 	  if (*fmt=='c') {
 	    if (tc!=PRIVATE || tt!=CONSTRUCTED)
 	      goto error;
-	    *desttag=tag;
+	    *desttag=tag;	// gcc -fanalyzer gives a false positive here.
+	    // if we get here, *fmt was 'c' and we came in via the "case 'c'"
+	    // above which set desttag to something the caller provided.
 	  } else {
 	    if (tc!=UNIVERSAL || tt!=CONSTRUCTED || tag!=(*fmt=='{'?SEQUENCE_OF:SET_OF))
 	      goto error;
