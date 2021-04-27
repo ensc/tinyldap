@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #define _FILE_OFFSET_BITS 64
 #include <unistd.h>
 #include <stdlib.h>
@@ -405,7 +406,8 @@ mergesub:
       buffer_put(buffer_2,f->ava.desc.s,f->ava.desc.l);
       buffer_puts(buffer_2," has ");
       while (s) {
-	if (!first) buffer_puts(buffer_2," and "); first=0;
+	if (!first) buffer_puts(buffer_2," and ");
+	first=0;
 	switch(s->substrtype) {
 	case prefix: buffer_puts(buffer_2,"prefix \""); break;
 	case any: buffer_puts(buffer_2,"substr \""); break;

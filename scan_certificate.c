@@ -1,10 +1,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "asn1.h"
-#include "str.h"
-#include "textcode.h"
-#include "fmt.h"
-#include "byte.h"
+#include "libowfat/str.h"
+#include "libowfat/textcode.h"
+#include "libowfat/fmt.h"
+#include "libowfat/byte.h"
 
 struct x509signature {
   struct string oid;	/* you are not expected to actually decode this */
@@ -362,7 +362,7 @@ size_t scan_certificate(const char* cert, size_t l, struct x509cert* C, char** f
 
 }
 
-#include "mmap.h"
+#include "libowfat/mmap.h"
 #include <stdio.h>
 
 #include "printasn1.c"

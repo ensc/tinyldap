@@ -312,6 +312,7 @@ int marshal(const char* map,size_t filelen,const char* filename) {
   }
 
   F=malloc(sizeof(*F)*(filters+1));
+  if (!F) goto nomem;
 
   filter_offset=filelen+(filters+4)*sizeof(*F);	/* 2 uints for index header, 1 uint filters_count, then filter_count+1 uint32 in F */
 

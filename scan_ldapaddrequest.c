@@ -36,7 +36,7 @@ size_t scan_ldapaddrequest(const char* src,const char* max,struct AddRequest* a)
     } else {
       last=&a->a;
     }
-    last->next=0;
+    byte_zero(last, sizeof(*last));
     if (!(tmp=scan_asn1SEQUENCE(src+res,max,&islen)))
       goto error;
     res+=tmp;

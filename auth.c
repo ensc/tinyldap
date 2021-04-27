@@ -1,4 +1,5 @@
 #define _XOPEN_SOURCE
+#define _DEFAULT_SOURCE
 #include <sys/types.h>
 #ifdef __dietlibc__
 #include <md5.h>
