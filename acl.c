@@ -365,7 +365,9 @@ nomem:
 	    a->attrib[k]=0;
 	    a->attrs[l]=a->attrib+k+1;
 	  }
+#ifndef __dietlibc__
 	assert(l==a->anum);	// this is for the benefit of clang's static analyzer
+#endif
 	for (k=0; k<a->anum; ++k) {
 	  int found=0;
 	  for (j=0; j<attribute_count; ++j) {
