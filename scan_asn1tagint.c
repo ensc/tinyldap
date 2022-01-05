@@ -4,12 +4,15 @@ size_t scan_asn1tagint(const char* src,const char* bounds,unsigned long* val) {
   const char* orig=src;
   unsigned long l=0;
   if (src>=bounds ||				/* empty input */
-      (unsigned char)src[0]==0x80) return 0;	/* catch non-minimal encoding */
+      (unsigned char)src[0]==0x80)
+    return 0;	/* catch non-minimal encoding */
   for (;; ++src) {
     if (src>=bounds ||				/* incomplete input */
-        l>>(sizeof(l)*8-7)) return 0;		/* catch integer overflow */
+        l>>(sizeof(l)*8-7))
+      return 0;		/* catch integer overflow */
     l=l*128+(*src&0x7F);
-    if (!(*src&0x80)) break;
+    if (!(*src&0x80))
+      break;
   }
   *val=l;
   return src-orig+1;
