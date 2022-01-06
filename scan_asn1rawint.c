@@ -46,5 +46,6 @@ int main() {
   assert(scan_asn1rawint(buf, buf+10, 9, &l) == 0);	// value too large, not representable
   memcpy(buf,"\xff\x01\x02\x03\x04\x05\x06\x07\x08\x09",10);
   assert(scan_asn1rawint(buf, buf+10, 10, &l) == 0);	// value too large, not representable
+  assert(scan_asn1rawint(buf, buf+1, 3, &l) == 0);	// buffer too small for length
 }
 #endif
