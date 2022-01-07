@@ -14,13 +14,13 @@ size_t scan_asn1length(const char* src,const char* max,size_t* value) {
     c&=0x7f;
     if (!c)
       return 0;		/* length 0x80 means indefinite length encoding, not supported here */
-    l=(unsigned char)src[1];
-    if (l==0)
-      return 0;		/* not minimally encoded: 0x81 0x00 instead of 0x00 */
     if (c>sizeof(l))
       return 0;		/* too many bytes, does not fit into target integer type */
     if (c+1>len)
       return 0;		/* not enough data in input buffer */
+    l=(unsigned char)src[1];
+    if (l==0)
+      return 0;		/* not minimally encoded: 0x81 0x00 instead of 0x00 */
     for (i=2; i<=c; ++i)
       l=l*256+(unsigned char)src[i];
     if (l<0x7f)
@@ -35,10 +35,39 @@ size_t scan_asn1length(const char* src,const char* max,size_t* value) {
 #ifdef UNITTEST
 #include <assert.h>
 #include <string.h>
+#include <stdlib.h>
+
+#ifdef __linux__
+#include <sys/types.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+
+// This wrapper maps a 64k buffer of memory and makes sure the page
+// after it will cause a segfault when accessed. Then we copy the input
+// data at the end of the 64k. This is to catch out of bounds reads.
+size_t wrapper(const char* src,const char* max,size_t* value) {
+  static char* base;
+  if (!base) {
+    base=mmap(0,64*1024+4*1024,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1,0);
+    assert(base!=MAP_FAILED);
+    mprotect(base+64*1024,4*1024,PROT_NONE);
+  }
+  assert(src<=max && max-src<64*1024);
+  {
+    size_t l = max-src;
+    char* dest=base+64*1024-l;
+    memcpy(dest, src, l);
+    return scan_asn1length(dest, dest+l, value);
+  }
+}
+
+#define scan_asn1length wrapper
+#endif
 
 int main() {
-  char buf[10];
+  char* buf = malloc(0x9000);
   unsigned long l;
+  assert(buf);
   /* empty input */
   assert(scan_asn1length(buf,buf,&l)==0);
   /* regular 1-byte encoding */
