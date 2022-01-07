@@ -29,32 +29,60 @@ size_t scan_asn1tag(const char* src,const char* max,enum asn1_tagclass* tc,enum 
 #include <assert.h>
 #include <string.h>
 
+#include <sys/types.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+
+#ifdef __linux__
+// This wrapper maps a 64k buffer of memory and makes sure the page
+// after it will cause a segfault when accessed. This is to catch
+// scan_asn1tag when it read out of bounds.
+size_t wrapper(const char* src,const char* max,enum asn1_tagclass* tc,enum asn1_tagtype* tt,unsigned long* tag) {
+  static char* base;
+  if (!base) {
+    base=mmap(0,64*1024+4*1024,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1,0);
+    assert(base!=MAP_FAILED);
+    mprotect(base+64*1024,4*1024,PROT_NONE);
+  }
+  if (src<=max) {
+    size_t l = max-src;
+    char* dest=base+64*1024-l;
+    memcpy(dest, src, l);
+    return scan_asn1tag(dest, dest+l, tc, tt, tag);
+  }
+  return scan_asn1tag(src, max, tc, tt, tag);
+}
+
+#define scan_asn1tag wrapper
+#endif
+
 int main() {
   enum asn1_tagclass tc;
   enum asn1_tagtype tt;
   unsigned long tag;
   char buf[15];
+
   assert(scan_asn1tag(buf,buf,&tc,&tt,&tag)==0);	// empty input
-  strcpy(buf,"\x01"); assert(scan_asn1tag(buf,buf+10,&tc,&tt,&tag)==1 && tc==UNIVERSAL && tt==PRIMITIVE && tag==BOOLEAN);
+  strcpy(buf,"\x01"); assert(scan_asn1tag(buf,buf+1,&tc,&tt,&tag)==1 && tc==UNIVERSAL && tt==PRIMITIVE && tag==BOOLEAN);
   /* incomplete input */
   strcpy(buf,"\x1f"); assert(scan_asn1tag(buf,buf+1,&tc,&tt,&tag)==0);
   /* long-form encoding when short-form would have sufficed */
   strcpy(buf,"\x1f\x1e");
-  assert(scan_asn1tag(buf,buf+10,&tc,&tt,&tag)==0);
+  assert(scan_asn1tag(buf,buf+2,&tc,&tt,&tag)==0);
   /* OK */
   strcpy(buf,"\x1f\x1f");
-  assert(scan_asn1tag(buf,buf+10,&tc,&tt,&tag)==2 && tc==UNIVERSAL && tt==PRIMITIVE && tag==0x1f);
+  assert(scan_asn1tag(buf,buf+2,&tc,&tt,&tag)==2 && tc==UNIVERSAL && tt==PRIMITIVE && tag==0x1f);
   /* non-minimal encoding */
   strcpy(buf,"\x1f\x80\x01");
-  assert(scan_asn1tag(buf,buf+10,&tc,&tt,&tag)==0);
+  assert(scan_asn1tag(buf,buf+3,&tc,&tt,&tag)==0);
   /* incomplete encoding */
   assert(scan_asn1tag(buf,buf+2,&tc,&tt,&tag)==0);
   strcpy(buf,"\x1f\x81\x00");
-  assert(scan_asn1tag(buf,buf+10,&tc,&tt,&tag)==3 && tc==UNIVERSAL && tt==PRIMITIVE && tag==0x80);
+  assert(scan_asn1tag(buf,buf+3,&tc,&tt,&tag)==3 && tc==UNIVERSAL && tt==PRIMITIVE && tag==0x80);
   /* value not representable */
   memcpy(buf,"\x1f\xff\xff\xff\xff\xff\xff\xff\xff\xff\x7f",11);
-  assert(scan_asn1tag(buf,buf+12,&tc,&tt,&tag)==0);
+  assert(scan_asn1tag(buf,buf+11,&tc,&tt,&tag)==0);
   memcpy(buf,"\x1f\x8f\xff\xff\xff\x7f",7);
-  assert(scan_asn1tag(buf,buf+10,&tc,&tt,&tag)==6 && tc==UNIVERSAL && tt==PRIMITIVE && tag==0xffffffff);
+  assert(scan_asn1tag(buf,buf+7,&tc,&tt,&tag)==6 && tc==UNIVERSAL && tt==PRIMITIVE && tag==0xffffffff);
 }
 #endif
