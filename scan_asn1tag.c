@@ -29,14 +29,14 @@ size_t scan_asn1tag(const char* src,const char* max,enum asn1_tagclass* tc,enum 
 #include <assert.h>
 #include <string.h>
 
+#ifdef __linux__
 #include <sys/types.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 
-#ifdef __linux__
 // This wrapper maps a 64k buffer of memory and makes sure the page
-// after it will cause a segfault when accessed. This is to catch
-// scan_asn1tag when it read out of bounds.
+// after it will cause a segfault when accessed. Then we copy the input
+// data at the end of the 64k. This is to catch out of bounds reads.
 size_t wrapper(const char* src,const char* max,enum asn1_tagclass* tc,enum asn1_tagtype* tt,unsigned long* tag) {
   static char* base;
   if (!base) {
@@ -44,13 +44,13 @@ size_t wrapper(const char* src,const char* max,enum asn1_tagclass* tc,enum asn1_
     assert(base!=MAP_FAILED);
     mprotect(base+64*1024,4*1024,PROT_NONE);
   }
-  if (src<=max) {
+  assert(src<=max && max-src<64*1024);
+  {
     size_t l = max-src;
     char* dest=base+64*1024-l;
     memcpy(dest, src, l);
     return scan_asn1tag(dest, dest+l, tc, tt, tag);
   }
-  return scan_asn1tag(src, max, tc, tt, tag);
 }
 
 #define scan_asn1tag wrapper

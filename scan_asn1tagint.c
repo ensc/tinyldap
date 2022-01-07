@@ -24,6 +24,33 @@ size_t scan_asn1tagint(const char* src,const char* bounds,unsigned long* val) {
 
 #include <stdio.h>
 
+#ifdef __linux__
+#include <sys/types.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+
+// This wrapper maps a 64k buffer of memory and makes sure the page
+// after it will cause a segfault when accessed. Then we copy the input
+// data at the end of the 64k. This is to catch out of bounds reads.
+size_t wrapper(const char* src,const char* max,unsigned long* val) {
+  static char* base;
+  if (!base) {
+    base=mmap(0,64*1024+4*1024,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS,-1,0);
+    assert(base!=MAP_FAILED);
+    mprotect(base+64*1024,4*1024,PROT_NONE);
+  }
+  assert(src<=max && max-src<64*1024);
+  {
+    size_t l = max-src;
+    char* dest=base+64*1024-l;
+    memcpy(dest, src, l);
+    return scan_asn1tagint(dest, dest+l, val);
+  }
+}
+
+#define scan_asn1tagint wrapper
+#endif
+
 int main() {
   char buf[10];
   unsigned long l;
