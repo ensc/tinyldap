@@ -120,7 +120,7 @@ size_t scan_asn1tag(const char* src,const char* max,
 /* parse ASN.1 length */
 size_t scan_asn1length(const char* src,const char* max,size_t* length);
 
-/* parse ASN.1 integer with tag and length */
+/* helper for scan_asn1INT, scan_asn1ENUMERATED and scan_asn1BOOLEAN */
 size_t scan_asn1int(const char* src,const char* max,
 		    enum asn1_tagclass* tc,enum asn1_tagtype* tt, unsigned long* tag,
 		    long* val);
@@ -142,6 +142,7 @@ size_t scan_asn1INTEGER(const char* src,const char* max,signed long* l);
 size_t scan_asn1ENUMERATED(const char* src,const char* max,unsigned long* l);
 size_t scan_asn1STRING(const char* src,const char* max,const char** s,size_t* l);
 size_t scan_asn1BITSTRING(const char* src,const char* max,const char** s,size_t* l);
+/* note: these only parse the header. src + return value points to first element */
 size_t scan_asn1SEQUENCE(const char* src,const char* max,size_t* len);
 size_t scan_asn1SET(const char* src,const char* max,size_t* len);
 
@@ -151,6 +152,9 @@ size_t scan_asn1SET(const char* src,const char* max,size_t* len);
  * If 0 is returned and arraylen is also 0, there was a parse error */
 size_t scan_asn1oid(const char* src,const char* max,size_t* array,size_t* arraylen);
 /* internal helper, assumes you already read tag and length and max=src+length */
+/* call with *arraylen = sizeof(array)/sizeof(array[0]) */
+/* returns needed array size in *arraylen */
+/* rule of thumb: (number of bytes in input + 1) needed */
 size_t scan_asn1rawoid(const char* src,const char* max,size_t* array,size_t* arraylen);
 
 struct string {
