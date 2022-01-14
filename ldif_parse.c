@@ -178,7 +178,7 @@ lookagain:
 //	  write(2,"d",1);
 	  goto nomem;
 	}
-	goto lookagain;
+	if (!eof) goto lookagain;
       } else if (c=='\n') {
 	struct ldaprec* m;
 
@@ -386,7 +386,7 @@ int ldif_parse(const char* filename,off_t fromofs,struct stat* ss) {
     if (ss) {
       fstat(fd,ss);
       /* the file size may have changed between parserec hitting EOF and
-       * us calling lstat, we we write the current file pointer position
+       * us calling lstat. We'll write the current file pointer position
        * to st_size */
       ss->st_size=lseek(fd,0,SEEK_CUR);
     }
