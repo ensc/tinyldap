@@ -39,6 +39,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <errno.h>
 
 #if defined(STANDALONE) || defined(DEBUG)
 #include <sys/types.h>
@@ -2395,6 +2396,7 @@ static void answerwithjournal(struct SearchRequest* sr,long messageid,int out) {
 # define SECCOMP_MODE_FILTER	2 /* uses user-supplied filter. */
 # define SECCOMP_RET_KILL	0x00000000U /* kill the task immediately */
 # define SECCOMP_RET_TRAP	0x00030000U /* disallow and force a SIGSYS */
+# define SECCOMP_RET_ERRNO	0x00050000U /* returns an errno */
 # define SECCOMP_RET_ALLOW	0x7fff0000U /* allow */
 struct seccomp_data {
     int nr;
@@ -2463,35 +2465,45 @@ static int install_syscall_filter(void) {
 
     /* we need a special case for open.
      * we want open to succeed, but only if it's on the journal */
-    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_open, 0, 8),
-    /* it's open(2).  Load first argument into accumulator (first
-     * argument is filename, second is mode). */
-    BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, args[0])),
-    /* make sure it is journalfilename */
-    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (uintptr_t)journalfilename, 0, 1),
-    /* "return SECCOMP_RET_ALLOW", tell seccomp to allow the syscall */
-    BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW),
-    /* If we get here, it's not journalfilename. The only other file we allow is the data
-     * file, and that is only opened read-only. So check that mode is O_RDONLY */
+    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_open, 0, 10),
+    /* it's open(2). Accept if mode == O_RDONLY or mode has O_APPEND */
+    /* load mode */
     BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, args[1])),
-    /* mode & O_ACCMODE */
+    /* & O_ACCMODE */
     BPF_STMT(BPF_ALU+BPF_AND+BPF_K, O_ACCMODE),
-    /* if (mode & O_ACCMODE) == O_RDONLY goto ALLOW */
-    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, O_RDONLY, 0, 1),
+    /* if (mode & O_ACCMODE) == O_RDONLY */
+    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, O_RDONLY, 5, 0),
+    /* only let write access through with O_APPEND */
+    /* load mode again */
+    BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, args[1])),
+    /* & O_APPEND */
+    BPF_STMT(BPF_ALU+BPF_AND+BPF_K, O_APPEND),
+    /* if (mode & O_APPEND) == O_APPEND */
+    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, O_APPEND, 0, 3),
+    /* load name */
+    BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, args[0])),
+    /* if (name == journalfilename) */
+    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (uintptr_t)journalfilename, 0, 1),
     BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW),
     /* otherwise kill the process */
     BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL),
 
+#ifdef __GLIBC__
     /* glibc switched to openat instead of open */
-    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_openat, 0, 8),
+    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, __NR_openat, 0, 10),
+    BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, args[2])),
+    BPF_STMT(BPF_ALU+BPF_AND+BPF_K, O_ACCMODE),
+    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, O_RDONLY, 5, 0),
+    BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, args[2])),
+    BPF_STMT(BPF_ALU+BPF_AND+BPF_K, O_APPEND),
+    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, O_APPEND, 0, 3),
     BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, args[1])),
     BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (uintptr_t)journalfilename, 0, 1),
     BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW),
-    BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, args[2])),
-    BPF_STMT(BPF_ALU+BPF_AND+BPF_K, O_ACCMODE),
-    BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, O_RDONLY, 0, 1),
-    BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_ALLOW),
     BPF_STMT(BPF_RET+BPF_K, SECCOMP_RET_KILL),
+
+    ALLOW_SYSCALL(newfstatat),
+#endif
 
     ALLOW_SYSCALL(close),
 
