@@ -40,6 +40,8 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <errno.h>
+#include <libowfat/rangecheck.h>
+#include <libowfat/safemult.h>
 
 #if defined(STANDALONE) || defined(DEBUG)
 #include <sys/types.h>
@@ -313,10 +315,17 @@ static struct stat ss_data;
 static struct stat ss_journal;
 
 void map_datafile(const char* filename) {
+  // we fundamentally trust the datafile
+  // in our threat model the datafile has higher integrity than us
+  // we worry about us corrupting the data, not the data corrupting us
   map=mmap_read(datafilename=filename,&filelen);
   stat(datafilename,&ss_data);
   if (!map) {
     buffer_putsflush(buffer_2,"could not open data!\n");
+    exit(1);
+  }
+  if (filelen<4*4) {
+    buffer_putsflush(buffer_2,"data file corrupt!\n");
     exit(1);
   }
   uint32_unpack(map,&magic);
@@ -325,6 +334,21 @@ void map_datafile(const char* filename) {
   uint32_unpack(map+3*4,&indices_offset);
   uint32_unpack(map+4*4,&size_of_string_table);
   record_set_length=(record_count+sizeof(unsigned long)*8-1) / (sizeof(long)*8);
+  
+  {
+    uint32_t v=5*4;
+    uint32_t w;
+    // some sanity checks in case the file is truncated
+    // we implicitly trust the file, there are many other opportunities for it to be
+    // corrupt that we don't check here
+    if (add_of(v,v,size_of_string_table) ||
+	!umult32(attribute_count,8,&w) || add_of(v,v,w) ||
+	!umult32(record_count,4,&w) || add_of(v,v,w) ||
+	v > indices_offset || indices_offset > filelen) {
+      buffer_putsflush(buffer_2,"data file corrupt!\n");
+      exit(1);
+    }
+  }
 
   /* look up "dn" and "objectClass" */
   {
@@ -2623,6 +2647,8 @@ int main(int argc,char* argv[]) {
   install_syscall_filter();
 #endif
 
+  // first opportunity to get exploited by evil input
+  // so do this after installing the seccomp filter
   readjournal();
 
 #if 0
@@ -2712,7 +2738,7 @@ again:
   }
   handle(0,1);
 #endif
-  _exit(0);	// glibc does some bizarre shit after main that trip our seccomp jail, like getpid, gettid, prctl
+  _exit(0);	// glibc does some bizarre shit after main that trips our seccomp jail, like getpid, gettid, prctl
 }
 
 /* vim:tw=90:
