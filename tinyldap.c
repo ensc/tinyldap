@@ -59,6 +59,10 @@
 
 const char journalfilename[]="journal";
 
+int oneshot;	// oneshot can be set via $ONESHOT env var
+int bindreqs;	// if oneshot mode is 1, only allow one BindRequest
+		// TODO: oneshot == 2: allow one anon BindRequest and then one non-anon BindRequest
+
 #define HUGE_SIZE_FOR_SANITY_CHECKS 1024*1024
 
 /* basic operation: the whole data file is mmapped read-only at the beginning and stays there. */
@@ -1584,6 +1588,12 @@ static int handle(int in,int out) {
 	      buffer_putulong(buffer_2,method);
 	      buffer_putsflush(buffer_2,".\n");
 	    }
+	    if (oneshot==1) {
+	      if (bindreqs>0)
+		goto authfailure;
+	      else
+		bindreqs=1;
+	    }
 	    if (name.l) {
 	      struct string password;
 	      size_t idx;
@@ -2636,6 +2646,12 @@ int main(int argc,char* argv[]) {
     }
   }
 #endif
+
+  {
+    const char* os=getenv("ONESHOT");
+    if (os && isdigit(*os))
+      oneshot=*os-'0';
+  }
 
   errmsg_iam("tinyldap");
 
