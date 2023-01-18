@@ -165,8 +165,7 @@ size_t scan_ldapmessage(const char* src,const char* max,
 			unsigned long* messageid,unsigned long* op,
 			size_t* len);
 
-size_t scan_ldapmessage_nolengthcheck(const char* src,const char* max,
-			unsigned long* messageid,unsigned long* op,size_t* len);
+size_t scan_ldapmessage_nolengthcheck(const char* src,const char* max,size_t* len);
 
 size_t scan_ldapbindrequest(const char* src,const char* max,
 			    unsigned long* version,struct string* name,

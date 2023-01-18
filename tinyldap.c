@@ -1589,7 +1589,7 @@ static int handle(int in,int out) {
       /* Maybe the message is larger than the buffer. Attempt to find out how large the
        * buffer should be so we can capture the whole message */
       if (len>0) {
-	res=scan_ldapmessage_nolengthcheck(buf,buf+len,&messageid,&op,&Len);
+	res=scan_ldapmessage_nolengthcheck(buf,buf+len,&Len);
 	if (res) {
 	  /* we could parse the header and have a size. Now check if it is plausible. */
 
