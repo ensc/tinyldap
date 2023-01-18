@@ -15,7 +15,8 @@ scan_asn1STRING.o scan_asn1SEQUENCE.o scan_asn1ENUMERATED.o \
 scan_asn1BOOLEAN.o scan_asn1rawint.o scan_asn1SET.o fmt_asn1sint.o \
 fmt_asn1sintpayload.o scan_asn1oid.o scan_asn1BITSTRING.o \
 scan_asn1tagint.o fmt_asn1tagint.o fmt_asn1OID.o scan_asn1generic.o \
-fmt_asn1generic.o scan_asn1rawoid.o fmt_asn1bitstring.o asn1oid.o
+fmt_asn1generic.o scan_asn1rawoid.o fmt_asn1bitstring.o asn1oid.o \
+scan_asn1SEQUENCE_nolengthcheck.o
 
 ldap.a: scan_ldapmessage.o fmt_ldapmessage.o fmt_ldapbindrequest.o \
 scan_ldapbindrequest.o scan_ldapbindresponse.o scan_ldapresult.o \
@@ -30,7 +31,8 @@ bstrstart.o free_ldapadl.o free_ldappal.o free_ldapsearchfilter.o \
 scan_ldapsearchfilterstring.o free_ldapsearchresultentry.o \
 fmt_ldapsearchfilterstring.o ldap_match_sre.o \
 fmt_ldapdeleterequest.o scan_ldapdeleterequest.o normalize_dn.o \
-fmt_ldapmodifyrequest.o fmt_ldapaddrequest.o
+fmt_ldapmodifyrequest.o fmt_ldapaddrequest.o \
+scan_ldapmessage_nolengthcheck.o
 
 ldif.a: ldif_parse.o ldap_match_mapped.o
 

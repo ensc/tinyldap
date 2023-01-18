@@ -118,7 +118,13 @@ size_t scan_asn1tag(const char* src,const char* max,
 		    enum asn1_tagclass* tc,enum asn1_tagtype* tt, unsigned long* tag);
 
 /* parse ASN.1 length */
+/* only return success if source buffer is large enough to hold length bytes */
 size_t scan_asn1length(const char* src,const char* max,size_t* length);
+
+/* Same but does not check the source buffer is large enough to hold
+ * length bytes. Useful to find out how many more bytes we need to read
+ * from network */
+size_t scan_asn1length_nolengthcheck(const char* src,const char* max, size_t* length);
 
 /* helper for scan_asn1INT, scan_asn1ENUMERATED and scan_asn1BOOLEAN */
 size_t scan_asn1int(const char* src,const char* max,
@@ -144,6 +150,11 @@ size_t scan_asn1STRING(const char* src,const char* max,const char** s,size_t* l)
 size_t scan_asn1BITSTRING(const char* src,const char* max,const char** s,size_t* l);
 /* note: these only parse the header. src + return value points to first element */
 size_t scan_asn1SEQUENCE(const char* src,const char* max,size_t* len);
+/* scan_asn1SEQUENCE will only return success if the header and the
+ * whole contents fit into src..max; this function will only parse the
+ * outer sequence header and return the number of bytes it say it wants.
+ * For finding out how much more data you need to read from the socket. */
+size_t scan_asn1SEQUENCE_nolengthcheck(const char* src,const char* max,size_t* len);
 size_t scan_asn1SET(const char* src,const char* max,size_t* len);
 
 /* scan an ASN.1 OID and put the numbers into array.

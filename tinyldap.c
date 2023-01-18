@@ -73,6 +73,12 @@ uint32 magic,attribute_count,record_count,indices_offset,size_of_string_table;
 		 * basic counts and offsets needed to calculate the positions of
 		 * the data structures in the file. */
 
+static uint32* getrecptr(size_t recno) {
+  if (recno>=record_count) return 0;
+  uint32_t thisrec = uint32_read(map+indices_offset+4*recno);
+  return (uint32*)(map+thisrec);
+}
+
 
 /* We do queries with indexes by evaluating all the filters (subexpressions) that can be
  * answered with an index, and then getting a bit vector, one bit for each record. */
@@ -388,6 +394,7 @@ void map_datafile(const char* filename) {
 */
 
 #define BUFSIZE 8192
+#define MAXBUFSIZE 1024*1024
 
 #if (debug != 0)
 /* debugging support functions, adapted from t2.c */
@@ -1185,7 +1192,7 @@ add_attribute:
     long tmp;
     if (l<=HUGE_SIZE_FOR_SANITY_CHECKS) {
       buf=alloca(l+300); /* you never know ;) */
-      if (verbose) {
+      if (debug) {
 	buffer_puts(buffer_2,"sre len ");
 	buffer_putulong(buffer_2,l);
 	buffer_putsflush(buffer_2,".\n");
@@ -1483,6 +1490,30 @@ static int lookupdn(struct string* dn,size_t* index, struct hashnode** hn) {
   return 0;
 }
 
+/* return fake hashnode for record from data file.
+ * all the internal pointers point into the data file, free on the pointer is sufficient
+ * to clean up everything */
+static struct hashnode* load_record_into_hashnode(size_t recno) {
+  uint32* attr = getrecptr(recno);
+  uint32 attrs;
+  uint32 i;
+  if (!attr) return 0;
+  attrs = uint32_read((const char*)attr);
+  struct hashnode* h = malloc(sizeof(struct hashnode)+attrs*sizeof(struct attribute2));
+  if (!h) return 0;
+  h->next=h->linear=0;
+  h->hashval=0;
+  h->dn=(unsigned char*)map+uint32_read((const char*)&(attr[2]));
+  h->overwrite=1;
+  h->a[0].a=(unsigned char*)"objectClass"; h->a[0].v=(unsigned char*)map+uint32_read((const char*)&(attr[3]));
+  h->n=attrs-1;	// dn is extra
+  for (i=2; i<attrs; ++i) {
+    h->a[i-1].a=(unsigned char*)map+uint32_read((const char*)&(attr[i*2]));
+    h->a[i-1].v=(unsigned char*)map+uint32_read((const char*)&(attr[i*2+1]));
+  }
+  return h;
+}
+
 static void normalize_string_dn(struct string* s) {
   /* OK this is a kludge.  s->s is supposed to be read-only because it points into the
    * buffer where we read it into from the network.
@@ -1545,21 +1576,105 @@ void reply_with_index(struct SearchRequest* sr,unsigned long* messageid,int out)
  */
 static int handle(int in,int out) {
   size_t len;
-  char buf[BUFSIZE];
+  char stackbuf[BUFSIZE];
+  size_t bufsize=BUFSIZE;
+  char* buf=stackbuf;
   for (len=0;;) {
-    int tmp=read(in,buf+len,BUFSIZE-len);
+    int tmp;
     int res;
     unsigned long messageid,op;
     size_t Len;
-    if (tmp==0) {
-      close(in);
-      if (in!=out) close(out); 
-      return 0;
-//      if (BUFSIZE-len) { return 0; }
-    }
-    if (tmp<0) { write(2,"error!\n",7); return 1; }
-    len+=tmp;
     res=scan_ldapmessage(buf,buf+len,&messageid,&op,&Len);
+    if (res==0) {
+      /* Maybe the message is larger than the buffer. Attempt to find out how large the
+       * buffer should be so we can capture the whole message */
+      if (len>0) {
+	res=scan_ldapmessage_nolengthcheck(buf,buf+len,&messageid,&op,&Len);
+	if (res) {
+	  /* we could parse the header and have a size. Now check if it is plausible. */
+
+	  if (debug) {
+	    buffer_puts(buffer_2,"got partial message (");
+	    buffer_putulong(buffer_2,len);
+	    buffer_puts(buffer_2," of ");
+	    buffer_putulong(buffer_2,Len);
+	    buffer_puts(buffer_2," bytes). bufsize is ");
+	    buffer_putulong(buffer_2,bufsize);
+	    buffer_putnlflush(buffer_2);
+	  }
+
+	  if (Len > MAXBUFSIZE-100) 
+  outofmemory:
+	  {
+	    /* Peer wants to send us more than MAXBUFSIZE in a message. Abort. */
+	    char outbuf[1024];
+	    size_t s=100;
+	    int response;
+	    switch (op) {
+	    case SearchRequest: response=SearchResultDone; break;
+	    case ModifyRequest: response=ModifyResponse; break;
+	    case AddRequest: response=AddResponse; break;
+	    case DelRequest: response=DelResponse; break;
+	    case ModifyDNRequest: response=ModifyDNResponse; break;
+	    case CompareRequest: response=CompareResponse; break;
+	    default: response=BindResponse;
+	    }
+	    size_t len=fmt_ldapresult(outbuf+s,sizeLimitExceeded,"","message too large","");
+	    size_t hlen=fmt_ldapmessage(0,messageid,response,len);
+	    fmt_ldapmessage(outbuf+s-hlen,messageid,response,len);
+	    write(out,outbuf+s-hlen,len+hlen);
+	    /* This is an attack. We don't continue talking to attackers. */
+	    /* Also we would have to wastefully read Len bytes here if we wanted to continue. */
+	    exit(3);
+	  }
+	  /* Peer wants to send more than BUFSIZE bytes, but less than MAXBUFSIZE. */
+	  bufsize=Len+100;	// MAXBUFSIZE should be small enough that adding 100 won't overflow
+	  if (bufsize<100) goto outofmemory;
+	  char* newbuf;
+	  if (buf==stackbuf) {
+	    newbuf=malloc(bufsize);
+	    if (newbuf) byte_copy(newbuf,len,stackbuf);
+	  } else
+	    newbuf=realloc(buf,bufsize);
+	  if (!newbuf) {
+	    if (buf!=stackbuf) free(buf);
+	    goto outofmemory;
+	  }
+	  buf=newbuf;
+	  if (debug) {
+	    buffer_puts(buffer_2,"resized. bufsize now ");
+	    buffer_putulong(buffer_2,bufsize);
+	    buffer_putnlflush(buffer_2);
+	  }
+	}
+      }
+      tmp=read(in,buf+len,bufsize-len);
+
+      if (debug) {
+	buffer_puts(buffer_2,"read ");
+	buffer_putlong(buffer_2,tmp);
+	buffer_puts(buffer_2," bytes at ofs ");
+	buffer_putulong(buffer_2,len);
+	buffer_putnlflush(buffer_2);
+      }
+
+      if (tmp==0) {
+	close(in);
+	if (in!=out) close(out); 
+	return 0;
+  //      if (BUFSIZE-len) { return 0; }
+      }
+      if (tmp<0) { write(2,"error!\n",7); return 1; }
+      len+=tmp;
+      if (debug) {
+	buffer_puts(buffer_2,"len now ");
+	buffer_putulong(buffer_2,len);
+	buffer_putnlflush(buffer_2);
+      }
+
+      continue;
+//      res=scan_ldapmessage(buf,buf+len,&messageid,&op,&Len);
+    }
     if (res>0) {
       if (verbose) {
 	buffer_puts(buffer_2,"got message of length ");
@@ -1663,7 +1778,7 @@ authfailure:
 		  size_t hlen=fmt_ldapmessage(0,messageid,BindResponse,len);
 		  fmt_ldapmessage(outbuf+s-hlen,messageid,BindResponse,len);
 		  write(out,outbuf+s-hlen,len+hlen);
-		  continue;
+		  break;
 		}
 	      }
 	    }
@@ -1807,7 +1922,16 @@ authfailure:
 	      if (err==success) {
 #if 1
 		/* 3. apply modifications to record to get new record */
-		if (!applymodreq(hn,&mr,&sre)) {
+		struct hashnode* h;
+		if (hn)
+		  h=hn;
+		else
+		  h=load_record_into_hashnode(idx);
+		if (!h) {
+		  err=operationsError;	// can't happen
+		  goto modreqerror;
+		}
+		if (!applymodreq(h,&mr,&sre)) {
 		  /* 4. write record to journal */
 		  int fd=open(journalfilename,O_WRONLY|O_APPEND|O_CREAT,0600);
 		  if (fd==-1)
@@ -1819,6 +1943,8 @@ authfailure:
 		  }
 		} else
 		  err=operationsError;
+		if (h != hn) free(h);
+modreqerror:
 		free_ldapsearchresultentry(&sre);
 #else
 		err=operationsError;
@@ -1933,7 +2059,7 @@ authfailure:
 	    if (checkacl(0,0,acl_delete,&sre)!=1)
 	      err=insufficientAccessRights;
 	    if (err==success) {
-	      /* 2. check if there already is a record with this dn */
+	      /* 2. check if there is a record with this dn */
 	      struct hashnode* hn;
 	      size_t idx;
 	      switch (lookupdn(&s,&idx,&hn)) {

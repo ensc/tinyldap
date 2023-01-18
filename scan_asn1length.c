@@ -1,7 +1,7 @@
 #include <inttypes.h>
 #include "asn1.h"
 
-size_t scan_asn1length(const char* src,const char* max,size_t* value) {
+size_t scan_asn1length_nolengthcheck(const char* src,const char* max,size_t* value) {
   size_t len=max-src;
   if (len==0 || len>=-(uintptr_t)src) return 0;
   unsigned int i,c=*src;
@@ -26,11 +26,20 @@ size_t scan_asn1length(const char* src,const char* max,size_t* value) {
     if (l<0x7f)
       return 0;		/* not minimally encoded: 0x81 0x70 instead of 0x70 */
   }
-  if (l>len-i)
-    return 0;		/* if the length would not fit into the buffer, return 0 */
   *value=l;
   return i;
 }
+
+size_t scan_asn1length(const char* src,const char* max,size_t* value) {
+  size_t tmp;
+  size_t len=scan_asn1length_nolengthcheck(src,max,&tmp);
+  if (len && (max-src-len >= tmp)) {
+    *value=tmp;
+    return len;
+  }
+  return 0;
+}
+
 
 #ifdef UNITTEST
 #include <assert.h>
