@@ -25,7 +25,8 @@ size_t fmt_asn1intpayload(char* dest,unsigned long l) {
     /* need to store big endian */
     /* n is the number of bits to shift right for the next octet */
     for (i=0, n=(needed-1)*8; i<needed; ++i, n-=8)
-      dest[i]=(l >> n);
+      // shifting by more bits than are in the type is undefined behavior :(
+      dest[i]= (n == sizeof(l)*8) ? 0 : (l >> n);
   }
   return needed;
 }

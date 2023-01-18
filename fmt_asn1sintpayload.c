@@ -22,7 +22,7 @@ static size_t sintpayloadlen(signed long l) {
   return i;
 }
 
-size_t fmt_asn1intpayload(char* dest,unsigned long l) {
+size_t fmt_asn1sintpayload(char* dest,signed long l) {
   size_t needed=sintpayloadlen(l);
   if (dest) {
     size_t i,n;
@@ -68,7 +68,8 @@ int main() {
   assert(sintpayloadlen(0x7f)==1);
   assert(sintpayloadlen(0x80)==2);
   assert(sintpayloadlen(0x80000000)==5);
-  if (sizeof(long)==8) assert(sintpayloadlen(0x8000000000000000ul)==9);
+  if (sizeof(long)==8) assert(sintpayloadlen(0x8000000000000000ul)==8);
+  if (sizeof(long)==8) assert(sintpayloadlen(0x0083456789abcdeful)==8);
 
   char buf[100];
   buf[1]='!';

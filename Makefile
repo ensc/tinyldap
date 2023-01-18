@@ -123,13 +123,6 @@ test/%: test/%.c asn1.a ldap.a
 	$(DIET) $(CC) $(CFLAGS) -o $@ $^ ldap.a asn1.a -lowfat $(LIBS)
 
 .PHONY: clean tar
-clean:
-	rm -f t t[1-9] *.[ao] bindrequest tinyldap ldapclient \
-parse tinyldap_standalone tinyldap_debug ldapclient_str addindex \
-dumpidx idx2ldif md5password ldapdelete dumpacls asn1dump acl \
-mysql2ldif x \
-*.da *.bbg *.bb *.gcov gmon.out *.gcda *.gcno test/bind bind/ebind
-
 tar: clean
 	cd ..; tar cvvf tinyldap.tar.bz2 tinyldap --use=bzip2 --exclude capture --exclude CVS --exclude exp.ldif --exclude polyp* --exclude rfc*
 
@@ -231,3 +224,23 @@ tls_cipherprio.o: tls_cipherprio.c
 tls_connect.o: tls_connect.c tinytls.h asn1.h
 tls_doread.o: tls_doread.c tinytls.h asn1.h
 tls_dowrite.o: tls_dowrite.c tinytls.h asn1.h
+
+WITH_UNITTEST = $(shell grep -l UNITTEST *.c)
+UNITTEST_BIN = $(patsubst %.c, test/%, $(WITH_UNITTEST))
+
+test/%: %.c
+	gcc --coverage -DUNITTEST -o $@ $^ -I.
+	$@
+
+check: $(UNITTEST_BIN)
+	echo done
+
+clean:
+	rm -f t t[1-9] *.[ao] bindrequest tinyldap ldapclient \
+parse tinyldap_standalone tinyldap_debug ldapclient_str addindex \
+dumpidx idx2ldif md5password ldapdelete dumpacls asn1dump acl \
+mysql2ldif x \
+*.da *.bbg *.bb *.gcov gmon.out *.gcda *.gcno test/bind bind/ebind \
+$(UNITTEST_BIN) test/*.gcda test/*.gcno
+
+
