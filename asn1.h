@@ -91,7 +91,7 @@ size_t fmt_asn1bitstring(char* dest,enum asn1_tagclass tc,enum asn1_tagtype tt,
 #define fmt_asn1INTEGER(dest,l) fmt_asn1int(dest,UNIVERSAL,PRIMITIVE,INTEGER,l)
 
 /* write ASN.1 BOOLEAN */
-#define fmt_asn1BOOLEAN(dest,l) fmt_asn1int(dest,UNIVERSAL,PRIMITIVE,BOOLEAN,l)
+#define fmt_asn1BOOLEAN(dest,l) fmt_asn1sint(dest,UNIVERSAL,PRIMITIVE,BOOLEAN,l ? -1 : 0)
 
 /* write ASN.1 ENUMERATED */
 #define fmt_asn1ENUMERATED(dest,l) fmt_asn1int(dest,UNIVERSAL,PRIMITIVE,ENUMERATED,l)
