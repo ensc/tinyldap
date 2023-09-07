@@ -24,7 +24,8 @@ size_t scan_asn1INTEGER(const char* src,const char* max,signed long* val) {
 
 int main() {
   char buf[100];
-  unsigned long l;
+  long l=0;
+  memset(buf,0,sizeof buf);
   strcpy(buf,"\x02\x01\x17");	// 0x02 = UNIVERSAL + CONSTRUCTED + INTEGER, 0x01 = length 1, 0x17 = value
   assert(scan_asn1INTEGER(buf,buf+3,&l)==3 && l==23);
   assert(scan_asn1INTEGER(buf,buf+2,&l)==0);	// not enough input
@@ -44,7 +45,7 @@ int main() {
     strcpy(buf,"\x02\x08\x7f\xff\xff\xff\xff\xff\xff\xff");	// LONG_MAX
     assert(scan_asn1INTEGER(buf,buf+10,&l)==10 && l==0x7ffffffffffffffful);
     memcpy(buf,"\x02\x08\x80\x00\x00\x00\x00\x00\x00\x00",10);	// LONG_MIN
-    assert(scan_asn1INTEGER(buf,buf+10,&l)==10 && l==-0x8000000000000000ul);
+    assert(scan_asn1INTEGER(buf,buf+10,&l)==10 && l==(long)0x8000000000000000);
     strcpy(buf,"\x02\x08\xff\xff\xff\xff\xff\xff\xff\xff");
     assert(scan_asn1INTEGER(buf,buf+10,&l)==0);			// non-minimal encoding of -1
   }

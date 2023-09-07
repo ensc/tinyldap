@@ -62,6 +62,8 @@ int main() {
   unsigned long tag;
   char buf[15];
 
+  memset(buf,0,sizeof buf);
+
   assert(scan_asn1tag(buf,buf,&tc,&tt,&tag)==0);	// empty input
   strcpy(buf,"\x01"); assert(scan_asn1tag(buf,buf+1,&tc,&tt,&tag)==1 && tc==UNIVERSAL && tt==PRIMITIVE && tag==BOOLEAN);
   /* incomplete input */

@@ -28,7 +28,8 @@ size_t scan_asn1BOOLEAN(const char* src,const char* max,int* val) {
 
 int main() {
   char buf[100];
-  int l;
+  int l=0;
+  memset(buf,0,sizeof buf);
   strcpy(buf,"\x01\x01\x00");	// 0x01 = UNIVERSAL + CONSTRUCTED + BOOLEAN, 0x01 = length 1, 0x00 = false
   assert(scan_asn1BOOLEAN(buf,buf+3,&l)==3 && l==0);
   assert(scan_asn1BOOLEAN(buf,buf+2,&l)==0);	// not enough input

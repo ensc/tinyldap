@@ -54,6 +54,7 @@ size_t wrapper(const char* src,const char* max,unsigned long* val) {
 int main() {
   char buf[10];
   unsigned long l;
+  memset(buf,0,sizeof buf); l=0;
   assert(scan_asn1tagint(buf,buf,&l)==0);		// empty input
   strcpy(buf,"\x80\x01");
   assert(scan_asn1tagint(buf,buf+2,&l)==0);		// non-minimal encoding

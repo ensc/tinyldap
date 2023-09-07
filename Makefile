@@ -229,7 +229,7 @@ WITH_UNITTEST = $(shell grep -l UNITTEST *.c)
 UNITTEST_BIN = $(patsubst %.c, test/%, $(WITH_UNITTEST))
 
 test/%: %.c
-	gcc --coverage -DUNITTEST -o $@ $^ -I.
+	$(CC) $(CFLAGS) --coverage -DUNITTEST -o $@ $^ -I. $(LDFLAGS)
 	$@
 
 check: $(UNITTEST_BIN)

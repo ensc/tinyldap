@@ -68,7 +68,8 @@ size_t wrapper(const char* src,const char* max,size_t len,long* l) {
 
 int main() {
   char buf[10];
-  long l;
+  long l=0;
+  memset(buf,0,sizeof buf);
   assert(scan_asn1rawint(buf, buf, 0, &l) == 0);	// no input
   assert(scan_asn1rawint(buf, buf+10, 0, &l) == 0);	// no input
   strcpy(buf,"\x01");

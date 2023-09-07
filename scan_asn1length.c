@@ -73,10 +73,13 @@ size_t wrapper(const char* src,const char* max,size_t* value) {
 #define scan_asn1length wrapper
 #endif
 
+const size_t buflen = 0x9000;
+
 int main() {
-  char* buf = malloc(0x9000);
-  unsigned long l;
+  char* buf = malloc(buflen);
+  unsigned long l=0;
   assert(buf);
+  memset(buf,0,buflen);
   /* empty input */
   assert(scan_asn1length(buf,buf,&l)==0);
   /* regular 1-byte encoding */
