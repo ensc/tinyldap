@@ -62,7 +62,8 @@ struct SearchRequest {
     derefFindingBaseObj=2,
     derefAlways=3
   } derefAliases;
-  unsigned long sizeLimit, timeLimit, typesOnly;
+  unsigned long sizeLimit, timeLimit;
+  int typesOnly;
   struct Filter* filter;
   struct AttributeDescriptionList* attributes;
 };
