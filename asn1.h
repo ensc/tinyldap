@@ -143,7 +143,7 @@ size_t scan_asn1string(const char* src,const char* max,
 
 /* the following expect a specific universal type and return a parse
  * error if the tag does not match that type */
-size_t scan_asn1BOOLEAN(const char* src,const char* max,unsigned long* l);
+size_t scan_asn1BOOLEAN(const char* src,const char* max,int* l);
 size_t scan_asn1INTEGER(const char* src,const char* max,signed long* l);
 size_t scan_asn1ENUMERATED(const char* src,const char* max,unsigned long* l);
 size_t scan_asn1STRING(const char* src,const char* max,const char** s,size_t* l);

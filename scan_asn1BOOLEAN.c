@@ -1,6 +1,6 @@
 #include "asn1.h"
 
-size_t scan_asn1BOOLEAN(const char* src,const char* max,unsigned long* val) {
+size_t scan_asn1BOOLEAN(const char* src,const char* max,int* val) {
   size_t tmp;
   unsigned long tag;
   enum asn1_tagclass tc;
@@ -8,8 +8,8 @@ size_t scan_asn1BOOLEAN(const char* src,const char* max,unsigned long* val) {
   long ltmp;
   if ((tmp=scan_asn1int(src,max,&tc,&tt,&tag,&ltmp)))
     if (tc==UNIVERSAL && tt==PRIMITIVE && tag==BOOLEAN) {
-      if (ltmp!=0 && ltmp!=255) return 0;
-      *val=(unsigned long)ltmp;
+      if (ltmp!=0 && ltmp!=-1) return 0;
+      *val=ltmp;
       return tmp;
     }
   return 0;
@@ -28,12 +28,12 @@ size_t scan_asn1BOOLEAN(const char* src,const char* max,unsigned long* val) {
 
 int main() {
   char buf[100];
-  unsigned long l;
+  int l;
   strcpy(buf,"\x01\x01\x00");	// 0x01 = UNIVERSAL + CONSTRUCTED + BOOLEAN, 0x01 = length 1, 0x00 = false
   assert(scan_asn1BOOLEAN(buf,buf+3,&l)==3 && l==0);
   assert(scan_asn1BOOLEAN(buf,buf+2,&l)==0);	// not enough input
-  buf[2]=1;
-  assert(scan_asn1BOOLEAN(buf,buf+3,&l)==3 && l==1);
+  buf[2]=0xff;
+  assert(scan_asn1BOOLEAN(buf,buf+3,&l)==3 && l==-1);
   buf[2]=2;
   assert(scan_asn1BOOLEAN(buf,buf+3,&l)==0);	// only 0 and 1 are valid values for BOOLEAN
   buf[0]=0x30; buf[2]=1;
