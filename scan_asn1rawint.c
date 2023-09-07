@@ -3,14 +3,15 @@
 size_t scan_asn1rawint(const char* src,const char* max,size_t len,long* l) {
   size_t i;
   long m;
+  const signed char* s = (const signed char*)src;
   if (src>=max || (size_t)(max-src)<len)
     return 0;		// input buffer too small
-  m=(*src>>7);	// -1 if negative, 0 otherwise
+  m=(*s>>7);	// -1 if negative, 0 otherwise
   // look for and reject non-minimal encodings
-  if (len>1 && *src==m) {
+  if (len>1 && *s==m) {
     // we want to catch things like 00 01
     // but a leading 0 byte is needed for 00 a0 because otherwise it would be -96
-    if ((src[1]>>7)==m)
+    if ((s[1]>>7)==m)
       return 0;	// non-minimal encoding
     /* This part is a bit counter intuitive.
        The code used to say this:
@@ -29,7 +30,7 @@ size_t scan_asn1rawint(const char* src,const char* max,size_t len,long* l) {
   if (len>sizeof(m))
     return 0;	// value too large, does not fit
   for (i=0; i<len; ++i) {
-    m=(m<<8)|(unsigned char)src[i];
+    m=(m<<8)|(unsigned char)s[i];
   }
   *l=m;
   return len;
