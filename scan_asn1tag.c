@@ -86,5 +86,6 @@ int main() {
   assert(scan_asn1tag(buf,buf+11,&tc,&tt,&tag)==0);
   memcpy(buf,"\x1f\x8f\xff\xff\xff\x7f",7);
   assert(scan_asn1tag(buf,buf+7,&tc,&tt,&tag)==6 && tc==UNIVERSAL && tt==PRIMITIVE && tag==0xffffffff);
+  return 0;
 }
 #endif

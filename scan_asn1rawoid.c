@@ -70,5 +70,6 @@ int main() {
   retvals=10;
   assert(scan_asn1rawoid(buf,buf+3,retval,&retvals)==3 && retvals==4 && retval[0]==2 && retval[1]==100 && retval[2]==4 && retval[3]==3);
   // we only care for 100% coverage of this file, the others have their own unit tests */
+  return 0;
 }
 #endif

@@ -31,5 +31,6 @@ int main() {
   buf[0]=0x13;	// 0x13 = UNIVERSAL PRIMITIVE PrintableString
   assert(scan_asn1STRING(buf,buf+7,&s,&l)==0);	// scan_asn1string succeeds but line 9 fails
   // we only care for 100% coverage of this file, the others have their own unit tests */
+  return 0;
 }
 #endif

@@ -59,5 +59,6 @@ int main() {
   strcpy(buf,"\x03\x02\x07\x81");	// 0x03 = UNIVERSAL PRIMITIVE BIT_STRING, 0x02 = length 2, 0x07 = unused bits in last octet, 0x81 = invalid
   assert(scan_asn1BITSTRING(buf,buf+4,&s,&l)==0);	// unused bits not 0, return 0 in line 21
   // we only care for 100% coverage of this file, the others have their own unit tests */
+  return 0;
 }
 #endif

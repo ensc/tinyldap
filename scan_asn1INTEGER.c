@@ -49,5 +49,6 @@ int main() {
     strcpy(buf,"\x02\x08\xff\xff\xff\xff\xff\xff\xff\xff");
     assert(scan_asn1INTEGER(buf,buf+10,&l)==0);			// non-minimal encoding of -1
   }
+  return 0;
 }
 #endif

@@ -34,5 +34,6 @@ int main() {
   assert(scan_asn1string(buf,buf,&tc,&tt,&tag,&s,&l)==0);	// not enough input, first return 0
   assert(scan_asn1string(buf,buf+6,&tc,&tt,&tag,&s,&l)==0);	// not enough input, second return 0
   // we only care for 100% coverage of this file, the others have their own unit tests */
+  return 0;
 }
 #endif

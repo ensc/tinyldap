@@ -77,5 +77,6 @@ int main() {
     memcpy(buf,"\x90\x00\x00\x00\x00",9);
     assert(scan_asn1tagint(buf,buf+10,&l)==0);		// too large
   }
+  return 0;
 }
 #endif

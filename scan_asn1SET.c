@@ -37,5 +37,6 @@ int main() {
   buf[0]=0x30;
   assert(scan_asn1SET(buf,buf+3,&l)==0);	// 0x30 = SEQUENCE_OF, third return 0
   // we only care for 100% coverage of this file, the others have their own unit tests */
+  return 0;
 }
 #endif

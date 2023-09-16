@@ -52,5 +52,6 @@ int main() {
   buf[1]=3;
   assert(scan_asn1oid(buf,buf+6,retval,&retvals)==0);	// trigger line 21
   // we only care for 100% coverage of this file, the others have their own unit tests */
+  return 0;
 }
 #endif

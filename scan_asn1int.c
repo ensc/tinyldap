@@ -36,5 +36,6 @@ int main() {
   assert(scan_asn1int(buf,buf+3,&tc,&tt,&tag,&l)==0);	// not enough input, second return 0
   assert(scan_asn1int(buf,buf+4,&tc,&tt,&tag,&l)==0);	// non-minimally encoded raw int, third return
   // we only care for 100% coverage of this file, the others have their own unit tests */
+  return 0;
 }
 #endif

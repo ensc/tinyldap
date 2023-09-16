@@ -93,5 +93,6 @@ int main() {
   assert(scan_asn1rawint(buf, buf+sizeof(long)+1, sizeof(long)+1, &l) == 0);
   memcpy(buf,"\x00\xff\xff\xff\xff\xff\xff\xff\xff",9);
   assert(scan_asn1rawint(buf, buf+sizeof(long)+1, sizeof(long)+1, &l) == 0);
+  return 0;
 }
 #endif
