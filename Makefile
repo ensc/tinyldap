@@ -241,6 +241,6 @@ parse tinyldap_standalone tinyldap_debug ldapclient_str addindex \
 dumpidx idx2ldif md5password ldapdelete dumpacls asn1dump acl \
 mysql2ldif x \
 *.da *.bbg *.bb *.gcov gmon.out *.gcda *.gcno test/bind bind/ebind \
-$(UNITTEST_BIN) test/*.gcda test/*.gcno
+$(UNITTEST_BIN) test/*.gcda test/*.gcno test/*.gcov
 
 
