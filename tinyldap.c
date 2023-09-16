@@ -1774,7 +1774,7 @@ authfailure:
 		{
 		  char outbuf[1024];
 		  size_t s=100;
-		  size_t len=fmt_ldapbindresponse(outbuf+s,inappropriateAuthentication,"","authentication failure","");
+		  size_t len=fmt_ldapbindresponse(outbuf+s,invalidCredentials,"","authentication failure","");
 		  size_t hlen=fmt_ldapmessage(0,messageid,BindResponse,len);
 		  fmt_ldapmessage(outbuf+s-hlen,messageid,BindResponse,len);
 		  write(out,outbuf+s-hlen,len+hlen);
