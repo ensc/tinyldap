@@ -30,7 +30,7 @@ size_t scan_asn1rawint(const char* src,const char* max,size_t len,long* l) {
   if (len>sizeof(m))
     return 0;	// value too large, does not fit
   for (i=0; i<len; ++i) {
-    m=(m<<8)|(unsigned char)s[i];
+    m=((unsigned long)m<<8)|(unsigned char)s[i];
   }
   *l=m;
   return len;
