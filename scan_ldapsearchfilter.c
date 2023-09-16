@@ -1,6 +1,11 @@
 #include "ldap.h"
 #include <stdlib.h>
 
+#ifdef UNITTEST
+void* mycalloc(size_t a,size_t b);
+#define calloc mycalloc
+#endif
+
 /*
         Filter ::= CHOICE {
                 and             [0] SET OF Filter,
@@ -138,14 +143,11 @@ error:
 
 #include <stdio.h>
 
+#undef calloc
 size_t callocfail=(size_t)-1;
-void* calloc(size_t a,size_t b) {
+void* mycalloc(size_t a,size_t b) {
   if (--callocfail==0) return 0;
-  size_t l;
-  assert(__builtin_mul_overflow(a,b,&l)==0);
-  void* x = malloc(l);
-  if (x) memset(x,0,l);
-  return x;
+  return calloc(a,b);
 }
 
 int main() {
