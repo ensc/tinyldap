@@ -114,6 +114,7 @@ int main() {
   assert(scan_asn1length(buf,buf+10,&l)==0);	// length fits, value doesn't
   assert(scan_asn1length(buf,buf+0x8010,&l)==3 && l==0x8000);	// OK
   assert(scan_asn1length(buf,buf+2,&l)==0);	// length doesn't fit
+  free(buf);
   return 0;
 }
 #endif
