@@ -49,10 +49,6 @@ size_t scan_ldapsearchfilter(const char* src,const char* max,struct Filter** f) 
     goto error;
   res+=tmp;
   nmax=src+res+len;
-#if 0
-  if (nmax>max) 	// already caught by scan_asn1length
-    goto error;
-#endif
   if (!(*f=calloc(1,sizeof(struct Filter))))		// fail04
     goto error;
   switch ((*f)->type=tag) {
