@@ -1,5 +1,6 @@
 #include "ldap.h"
 
+/* 100% unit test coverage tested via scan_ldapsearchrequest */
 size_t scan_ldapava(const char* src,const char* max,struct AttributeValueAssertion* ava) {
   size_t res,tmp;
   if (!(res=scan_ldapstring(src,max,&ava->desc)))
