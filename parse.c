@@ -2,7 +2,6 @@
  * ldif_parse.c */
 #define _FILE_OFFSET_BITS 64
 #include <alloca.h>
-#include <inttypes.h>
 #include <unistd.h>
 #include <sys/fcntl.h>
 #include <sys/mman.h>

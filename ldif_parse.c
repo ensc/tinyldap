@@ -5,7 +5,6 @@
 #include <libowfat/open.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <ctype.h>
 #include "mduptab.h"
 #include "mstorage.h"
 #include <libowfat/str.h>
