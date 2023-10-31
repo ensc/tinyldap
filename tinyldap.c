@@ -2877,6 +2877,8 @@ int main(int argc,char* argv[]) {
     exit(1);
   }
   run(sock);
+#elif defined(SYSTEMD)
+  run(0);
 #else
   {
     int one=1;

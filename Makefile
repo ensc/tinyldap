@@ -2,7 +2,7 @@
 #COVERAGE=1
 
 all: libowfat-warning t1 t2 parse dumpidx idx2ldif addindex bindrequest tinyldap \
-tinyldap_standalone tinyldap_debug ldapclient ldapclient_str \
+tinyldap_standalone tinyldap_debug tinyldap_systemd ldapclient ldapclient_str \
 md5password mysql2ldif acl dumpacls ldapdelete asn1dump tls.a x # t6 # t
 
 pic pie:
@@ -96,8 +96,8 @@ t1 parse: ldif.a storage.a
 t2: ldap.a asn1.a
 t3 t4 t5 addindex: storage.a
 t6: storage.a
-tinyldap tinyldap_standalone tinyldap_debug: ldif.a storage.a auth.a
-bindrequest tinyldap tinyldap_standalone tinyldap_debug ldapclient ldapclient_str ldapdelete: ldap.a asn1.a
+tinyldap tinyldap_standalone tinyldap_debug tinyldap_systemd: ldif.a storage.a auth.a
+bindrequest tinyldap tinyldap_standalone tinyldap_debug tinyldap_systemd ldapclient ldapclient_str ldapdelete: ldap.a asn1.a
 idx2ldif: ldap.a
 dumpacls: ldap.a asn1.a
 parse: normalize_dn.o
@@ -108,6 +108,9 @@ asn1dump.o: printasn1.c
 
 tinyldap_standalone: tinyldap.c
 	$(DIET) $(CC) $(CFLAGS) -DSTANDALONE -o $@ $^ $(LDFLAGS) -lowfat $(LIBS)
+
+tinyldap_systemd: tinyldap.c
+	$(DIET) $(CC) $(CFLAGS) -DSYSTEMD -o $@ $^ $(LDFLAGS) -lowfat $(LIBS)
 
 tinyldap_debug: tinyldap.c
 	$(DIET) $(CC) $(CFLAGS) -DSTANDALONE -DDEBUG -o $@ $^ $(LDFLAGS) -lowfat $(LIBS)
@@ -237,7 +240,7 @@ check: $(UNITTEST_BIN)
 
 clean:
 	rm -f t t[1-9] *.[ao] bindrequest tinyldap ldapclient \
-parse tinyldap_standalone tinyldap_debug ldapclient_str addindex \
+parse tinyldap_standalone tinyldap_debug tinyldap_systemd ldapclient_str addindex \
 dumpidx idx2ldif md5password ldapdelete dumpacls asn1dump acl \
 mysql2ldif x \
 *.da *.bbg *.bb *.gcov gmon.out *.gcda *.gcno test/bind bind/ebind \
