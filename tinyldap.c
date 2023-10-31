@@ -2733,6 +2733,52 @@ static int install_syscall_filter(void) {
 }
 #endif
 
+static int run(int sock) {
+  for (;;) {
+    char ip[16];
+    uint16 port;
+    uint32 scope_id;
+    int asock;
+    {
+      int status;
+      while ((status=waitpid(-1,0,WNOHANG))!=0 && status!=(pid_t)-1); /* reap zombies */
+    }
+#ifdef DEBUG
+again:
+#endif
+    asock=socket_accept6(sock,ip,&port,&scope_id);
+    if (asock==-1) {
+      buffer_putsflush(buffer_2,"accept failed!\n");
+      exit(1);
+    }
+    {
+      int one=1;
+      setsockopt(asock,IPPROTO_TCP,TCP_NODELAY,&one,sizeof(one));
+    }
+    update();
+#ifdef DEBUG
+    {
+      struct pollfd p;
+      p.fd=0;
+      p.events=POLLIN;
+      if (poll(&p,1,1)==1) return 0;
+    }
+    handle(asock,asock);
+    goto again;
+//    exit(0);
+#else
+#endif
+    switch (fork()) {
+    case -1: buffer_putsflush(buffer_2,"fork failed!\n"); exit(1);
+    case 0: /* child */
+      handle(asock,asock);
+      exit(0); /* not reached */
+    default:
+      close(asock);
+    }
+  }
+}
+
 /*
                  _
  _ __ ___   __ _(_)_ __
@@ -2830,49 +2876,7 @@ int main(int argc,char* argv[]) {
     buffer_putsflush(buffer_2,"listen failed!\n");
     exit(1);
   }
-  for (;;) {
-    char ip[16];
-    uint16 port;
-    uint32 scope_id;
-    int asock;
-    {
-      int status;
-      while ((status=waitpid(-1,0,WNOHANG))!=0 && status!=(pid_t)-1); /* reap zombies */
-    }
-#ifdef DEBUG
-again:
-#endif
-    asock=socket_accept6(sock,ip,&port,&scope_id);
-    if (asock==-1) {
-      buffer_putsflush(buffer_2,"accept failed!\n");
-      exit(1);
-    }
-    {
-      int one=1;
-      setsockopt(asock,IPPROTO_TCP,TCP_NODELAY,&one,sizeof(one));
-    }
-    update();
-#ifdef DEBUG
-    {
-      struct pollfd p;
-      p.fd=0;
-      p.events=POLLIN;
-      if (poll(&p,1,1)==1) return 0;
-    }
-    handle(asock,asock);
-    goto again;
-//    exit(0);
-#else
-#endif
-    switch (fork()) {
-    case -1: buffer_putsflush(buffer_2,"fork failed!\n"); exit(1);
-    case 0: /* child */
-      handle(asock,asock);
-      exit(0); /* not reached */
-    default:
-      close(asock);
-    }
-  }
+  run(sock);
 #else
   {
     int one=1;
