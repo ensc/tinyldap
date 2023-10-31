@@ -505,6 +505,7 @@ shortwrite:
 int main(int argc,char* argv[]) {
   size_t filelen;
   char* filename=argc>1?argv[1]:"data";
+  char* aclfname=argc>2?argv[2]:"acls";
   const char* map=mmap_read(filename,&filelen);
 
   if (!map) {
@@ -517,7 +518,7 @@ int main(int argc,char* argv[]) {
     return 0;
   }
 
-  if (readacls("acls")==-1) die(1,"readacls failed");
+  if (readacls(aclfname)==-1) die(1,"readacls failed");
 //  acl_offsets(map,filelen);
 
   marshal(map,filelen,filename);
