@@ -1563,6 +1563,17 @@ void reply_with_index(struct SearchRequest* sr,unsigned long* messageid,int out)
   }
 }
 
+static size_t scan_octetstring(const char* src,const char* max,
+			       const char** s,size_t* l)
+{
+  size_t len;
+  if (!(len=scan_asn1length(src,max,l)))
+    return 0;
+
+  *s=src+len;
+  return len+*l;
+}
+
 /* a standard LDAP session looks like this:
  *   1. connect to server
  *   2. send a BindRequest
@@ -1715,7 +1726,18 @@ static int handle(int in,int out) {
 	      struct hashnode* hn;
 	      int err=success;
 
-	      scan_ldapstring(buf+res+tmp,buf+len,&password);
+	      switch (method) {
+	      case 0:
+		scan_octetstring(buf+res+tmp,buf+len, &password.s, &password.l);
+		break;
+	      case 3:
+		scan_ldapstring(buf+res+tmp,buf+len,&password);
+		break;
+	      default:
+		/* TODO: error code should be set to authMethodNotSupported */
+		buffer_puts(buffer_2, "unsupported AuthenticationChoice");
+		goto authfailure;
+	      }
 
 	      normalize_string_dn(&name);
 	      switch (lookupdn(&name,&idx,&hn)) {
