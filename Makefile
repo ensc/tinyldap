@@ -116,14 +116,14 @@ tinyldap_debug: tinyldap.c
 	$(DIET) $(CC) $(CFLAGS) -DSTANDALONE -DDEBUG -o $@ $^ $(LDFLAGS) -lowfat $(LIBS)
 
 acl: acl.c ldap.a asn1.a
-	$(DIET) $(CC) $(CFLAGS) -o acl acl.c -I. ldap.a asn1.a -lowfat $(LIBS)
+	$(DIET) $(CC) $(CFLAGS) -o acl $< -I. ldap.a asn1.a $(LDFLAGS) -lowfat $(LIBS)
 
 .PHONY: test
 test: test/bind test/ebind
 	make -C test
 
 test/%: test/%.c asn1.a ldap.a
-	$(DIET) $(CC) $(CFLAGS) -o $@ $^ ldap.a asn1.a -lowfat $(LIBS)
+	$(DIET) $(CC) $(CFLAGS) -o $@ $^ ldap.a asn1.a $(LDFLAGS) -lowfat $(LIBS)
 
 .PHONY: clean tar
 tar: clean
