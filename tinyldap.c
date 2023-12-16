@@ -39,9 +39,11 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <sys/wait.h>
 #include <errno.h>
 #include <libowfat/rangecheck.h>
 #include <libowfat/safemult.h>
+#include <libowfat/socket.h>
 
 #if defined(STANDALONE) || defined(DEBUG)
 #include <sys/types.h>
@@ -2755,7 +2757,7 @@ static int install_syscall_filter(void) {
 }
 #endif
 
-static int run(int sock) {
+static __attribute__((__unused__)) int run(int sock) {
   for (;;) {
     char ip[16];
     uint16 port;
