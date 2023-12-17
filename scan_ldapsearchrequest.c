@@ -59,8 +59,9 @@ size_t scan_ldapsearchrequest(const char* src,const char* max,
       res+=tmp;
       a=&(*a)->next;
     }
-    return res;
   }
+
+  return res;
 error:
   free_ldapsearchrequest(s);
   return 0;
