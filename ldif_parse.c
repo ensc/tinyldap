@@ -88,6 +88,12 @@ encodebinary:
 static inline int add_normalized(const char* s,long len) {
   char* newdn=alloca(len+1);
   long val;
+
+  /* when adding a string after an empty one, avoid that both result in the
+     same offset */
+  if (len == 0 || *s == '\0')
+    return commit_string_bin("", 0);
+
   if ((val=ldif_addstring_callback(newdn,normalize_dn(newdn,s,len)))<0) return -1;
   return val;
 }
