@@ -50,13 +50,20 @@ size_t scan_ldapsearchrequest(const char* src,const char* max,
 //#define nmax max
     struct AttributeDescriptionList** a=&s->attributes;
     for (;;) {
+      struct string attr_name;
+
       if (src+res==nmax) break;
+      if (!(tmp=scan_ldapstring(src+res,nmax,&attr_name)))	// fail12
+	goto error;
+      res+=tmp;
+
+      if (matchstring(&attr_name, "dn") == 0)
+        continue;
       if (!*a) *a=calloc(1,sizeof(struct AttributeDescriptionList));
       if (!*a)							// fail11
 	goto error;
-      if (!(tmp=scan_ldapstring(src+res,nmax,&(*a)->a)))	// fail12
-	goto error;
-      res+=tmp;
+
+      (*a)->a = attr_name;
       a=&(*a)->next;
     }
   }
