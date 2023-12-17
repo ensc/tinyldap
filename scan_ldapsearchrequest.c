@@ -82,6 +82,9 @@ size_t scan_ldapsearchrequest(const char* src,const char* max,
       if (matchstring(&attr_name, "dn") == 0 ||
           matchstring(&attr_name, "*") == 0)
         continue;
+
+      stripsuffix(&attr_name, ";binary");
+
       if (!*a) *a=calloc(1,sizeof(struct AttributeDescriptionList));
       if (!*a)							// fail11
 	goto error;
