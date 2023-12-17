@@ -117,8 +117,8 @@ int main(int argc,char* argv[]) {
 	buffer_puts(buffer_1,map+indexed_attribute);
       }
       buffer_puts(buffer_1,"\nsize: ");
-      buffer_putulong(buffer_1,(next-ofs)/1024);
-      buffer_puts(buffer_1," KiB\n");
+      buffer_putulong(buffer_1,(next-ofs));
+      buffer_puts(buffer_1," B\n");
       ofs=next;
     }
   }
