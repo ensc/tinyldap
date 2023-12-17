@@ -498,11 +498,6 @@ static int indexable(struct Filter* f) {
   if (!f) return 0;
   switch (f->type) {
   case AND:
-    while (y) {
-      if (indexable(y)) return 1;
-      y=y->next;
-    }
-    return 0;
   case OR:
     while (y) {
       if (!indexable(y)) return 0;
