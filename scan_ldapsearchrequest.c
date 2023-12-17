@@ -7,6 +7,28 @@ void* mycalloc(size_t a,size_t b);
 #define calloc mycalloc
 #endif
 
+static int endswith(struct string const *s, struct string const *sfx) {
+  if (s->l < sfx->l ||
+      memcmp(s->s + s->l - sfx->l, sfx->s, sfx->l) != 0)
+    return 0;
+
+  return 1;
+}
+
+static int stripsuffix(struct string *s, char const *sfx)
+{
+  struct string const	sfx_str = {
+    .s  = sfx,
+    .l  = strlen(sfx),
+  };
+
+  if (!endswith(s, &sfx_str))
+    return 0;
+
+  s->l -= sfx_str.l;
+  return 1;
+}
+
 size_t scan_ldapsearchrequest(const char* src,const char* max,
 			      struct SearchRequest* s) {
   size_t res,tmp;
