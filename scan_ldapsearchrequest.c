@@ -57,7 +57,8 @@ size_t scan_ldapsearchrequest(const char* src,const char* max,
 	goto error;
       res+=tmp;
 
-      if (matchstring(&attr_name, "dn") == 0)
+      if (matchstring(&attr_name, "dn") == 0 ||
+          matchstring(&attr_name, "*") == 0)
         continue;
       if (!*a) *a=calloc(1,sizeof(struct AttributeDescriptionList));
       if (!*a)							// fail11
