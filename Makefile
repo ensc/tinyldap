@@ -1,8 +1,12 @@
 #DEBUG=1
 #COVERAGE=1
 
+USE_MBEDTLS ?=
+
 SERVERS_PLAIN = tinyldap tinyldap_standalone tinyldap_debug tinyldap_systemd
-SERVERS = ${SERVERS_PLAIN}
+SERVERS_TLS = tinyldap-tls_standalone tinyldap-tls_debug tinyldap-tls_systemd
+
+SERVERS = ${SERVERS_PLAIN} $(if ${USE_MBEDTLS},${SERVERS_TLS})
 
 all: libowfat-warning t1 t2 parse dumpidx idx2ldif addindex bindrequest ${SERVERS} \
  ldapclient ldapclient_str \
@@ -74,6 +78,13 @@ else
 LIBS+=-lcrypto -lcrypt
 endif
 
+ifneq (${USE_MBEDTLS},)
+MBEDTLS_CFLAGS =
+MBEDTLS_LIBS = -lmbedtls -lmbedcrypto -lmbedx509
+CFLAGS += ${MBEDTLS_CFLAGS}
+LIBS += ${MBEDTLS_LIBS}
+endif
+
 ifeq ($(CROSS),i686-mingw32-)
 EXE=.exe
 endif
@@ -110,13 +121,15 @@ asn1dump: asn1dump.c printasn1.c asn1.a
 asn1dump.o: printasn1.c
 
 ${SERVERS_PLAIN}: io-plain.o
-tinyldap_standalone: tinyldap.c
+${SERVERS_TLS}: io-mbedtls.o
+
+tinyldap_standalone tinyldap-tls_standalone: tinyldap.c
 	$(DIET) $(CC) $(CFLAGS) -DSTANDALONE -o $@ $^ $(LDFLAGS) -lowfat $(LIBS)
 
-tinyldap_systemd: tinyldap.c
+tinyldap_systemd tinyldap-tls_systemd: tinyldap.c
 	$(DIET) $(CC) $(CFLAGS) -DSYSTEMD -o $@ $^ $(LDFLAGS) -lowfat $(LIBS)
 
-tinyldap_debug: tinyldap.c
+tinyldap_debug tinyldap-tls_debug: tinyldap.c
 	$(DIET) $(CC) $(CFLAGS) -DSTANDALONE -DDEBUG -o $@ $^ $(LDFLAGS) -lowfat $(LIBS)
 
 acl: acl.c ldap.a asn1.a
