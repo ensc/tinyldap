@@ -1591,7 +1591,10 @@ static int handle(int in,int out) {
     int tmp;
     int res;
     unsigned long messageid,op;
+    size_t msg_len;
     size_t Len;
+    res = scan_ldapmessage_nolengthcheck(buf,buf+len,&msg_len);
+    msg_len += res;
     res=scan_ldapmessage(buf,buf+len,&messageid,&op,&Len);
     if (res==0) {
       /* Maybe the message is larger than the buffer. Attempt to find out how large the
@@ -2122,14 +2125,14 @@ modreqerror:
       Len+=res;
 #if 0
       buffer_puts(buffer_2,"byte_copy(buf,");
-      buffer_putulong(buffer_2,len-Len);
+      buffer_putulong(buffer_2,len-msg_len);
       buffer_puts(buffer_2,",buf+");
-      buffer_putulong(buffer_2,Len);
+      buffer_putulong(buffer_2,msg_len);
       buffer_putsflush(buffer_2,");\n");
 #endif
-      if (Len<len) {
-	byte_copy(buf,len-Len,buf+Len);
-	len-=Len;
+      if (msg_len<len) {
+	byte_copy(buf,len-msg_len,buf+msg_len);
+	len-=msg_len;
       } else len=0;
     } else
       exit(2);
