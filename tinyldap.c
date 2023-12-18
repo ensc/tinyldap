@@ -45,6 +45,8 @@
 #include <libowfat/safemult.h>
 #include <libowfat/socket.h>
 
+#include "io.h"
+
 #if defined(STANDALONE) || defined(DEBUG)
 #include <sys/types.h>
 #include <pwd.h>
@@ -1054,19 +1056,19 @@ static int checkacl_hn(struct hashnode* hn,const unsigned char* attr,unsigned lo
 
 static struct hashnode** dn_in_journal(unsigned char* dn);
 
-static void answerwith_hn(struct hashnode* hn,struct SearchRequest* sr,long messageid,int out);
+static void answerwith_hn(struct hashnode* hn,struct SearchRequest* sr,long messageid, struct io_ctx *ctx);
 
 /* this routine is called for each record matched the query.  It basically puts together
  * an answer LDAP message from the record and the list of attributes the other side said
  * it wanted to have. */
-static void answerwith(uint32 ofs,struct SearchRequest* sr,long messageid,int out) {
+static void answerwith(uint32 ofs,struct SearchRequest* sr,long messageid, struct io_ctx *ctx) {
   struct SearchResultEntry sre;
   struct PartialAttributeList** pal=&sre.attributes;
   struct hashnode** hn;
 
   if ((hn=dn_in_journal((unsigned char*)map+uint32_read(map+ofs+8))) && *hn) {
     (*hn)->overwrite=1;
-    answerwith_hn(*hn,sr,messageid,out);
+    answerwith_hn(*hn,sr,messageid,ctx);
     return;
   }
 
@@ -1196,7 +1198,7 @@ add_attribute:
       }
       tmp=fmt_ldapmessage(buf,messageid,SearchResultEntry,l);
       fmt_ldapsearchresultentry(buf+tmp,&sre);
-      write(out,buf,l+tmp);
+      io_ctx_write_all(ctx, buf, l+tmp);
     }
   }
   free_ldappal(sre.attributes);
@@ -1434,7 +1436,7 @@ static int writesretofd(int fd,struct SearchResultEntry* sre) {
  * then writes the answers to out.  Normally in == out, but they are separate here so this
  * can also be called with in=stdin and out=stdout. */
 
-static void answerwithjournal(struct SearchRequest* sr,long messageid,int out);
+static void answerwithjournal(struct SearchRequest* sr,long messageid,struct io_ctx *ctx);
 static struct hashnode** dn_in_journal2(const char* dn,size_t dnlen);
 
 static int lookupdn(struct string* dn,size_t* index, struct hashnode** hn) {
@@ -1522,7 +1524,7 @@ static void normalize_string_dn(struct string* s) {
 
 static void update();
 
-void reply_with_index(struct SearchRequest* sr,unsigned long* messageid,int out) {
+void reply_with_index(struct SearchRequest* sr,unsigned long* messageid, struct io_ctx *ctx) {
   size_t returned=0;
   struct bitfield result;
   size_t i;
@@ -1552,7 +1554,7 @@ void reply_with_index(struct SearchRequest* sr,unsigned long* messageid,int out)
 	if (ldap_match_mapped(j,sr)) {
 	  if (sr->sizeLimit && sr->sizeLimit<++returned)
 	    return;
-	  answerwith(j,sr,*messageid,out);
+	  answerwith(j,sr,*messageid, ctx);
 	}
       }
     }
@@ -1582,7 +1584,7 @@ static size_t scan_octetstring(const char* src,const char* max,
  *   5. close
  * tinyldap does not complain if you don't unbind before hanging up.
  */
-static int handle(int in,int out) {
+static int handle(struct io_ctx *ctx) {
   size_t len;
   char stackbuf[BUFSIZE];
   size_t bufsize=BUFSIZE;
@@ -1633,7 +1635,7 @@ static int handle(int in,int out) {
 	    size_t len=fmt_ldapresult(outbuf+s,sizeLimitExceeded,"","message too large","");
 	    size_t hlen=fmt_ldapmessage(0,messageid,response,len);
 	    fmt_ldapmessage(outbuf+s-hlen,messageid,response,len);
-	    write(out,outbuf+s-hlen,len+hlen);
+	    io_ctx_write_all(ctx, outbuf+s-hlen, len+hlen);
 	    /* This is an attack. We don't continue talking to attackers. */
 	    /* Also we would have to wastefully read Len bytes here if we wanted to continue. */
 	    exit(3);
@@ -1659,7 +1661,7 @@ static int handle(int in,int out) {
 	  }
 	}
       }
-      tmp=read(in,buf+len,bufsize-len);
+      tmp=io_ctx_read(ctx, buf+len, bufsize-len);
 
       if (debug) {
 	buffer_puts(buffer_2,"read ");
@@ -1670,8 +1672,7 @@ static int handle(int in,int out) {
       }
 
       if (tmp==0) {
-	close(in);
-	if (in!=out) close(out); 
+	io_ctx_close(ctx);
 	return 0;
   //      if (BUFSIZE-len) { return 0; }
       }
@@ -1799,7 +1800,7 @@ authfailure:
 		  size_t len=fmt_ldapbindresponse(outbuf+s,invalidCredentials,"","authentication failure","");
 		  size_t hlen=fmt_ldapmessage(0,messageid,BindResponse,len);
 		  fmt_ldapmessage(outbuf+s-hlen,messageid,BindResponse,len);
-		  write(out,outbuf+s-hlen,len+hlen);
+		  io_ctx_write_all(ctx, outbuf+s-hlen, len+hlen);
 		  break;
 		}
 	      }
@@ -1810,7 +1811,7 @@ authfailure:
 	      size_t len=fmt_ldapbindresponse(outbuf+s,0,"","go ahead","");
 	      size_t hlen=fmt_ldapmessage(0,messageid,BindResponse,len);
 	      fmt_ldapmessage(outbuf+s-hlen,messageid,BindResponse,len);
-	      write(out,outbuf+s-hlen,len+hlen);
+	      io_ctx_write_all(ctx, outbuf+s-hlen, len+hlen);
 	    }
 	  }
 	}
@@ -1853,7 +1854,7 @@ authfailure:
 	    fixup(sr.filter);
 	    fixupadl(sr.attributes);
 	    if (indexable(sr.filter)) {
-	      reply_with_index(&sr,&messageid,out);
+	      reply_with_index(&sr,&messageid,ctx);
 	    } else {
 	      const char* x=map+5*4+size_of_string_table+attribute_count*8;
 	      size_t i;
@@ -1866,14 +1867,14 @@ authfailure:
 		if (ldap_match_mapped(x-map,&sr)) {
 		  if (sr.sizeLimit && sr.sizeLimit<++returned)
 		    break;
-		  answerwith(x-map,&sr,messageid,out);
+		  answerwith(x-map,&sr,messageid,ctx);
 		}
 		x+=j*8;
 	      }
 	    }
 
 	    /* now answer with the results from the journal */
-	    answerwithjournal(&sr,messageid,out);
+	    answerwithjournal(&sr,messageid,ctx);
 	    free_ldapsearchrequest(&sr);
 	  } else {
 	    buffer_putsflush(buffer_2,"couldn't parse search request!\n");
@@ -1884,12 +1885,12 @@ authfailure:
 	    size_t l=fmt_ldapsearchresultdone(buf+100,0,"","","");
 	    size_t hlen=fmt_ldapmessage(0,messageid,SearchResultDone,l);
 	    fmt_ldapmessage(buf+100-hlen,messageid,SearchResultDone,l);
-	    write(out,buf+100-hlen,l+hlen);
+	    io_ctx_write_all(ctx, buf+100-hlen, l+hlen);
 	  }
 	}
 	break;
       case UnbindRequest:
-	close(out); if (in!=out) close(in);
+	io_ctx_close(ctx);
 	return 0;
       case ModifyRequest:
 	{
@@ -1984,7 +1985,7 @@ modreqerror:
 	    int len=fmt_ldapresult(outbuf+s,err,"","","");
 	    int hlen=fmt_ldapmessage(0,messageid,ModifyResponse,len);
 	    fmt_ldapmessage(outbuf+s-hlen,messageid,ModifyResponse,len);
-	    write(out,outbuf+s-hlen,len+hlen);
+	    io_ctx_write_all(ctx, outbuf+s-hlen, len+hlen);
 	  }
 
 	  free_ldapmodifyrequest(&mr);
@@ -2057,7 +2058,7 @@ modreqerror:
 	    size_t len=fmt_ldapresult(outbuf+s,err,"","","");
 	    size_t hlen=fmt_ldapmessage(0,messageid,AddResponse,len);
 	    fmt_ldapmessage(outbuf+s-hlen,messageid,AddResponse,len);
-	    write(out,outbuf+s-hlen,len+hlen);
+	    io_ctx_write_all(ctx, outbuf+s-hlen, len+hlen);
 	  }
 	}
 	break;
@@ -2108,7 +2109,7 @@ modreqerror:
 	      size_t len=fmt_ldapresult(outbuf+s,err,"","","");
 	      size_t hlen=fmt_ldapmessage(0,messageid,DelResponse,len);
 	      fmt_ldapmessage(outbuf+s-hlen,messageid,DelResponse,len);
-	      write(out,outbuf+s-hlen,len+hlen);
+	      io_ctx_write_all(ctx, outbuf+s-hlen, len+hlen);
 	    }
 	  }
 	}
@@ -2451,7 +2452,7 @@ static int matchhashnode(struct hashnode* hn,struct SearchRequest* sr) {
   return ldap_matchfilter_hn(hn,sr->filter);
 }
 
-static void answerwith_hn(struct hashnode* hn,struct SearchRequest* sr,long messageid,int out) {
+static void answerwith_hn(struct hashnode* hn,struct SearchRequest* sr,long messageid, struct io_ctx *ctx) {
   struct SearchResultEntry sre;
   struct PartialAttributeList** pal=&sre.attributes;
 
@@ -2548,17 +2549,17 @@ add_attribute:
       }
       tmp=fmt_ldapmessage(buf,messageid,SearchResultEntry,l);
       fmt_ldapsearchresultentry(buf+tmp,&sre);
-      write(out,buf,l+tmp);
+      io_ctx_write_all(ctx, buf, l+tmp);
     }
   }
   free_ldappal(sre.attributes);
 }
 
-static void answerwithjournal(struct SearchRequest* sr,long messageid,int out) {
+static void answerwithjournal(struct SearchRequest* sr,long messageid,struct io_ctx *ctx) {
   struct hashnode* hn=root;
   while (hn) {
     if (!hn->overwrite && matchhashnode(hn,sr))
-      answerwith_hn(hn,sr,messageid,out);
+      answerwith_hn(hn,sr,messageid,ctx);
     hn=hn->linear;
   }
 }
@@ -2757,10 +2758,8 @@ static int install_syscall_filter(void) {
 
 static __attribute__((__unused__)) int run(int sock) {
   for (;;) {
-    char ip[16];
-    uint16 port;
-    uint32 scope_id;
-    int asock;
+    struct io_ctx *io_ctx;
+    int rc;
     {
       int status;
       while ((status=waitpid(-1,0,WNOHANG))!=0 && status!=(pid_t)-1); /* reap zombies */
@@ -2768,24 +2767,23 @@ static __attribute__((__unused__)) int run(int sock) {
 #ifdef DEBUG
 again:
 #endif
-    asock=socket_accept6(sock,ip,&port,&scope_id);
-    if (asock==-1) {
-      buffer_putsflush(buffer_2,"accept failed!\n");
+    io_ctx = io_ctx_new();
+
+    rc = io_ctx_accept(io_ctx, sock);
+    if (rc < 0)
       exit(1);
-    }
-    {
-      int one=1;
-      setsockopt(asock,IPPROTO_TCP,TCP_NODELAY,&one,sizeof(one));
-    }
     update();
 #ifdef DEBUG
     {
       struct pollfd p;
       p.fd=0;
       p.events=POLLIN;
-      if (poll(&p,1,1)==1) return 0;
+      if (poll(&p,1,1)==1) {
+	io_ctx_close(io_ctx);
+	return 0;
+      }
     }
-    handle(asock,asock);
+    handle(io_ctx);
     goto again;
 //    exit(0);
 #else
@@ -2793,10 +2791,10 @@ again:
     switch (fork()) {
     case -1: buffer_putsflush(buffer_2,"fork failed!\n"); exit(1);
     case 0: /* child */
-      handle(asock,asock);
+      handle(io_ctx);
       exit(0); /* not reached */
     default:
-      close(asock);
+      io_ctx_close(io_ctx);
     }
   }
 }
@@ -2904,10 +2902,13 @@ int main(int argc,char* argv[]) {
 #else
   {
     int one=1;
+    struct io_ctx *io_ctx = io_ctx_new_plain(0, 1);
+
     setsockopt(1,IPPROTO_TCP,TCP_NODELAY,&one,sizeof(one));
+    handle(io_ctx);
   }
-  handle(0,1);
 #endif
+  io_ctx_destroy_global();
   _exit(0);	// glibc does some bizarre shit after main that trips our seccomp jail, like getpid, gettid, prctl
 }
 
