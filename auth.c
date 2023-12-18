@@ -32,6 +32,9 @@ int check_password(const char* fromdb,struct string* plaintext) {
     md5[fmt_base64(md5,(char*)digest,16)]=0;
     if (str_equal(md5,fromdb+5))
       return 1;
+  } else if (str_start(fromdb, "{")) {
+    /* unsupported authentication mechanism (e.g. '{SASL}') */
+    return 0;
   }
   if (plaintext->l<100 && ((fromdb[0]=='$' && fromdb[2]=='$' && isdigit(fromdb[1])) || strlen(fromdb)==13)) {
     char* c=alloca(plaintext->l+1);
