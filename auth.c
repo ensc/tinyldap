@@ -36,13 +36,13 @@ int check_password(const char* fromdb,struct string* plaintext) {
     /* unsupported authentication mechanism (e.g. '{SASL}') */
     return 0;
   }
-  if (plaintext->l<100 && ((fromdb[0]=='$' && fromdb[2]=='$' && isdigit(fromdb[1])) || strlen(fromdb)==13)) {
+  else if (plaintext->l<100 && ((fromdb[0]=='$' && fromdb[2]=='$' && isdigit(fromdb[1])) || strlen(fromdb)==13)) {
     char* c=alloca(plaintext->l+1);
     byte_copy(c,plaintext->l,plaintext->s);
     c[plaintext->l]=0;
     if (str_equal(crypt(c,fromdb),fromdb)) return 1;
   }
-  if (plaintext->l == strlen(fromdb) && byte_equal(plaintext->s,plaintext->l,fromdb))
+  else if (plaintext->l == strlen(fromdb) && byte_equal(plaintext->s,plaintext->l,fromdb))
     return 1;
   return 0;
 }
