@@ -7,6 +7,7 @@
 #include <mbedtls/error.h>
 #include <mbedtls/entropy.h>
 #include <mbedtls/net_sockets.h>
+#include <mbedtls/version.h>
 
 #include <libowfat/buffer.h>
 
@@ -70,7 +71,11 @@ static int tls_read_certs(struct tls_config *cfg)
     }
   }
 
+#if MBEDTLS_VERSION_MAJOR < 3
   rc = mbedtls_pk_parse_keyfile(&cfg->pk, tls_key, NULL);
+#else
+  rc = mbedtls_pk_parse_keyfile(&cfg->pk, tls_key, NULL, mbedtls_ctr_drbg_random, &g_tls_drbg);
+#endif
   if (rc < 0) {
     tls_print_error(rc, "failed to parse TINYLDAP_TLS_KEY");
     goto out;
