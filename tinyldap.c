@@ -1589,6 +1589,12 @@ static int handle(struct io_ctx *ctx) {
   char stackbuf[BUFSIZE];
   size_t bufsize=BUFSIZE;
   char* buf=stackbuf;
+  int rc;
+
+  rc = io_ctx_handshake(ctx);
+  if (rc < 0)
+    return rc;
+
   for (len=0;;) {
     int tmp;
     int res;

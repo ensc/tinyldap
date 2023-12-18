@@ -55,6 +55,12 @@ int io_ctx_accept(struct io_ctx *ctx, int sock_fd) {
   return 0;
 }
 
+int io_ctx_handshake(struct io_ctx *_ctx)
+{
+  (void)_ctx;
+  return 0;
+}
+
 int io_ctx_read(struct io_ctx *ctx, void *data, size_t len)
 {
   int l = read(ctx->fd_in, data, len);
