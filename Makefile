@@ -1,8 +1,11 @@
 #DEBUG=1
 #COVERAGE=1
 
-all: libowfat-warning t1 t2 parse dumpidx idx2ldif addindex bindrequest tinyldap \
-tinyldap_standalone tinyldap_debug tinyldap_systemd ldapclient ldapclient_str \
+SERVERS_PLAIN = tinyldap tinyldap_standalone tinyldap_debug tinyldap_systemd
+SERVERS = ${SERVERS_PLAIN}
+
+all: libowfat-warning t1 t2 parse dumpidx idx2ldif addindex bindrequest ${SERVERS} \
+ ldapclient ldapclient_str \
 md5password mysql2ldif acl dumpacls ldapdelete asn1dump tls.a x # t6 # t
 
 pic pie:
@@ -96,8 +99,8 @@ t1 parse: ldif.a storage.a
 t2: ldap.a asn1.a
 t3 t4 t5 addindex: storage.a
 t6: storage.a
-tinyldap tinyldap_standalone tinyldap_debug tinyldap_systemd: ldif.a storage.a auth.a
-bindrequest tinyldap tinyldap_standalone tinyldap_debug tinyldap_systemd ldapclient ldapclient_str ldapdelete: ldap.a asn1.a
+${SERVERS}: ldif.a storage.a auth.a
+${SERVERS} bindrequest ldapclient ldapclient_str ldapdelete: ldap.a asn1.a
 idx2ldif: ldap.a
 dumpacls: ldap.a asn1.a
 parse: normalize_dn.o
@@ -106,6 +109,7 @@ asn1dump: asn1dump.c printasn1.c asn1.a
 
 asn1dump.o: printasn1.c
 
+${SERVERS_PLAIN}: io-plain.o
 tinyldap_standalone: tinyldap.c
 	$(DIET) $(CC) $(CFLAGS) -DSTANDALONE -o $@ $^ $(LDFLAGS) -lowfat $(LIBS)
 
