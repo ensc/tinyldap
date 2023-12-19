@@ -2120,6 +2120,19 @@ modreqerror:
 	  }
 	}
 	break;
+
+      case ExtendedRequest: {
+	int err = protocolError;
+	char outbuf[1024];
+	size_t s=100;
+	size_t len=fmt_ldapresult(outbuf+s,err,"","unsupported operation","");
+	size_t hlen=fmt_ldapmessage(0,messageid,AddResponse,len);
+	fmt_ldapmessage(outbuf+s-hlen,messageid,AddResponse,len);
+	io_ctx_write_all(ctx, outbuf+s-hlen, len+hlen);
+
+	break;
+      }
+
       case ModifyDNRequest:
 	/* TODO */
       default:
