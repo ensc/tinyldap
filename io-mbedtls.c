@@ -1,6 +1,7 @@
 #include "io.h"
 
 #include <sys/random.h>
+#include <sys/socket.h>
 
 #include <mbedtls/ctr_drbg.h>
 #include <mbedtls/debug.h>
@@ -203,12 +204,15 @@ int io_ctx_accept(struct io_ctx *ctx, int sock_fd) {
     .fd = sock_fd
   };
   int rc;
+  int const ONE = 1;
 
   rc = mbedtls_net_accept(&bind_ctx, &ctx->net, NULL, 0, NULL);
   if (rc != 0) {
     tls_print_error(rc, "mbedtls_net_accept() failed");
     return -1;
   }
+
+  setsockopt(ctx->net.fd, SOL_SOCKET, SO_KEEPALIVE, &ONE, sizeof(ONE));
 
   tls_seed_rng(&g_tls_drbg);
 

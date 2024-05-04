@@ -48,6 +48,7 @@ int io_ctx_accept(struct io_ctx *ctx, int sock_fd) {
   }
 
   setsockopt(asock,IPPROTO_TCP,TCP_NODELAY,&one,sizeof(one));
+  setsockopt(asock, SOL_SOCKET, SO_KEEPALIVE, &one, sizeof(one));
 
   ctx->fd_in = asock;
   ctx->fd_out = asock;
